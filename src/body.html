@@ -1,0 +1,17 @@
+<main id="app" aria-live="polite"></main>
+<nav id="tabbar" class="tabbar" aria-label="주요 화면"></nav>
+<script>
+  window.MathJax = {
+    tex: { inlineMath: [['$', '$']], displayMath: [['$$', '$$']] },
+    svg: { fontCache: 'global' },
+    options: { enableMenu: false },
+    startup: {
+      typeset: false,
+      ready: function () {
+        MathJax.startup.defaultReady();
+        MathJax.startup.promise.then(function () { if (window.__haruMathReady) window.__haruMathReady(); });
+      }
+    }
+  };
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js" async></script>

@@ -1,0 +1,11 @@
+{
+  "name": "haru-suritong",
+  "version": "1.0.0",
+  "private": true,
+  "description": "하루 5분 수리통계학: 32일 레슨, 퀴즈, 간격 반복 복습",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "check": "node scripts/check-content.mjs"
+  }
+}

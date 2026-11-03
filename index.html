@@ -1,0 +1,2105 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f3f6f5">
+<title>하루 수리통계</title>
+<meta name="description" content="수리통계학 핵심을 하루 5분씩. 32일 레슨, 확인 퀴즈, 간격 반복 복습 카드.">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<style>
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+[hidden] { display: none !important; }
+img { max-width: 100%; }
+/* Layout: 모눈종이 공책 위의 한 줄 컬럼 + 하단 탭바. 형광펜은 핵심 공식에만. */
+:root {
+  --paper: #f3f6f5;
+  --sheet: #fbfcfc;
+  --grid: rgba(31, 92, 102, 0.07);
+  --ink: #16232a;
+  --muted: #56666e;
+  --rule: #d3dddf;
+  --accent: #1d6670;
+  --accent-ink: #ffffff;
+  --mark: rgba(240, 210, 70, 0.55);
+  --good: #23784a;
+  --good-bg: rgba(35, 120, 74, 0.1);
+  --bad: #b2432c;
+  --bad-bg: rgba(178, 67, 44, 0.09);
+  --shadow: 0 1px 0 rgba(22, 35, 42, 0.04), 0 8px 24px -16px rgba(22, 35, 42, 0.25);
+
+  --font-body: 'IBM Plex Sans KR', 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif;
+  --font-display: 'Gowun Batang', 'Nanum Myeongjo', 'AppleMyungjo', Georgia, serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  --step--1: 0.8125rem;
+  --step-0: 1rem;
+  --step-1: 1.1875rem;
+  --step-2: 1.5rem;
+  --step-3: 2rem;
+  --radius: 10px;
+  --tabbar-h: 64px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f161a;
+    --sheet: #152026;
+    --grid: rgba(120, 190, 200, 0.05);
+    --ink: #e3ebed;
+    --muted: #93a5ac;
+    --rule: #26363e;
+    --accent: #6cc3cb;
+    --accent-ink: #0b1418;
+    --mark: rgba(230, 196, 60, 0.3);
+    --good: #6fcf97;
+    --good-bg: rgba(111, 207, 151, 0.12);
+    --bad: #f08a72;
+    --bad-bg: rgba(240, 138, 114, 0.12);
+    --shadow: 0 1px 0 rgba(0, 0, 0, 0.2), 0 10px 28px -18px rgba(0, 0, 0, 0.7);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0f161a;
+  --sheet: #152026;
+  --grid: rgba(120, 190, 200, 0.05);
+  --ink: #e3ebed;
+  --muted: #93a5ac;
+  --rule: #26363e;
+  --accent: #6cc3cb;
+  --accent-ink: #0b1418;
+  --mark: rgba(230, 196, 60, 0.3);
+  --good: #6fcf97;
+  --good-bg: rgba(111, 207, 151, 0.12);
+  --bad: #f08a72;
+  --bad-bg: rgba(240, 138, 114, 0.12);
+  --shadow: 0 1px 0 rgba(0, 0, 0, 0.2), 0 10px 28px -18px rgba(0, 0, 0, 0.7);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: var(--step-0);
+  line-height: 1.7;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+button, input { font: inherit; color: inherit; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+.wrap {
+  max-width: 640px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px calc(var(--tabbar-h) + 32px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── 공통 조각 ── */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--step--1);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 500;
+}
+.day-tag {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+h1, h2, h3 { margin: 0; text-wrap: balance; line-height: 1.3; }
+h1 { font-size: var(--step-3); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: var(--step-2); font-weight: 700; }
+h3 { font-size: var(--step-1); font-weight: 700; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+
+.sheet {
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.btn {
+  appearance: none;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-radius: 999px;
+  padding: 11px 20px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+  min-height: 44px;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+.btn:active { transform: translateY(1px); }
+.btn[disabled] { opacity: 0.45; cursor: not-allowed; }
+.btn.ghost { background: transparent; color: var(--accent); }
+.btn.quiet { background: transparent; border-color: var(--rule); color: var(--ink); font-weight: 500; }
+.btn.block { width: 100%; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.row.spread { justify-content: space-between; }
+
+/* ── 헤더 ── */
+.masthead { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.brand { display: flex; flex-direction: column; gap: 2px; }
+.brand-name { font-family: var(--font-display); font-size: var(--step-2); font-weight: 700; letter-spacing: -0.01em; }
+.brand-name .theta { color: var(--accent); font-style: italic; }
+.streak {
+  display: flex; align-items: baseline; gap: 6px;
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+}
+.streak b { font-size: var(--step-3); line-height: 1; color: var(--accent); }
+
+/* ── 오늘 카드 ── */
+.today .title { font-size: var(--step-2); }
+.hook {
+  font-family: var(--font-display);
+  font-size: var(--step-1);
+  line-height: 1.6;
+}
+.meta { display: flex; gap: 14px; flex-wrap: wrap; font-size: var(--step--1); color: var(--muted); }
+.done-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: var(--step--1); font-weight: 700;
+  color: var(--good); background: var(--good-bg);
+  padding: 3px 10px; border-radius: 999px; align-self: flex-start;
+}
+
+/* 2주 활동 줄 */
+.strip { display: grid; grid-template-columns: repeat(14, 1fr); gap: 4px; }
+.strip span {
+  aspect-ratio: 1; max-width: 100%; border-radius: 4px;
+  background: var(--paper); border: 1px solid var(--rule);
+}
+.strip span.on { background: var(--accent); border-color: var(--accent); }
+.strip span.today { outline: 2px solid var(--ink); outline-offset: 1px; }
+.strip-legend { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); }
+
+/* 단원 진행 */
+.units { display: flex; flex-direction: column; gap: 10px; }
+.unit-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: baseline; }
+.unit-row .name { font-weight: 500; min-width: 0; }
+.unit-row .count { font-family: var(--font-mono); font-size: var(--step--1); color: var(--muted); font-variant-numeric: tabular-nums; }
+.bar { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--rule); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+
+/* ── 커리큘럼 ── */
+.unit-block { display: flex; flex-direction: column; gap: 8px; }
+.unit-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding-inline: 4px; }
+.lesson-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--sheet); overflow: hidden; }
+.lesson-list li + li { border-top: 1px solid var(--rule); }
+.lesson-link {
+  display: grid; grid-template-columns: 4.2em 1fr auto; gap: 10px; align-items: center;
+  padding: 13px 16px; color: var(--ink); text-decoration: none; min-height: 52px;
+}
+.lesson-link:hover { background: var(--paper); }
+.lesson-link .t { min-width: 0; }
+.state { font-size: var(--step--1); font-weight: 700; white-space: nowrap; }
+.state.done { color: var(--good); }
+.state.next { color: var(--accent); }
+.state.todo { color: var(--muted); font-weight: 400; }
+
+/* ── 레슨 ── */
+.crumbs { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.back { color: var(--muted); text-decoration: none; font-size: var(--step--1); display: inline-flex; align-items: center; gap: 4px; min-height: 44px; }
+.lesson-head { display: flex; flex-direction: column; gap: 10px; }
+.lesson-head .hook {
+  font-size: 1.3rem;
+  padding-left: 14px;
+  border-left: 3px solid var(--accent);
+}
+.prose { display: flex; flex-direction: column; gap: 14px; max-width: 65ch; }
+.prose b { font-weight: 700; }
+.section-label { display: flex; align-items: center; gap: 10px; }
+.section-label::after { content: ""; flex: 1; height: 1px; background: var(--rule); }
+
+.formulas { display: flex; flex-direction: column; gap: 12px; }
+.formula { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.formula .lbl { font-size: var(--step--1); color: var(--muted); font-weight: 500; }
+.formula .tex {
+  overflow-x: auto; overflow-y: hidden;
+  padding: 4px 6px;
+  background: linear-gradient(transparent 18%, var(--mark) 18%, var(--mark) 88%, transparent 88%);
+  background-size: 100% 100%;
+  border-radius: 3px;
+  align-self: flex-start;
+  max-width: 100%;
+}
+.formula .tex mjx-container[display="true"] { margin: 0.35em 0 !important; }
+mjx-container { max-width: 100%; }
+mjx-container[display="true"] { overflow-x: auto; overflow-y: hidden; }
+
+details.example { border: 1px dashed var(--rule); border-radius: var(--radius); padding: 14px 16px; background: var(--paper); }
+details.example summary {
+  cursor: pointer; font-weight: 700; color: var(--accent);
+  list-style: none; display: flex; align-items: center; gap: 6px; min-height: 32px;
+}
+details.example summary::-webkit-details-marker { display: none; }
+details.example summary::before { content: "▸"; transition: transform 0.15s ease; display: inline-block; }
+details.example[open] summary::before { transform: rotate(90deg); }
+details.example .sol { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--rule); }
+
+.pitfall { background: var(--bad-bg); border-radius: var(--radius); padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+.pitfall .eyebrow { color: var(--bad); }
+
+/* 퀴즈 */
+.quiz { display: flex; flex-direction: column; gap: 22px; }
+.q { display: flex; flex-direction: column; gap: 10px; }
+.q-text { font-weight: 500; }
+.q-num { font-family: var(--font-mono); color: var(--accent); margin-right: 6px; }
+.choices { display: flex; flex-direction: column; gap: 8px; }
+.choice {
+  appearance: none; text-align: left; cursor: pointer;
+  border: 1px solid var(--rule); background: var(--sheet);
+  border-radius: 8px; padding: 10px 14px; min-height: 46px;
+  display: flex; align-items: center; gap: 10px;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+.choice:hover:not([disabled]) { border-color: var(--accent); }
+.choice .key { font-family: var(--font-mono); font-size: var(--step--1); color: var(--muted); flex: none; width: 1.2em; }
+.choice[disabled] { cursor: default; }
+.choice.correct { border-color: var(--good); background: var(--good-bg); }
+.choice.wrong { border-color: var(--bad); background: var(--bad-bg); }
+.why { font-size: 0.95rem; padding: 10px 14px; border-radius: 8px; background: var(--paper); border: 1px solid var(--rule); }
+.why .verdict { font-weight: 700; margin-right: 6px; }
+.why .verdict.ok { color: var(--good); }
+.why .verdict.no { color: var(--bad); }
+
+.summary-line {
+  font-family: var(--font-display); font-size: var(--step-1);
+  text-align: left; line-height: 1.6;
+}
+.complete-box { display: flex; flex-direction: column; gap: 12px; }
+.pager { display: flex; justify-content: space-between; gap: 10px; }
+.pager a { flex: 1; min-width: 0; }
+.pager a:last-child { text-align: right; }
+.pager small { display: block; color: var(--muted); font-size: var(--step--1); }
+
+/* ── 위젯 ── */
+.widget { display: flex; flex-direction: column; gap: 12px; }
+.widget canvas { width: 100%; height: 200px; display: block; border-radius: 6px; background: var(--paper); border: 1px solid var(--rule); }
+.controls { display: grid; grid-template-columns: auto 1fr auto; gap: 8px 12px; align-items: center; font-size: var(--step--1); }
+.controls input[type="range"] { width: 100%; accent-color: var(--accent); }
+.controls output { font-family: var(--font-mono); font-variant-numeric: tabular-nums; min-width: 3.5em; text-align: right; }
+.seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg button {
+  border: 1px solid var(--rule); background: var(--sheet); border-radius: 999px;
+  padding: 6px 14px; cursor: pointer; font-size: var(--step--1); min-height: 36px;
+}
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.readout { font-family: var(--font-mono); font-size: var(--step--1); color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* ── 복습 ── */
+.flash { min-height: 220px; justify-content: space-between; }
+.flash .front { font-size: var(--step-1); font-weight: 700; }
+.flash .back-side { border-top: 1px dashed var(--rule); padding-top: 14px; font-size: 1.05rem; }
+.flash-meta { display: flex; justify-content: space-between; font-size: var(--step--1); color: var(--muted); }
+.grade { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.progress-dots { display: flex; gap: 4px; flex-wrap: wrap; }
+.progress-dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--rule); }
+.progress-dots i.on { background: var(--accent); }
+
+.empty { text-align: left; display: flex; flex-direction: column; gap: 10px; }
+
+/* ── 하단 탭바 ── */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+  background: var(--sheet);
+  border-top: 1px solid var(--rule);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: max(8px, env(safe-area-inset-left, 0px));
+  padding-right: max(8px, env(safe-area-inset-right, 0px));
+}
+.tabbar-inner { max-width: 640px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); height: var(--tabbar-h); }
+.tab {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  color: var(--muted); text-decoration: none; font-size: 0.75rem; font-weight: 500; position: relative;
+}
+.tab .glyph { font-family: var(--font-display); font-size: 1.25rem; line-height: 1; }
+.tab[aria-current="page"] { color: var(--accent); }
+.tab .badge {
+  position: absolute; top: 8px; left: calc(50% + 10px);
+  background: var(--bad); color: #fff; font-family: var(--font-mono); font-size: 0.6875rem;
+  min-width: 18px; height: 18px; border-radius: 9px; padding: 0 5px;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+
+.toast {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: calc(var(--tabbar-h) + 16px + env(safe-area-inset-bottom, 0px));
+  background: var(--ink); color: var(--paper);
+  padding: 10px 18px; border-radius: 999px; font-size: var(--step--1); font-weight: 500;
+  z-index: 30; max-width: calc(100% - 32px); text-align: center;
+  animation: toast-in 0.2s ease;
+}
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 8px); } }
+
+.danger-zone { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; font-size: var(--step--1); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+@media (min-width: 560px) {
+  .wrap { padding-top: 32px; gap: 24px; }
+  .sheet { padding: 24px 26px; }
+}
+
+</style>
+</head>
+<body>
+<main id="app" aria-live="polite"></main>
+<nav id="tabbar" class="tabbar" aria-label="주요 화면"></nav>
+<script>
+  window.MathJax = {
+    tex: { inlineMath: [['$', '$']], displayMath: [['$$', '$$']] },
+    svg: { fontCache: 'global' },
+    options: { enableMenu: false },
+    startup: {
+      typeset: false,
+      ready: function () {
+        MathJax.startup.defaultReady();
+        MathJax.startup.promise.then(function () { if (window.__haruMathReady) window.__haruMathReady(); });
+      }
+    }
+  };
+</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js" async></script>
+<script>
+/* 하루 수리통계 — 커리큘럼 1부 (Unit 1~4)
+ * 작성 규칙
+ *  - 수식: 인라인 $...$, 디스플레이 $$...$$ (MathJax)
+ *  - quiz.choices[0] 이 정답 (화면에서는 섞어서 보여줌)
+ *  - String.raw 안에서는 "$" 바로 뒤에 "{" 를 쓰지 말 것 (템플릿 치환과 충돌)
+ */
+(function () {
+  const r = String.raw;
+
+  window.STAT_UNITS = [
+    { id: 1, title: '확률의 언어', blurb: '사건, 조건부확률, 베이즈' },
+    { id: 2, title: '확률변수', blurb: '분포함수, 기댓값, 분산, MGF' },
+    { id: 3, title: '주요 분포', blurb: '이항부터 정규까지' },
+    { id: 4, title: '여러 확률변수', blurb: '결합분포, 공분산, 변수변환' },
+    { id: 5, title: '표본분포와 극한정리', blurb: '큰 수의 법칙, 중심극한정리' },
+    { id: 6, title: '추정', blurb: '불편성, MLE, 충분성, 신뢰구간' },
+    { id: 7, title: '가설검정', blurb: '오류, p-값, 가능도비, 베이즈' },
+  ];
+
+  window.STAT_LESSONS = (window.STAT_LESSONS || []).concat([
+    /* ───────────── Unit 1. 확률의 언어 ───────────── */
+    {
+      id: 1, unit: 1, title: '표본공간과 확률의 공리',
+      hook: '확률은 사건에 0과 1 사이의 숫자를 붙이는 규칙이고, 그 규칙은 딱 세 줄이다.',
+      body: [
+        r`실험에서 나올 수 있는 모든 결과의 집합을 <b>표본공간</b> $S$, 그 부분집합을 <b>사건</b>이라 한다. 주사위 한 번이면 $S=\{1,2,3,4,5,6\}$이고, "짝수가 나온다"는 사건은 $A=\{2,4,6\}$이다.`,
+        r`콜모고로프의 공리는 세 가지뿐이다. ① $P(A)\ge 0$ ② $P(S)=1$ ③ 서로소(배반)인 사건들의 합집합 확률은 각 확률의 합이다.`,
+        r`나머지 성질은 전부 여기서 나온다. 예를 들어 $A$와 $A^c$는 서로소이고 합치면 $S$이므로 $P(A)+P(A^c)=1$이 바로 따라온다.`,
+      ],
+      formulas: [
+        { label: '여사건', tex: r`P(A^c) = 1 - P(A)` },
+        { label: '포함배제', tex: r`P(A\cup B) = P(A) + P(B) - P(A\cap B)` },
+      ],
+      example: {
+        q: r`카드 52장에서 한 장을 뽑을 때, 하트이거나 그림카드(J, Q, K)일 확률은?`,
+        a: r`하트 13장, 그림카드 12장, 둘 다인 카드(하트 J, Q, K) 3장. 포함배제로 $\frac{13}{52}+\frac{12}{52}-\frac{3}{52}=\frac{22}{52}=\frac{11}{26}$.`,
+      },
+      pitfall: r`<b>배반</b>과 <b>독립</b>은 다른 말이다. 확률이 0보다 큰 두 사건이 배반이면 하나가 일어나면 다른 하나는 절대 안 일어나므로 오히려 강하게 <i>종속</i>이다.`,
+      quiz: [
+        { q: r`$P(A)=0.5,\ P(B)=0.4,\ P(A\cap B)=0.2$일 때 $P(A\cup B)$는?`, choices: ['0.7', '0.9', '0.2', '0.5'], why: r`$0.5+0.4-0.2=0.7$. 겹치는 부분을 한 번 빼야 한다.` },
+        { q: r`다음 중 확률의 <b>공리</b>가 아닌 것은?`, choices: [r`$P(A\cap B)=P(A)P(B)$`, r`$P(S)=1$`, r`$P(A)\ge 0$`, '서로소 사건 합집합의 확률 = 확률의 합'], why: r`$P(A\cap B)=P(A)P(B)$는 독립의 <i>정의</i>일 뿐, 모든 사건에 성립하는 공리가 아니다.` },
+        { q: r`$P(A)>0,\ P(B)>0$이고 $A, B$가 배반이면 두 사건은?`, choices: ['독립이 아니다', '항상 독립이다', '독립일 수도 아닐 수도 있다', '정보가 부족하다'], why: r`배반이면 $P(A\cap B)=0$인데 $P(A)P(B)>0$이므로 독립 조건이 깨진다.` },
+      ],
+      cards: [
+        { q: '확률의 세 공리는?', a: r`① $P(A)\ge0$ ② $P(S)=1$ ③ 서로소 사건들의 합집합 확률 = 확률들의 합` },
+        { q: '포함배제 공식 (사건 두 개)', a: r`$P(A\cup B)=P(A)+P(B)-P(A\cap B)$` },
+      ],
+      summary: '공리 세 줄에서 여사건, 포함배제 같은 모든 계산 규칙이 나온다.',
+    },
+    {
+      id: 2, unit: 1, title: '조건부확률과 독립',
+      hook: '조건부확률은 새 정보를 듣고 표본공간을 줄인 뒤 다시 잰 확률이다.',
+      body: [
+        r`"$B$가 일어났다"는 걸 알면 이제 세상은 $B$ 안에서만 돌아간다. 그래서 $A$의 확률은 $B$ 안에서 $A$가 차지하는 비율이 된다.`,
+        r`식을 뒤집으면 <b>곱셈법칙</b> $P(A\cap B)=P(A\mid B)P(B)$가 된다. 두 사건이 <b>독립</b>이라는 건 $B$를 알아도 $A$의 확률이 안 바뀐다는 뜻, 즉 $P(A\mid B)=P(A)$이다.`,
+        r`표본공간을 겹치지 않는 조각 $B_1,\dots,B_k$로 나누면, 각 조각에서의 확률을 가중평균해 전체 확률을 구할 수 있다. 이것이 <b>전확률 공식</b>이다.`,
+      ],
+      formulas: [
+        { label: '조건부확률', tex: r`P(A\mid B)=\frac{P(A\cap B)}{P(B)},\quad P(B)>0` },
+        { label: '독립', tex: r`P(A\cap B)=P(A)\,P(B)` },
+        { label: '전확률 공식', tex: r`P(A)=\sum_{i} P(A\mid B_i)\,P(B_i)` },
+      ],
+      example: {
+        q: r`주사위 두 개를 던져 합이 8이었다. 첫 번째 주사위가 3일 확률은?`,
+        a: r`합이 8인 경우는 $(2,6),(3,5),(4,4),(5,3),(6,2)$ 다섯 가지. 그중 첫 주사위가 3인 건 하나이므로 $1/5$. 조건 없이는 $1/6$이었으니 정보가 확률을 바꿨다.`,
+      },
+      pitfall: r`$P(A\mid B)$와 $P(B\mid A)$는 보통 다르다. "범인이면 현장에 있었을 확률"과 "현장에 있었으면 범인일 확률"은 완전히 다른 숫자다.`,
+      quiz: [
+        { q: r`$P(A\cap B)=0.12,\ P(B)=0.4$이면 $P(A\mid B)$는?`, choices: ['0.3', '0.048', '0.52', '0.12'], why: r`$0.12/0.4=0.3$.` },
+        { q: r`$A, B$가 독립이고 $P(A)=0.5,\ P(B)=0.2$이면 $P(A\cap B)$는?`, choices: ['0.1', '0.7', '0.6', '0.25'], why: r`독립이면 곱한다: $0.5\times0.2=0.1$.` },
+        { q: r`공장 A가 제품의 60%를 만들고 불량률 2%, 공장 B가 40%를 만들고 불량률 5%다. 전체 불량률은?`, choices: ['3.2%', '3.5%', '7%', '2.6%'], why: r`전확률: $0.6\times0.02+0.4\times0.05=0.012+0.020=0.032$.` },
+      ],
+      cards: [
+        { q: '조건부확률의 정의', a: r`$P(A\mid B)=P(A\cap B)/P(B)$` },
+        { q: '전확률 공식', a: r`분할 $B_1,\dots,B_k$에 대해 $P(A)=\sum_i P(A\mid B_i)P(B_i)$` },
+      ],
+      summary: '조건부확률은 표본공간을 줄여 다시 잰 비율이고, 독립은 정보가 확률을 바꾸지 않는 상태다.',
+    },
+    {
+      id: 3, unit: 1, title: '베이즈 정리',
+      hook: '베이즈 정리는 결과를 보고 원인을 거꾸로 추론하는 공식이다.',
+      body: [
+        r`우리가 아는 건 보통 "원인 $\to$ 결과" 방향의 확률 $P(A\mid B_j)$다(병이 있으면 양성이 나올 확률). 궁금한 건 반대 방향 $P(B_j\mid A)$다(양성이면 병이 있을 확률).`,
+        r`조건부확률 정의와 전확률 공식을 합치면 방향을 뒤집을 수 있다. 분자는 "원인 $B_j$가 있고 결과 $A$가 나올 확률", 분모는 "결과 $A$가 나올 전체 확률"이다.`,
+        r`용어: $P(B_j)$는 <b>사전확률</b>, $P(A\mid B_j)$는 <b>가능도</b>, $P(B_j\mid A)$는 <b>사후확률</b>. 이 세 단어는 마지막 레슨의 베이즈 추론에서 다시 만난다.`,
+      ],
+      formulas: [
+        { label: '베이즈 정리', tex: r`P(B_j\mid A)=\frac{P(A\mid B_j)\,P(B_j)}{\sum_i P(A\mid B_i)\,P(B_i)}` },
+      ],
+      example: {
+        q: r`유병률 1%인 병이 있다. 검사는 환자의 99%를 양성으로, 건강한 사람의 5%를 잘못 양성으로 판정한다. 양성이 나왔을 때 실제로 병이 있을 확률은?`,
+        a: r`분자 $0.99\times0.01=0.0099$. 분모 $0.0099+0.05\times0.99=0.0099+0.0495=0.0594$. 따라서 $0.0099/0.0594\approx0.167$, 약 17%. 검사가 정확해 보여도 병 자체가 드물면 양성의 대부분은 위양성이다.`,
+      },
+      pitfall: r`<b>기저율 무시</b>: 검사 정확도만 보고 사전확률(유병률)을 빼먹으면 사후확률을 크게 과대평가한다.`,
+      quiz: [
+        { q: r`앞 레슨의 공장 문제(A 60% 불량 2%, B 40% 불량 5%)에서, 불량품 하나를 집었을 때 그것이 B 공장 제품일 확률은?`, choices: ['0.625', '0.4', '0.05', '0.375'], why: r`$\frac{0.4\times0.05}{0.032}=\frac{0.020}{0.032}=0.625$. 불량이라는 정보 때문에 B일 확률이 40%에서 62.5%로 올랐다.` },
+        { q: r`다른 조건이 같을 때 사전확률 $P(B)$가 커지면 사후확률 $P(B\mid A)$는?`, choices: ['커진다', '작아진다', '변하지 않는다', '알 수 없다'], why: r`$P(B\mid A)=\frac{P(A|B)P(B)}{P(A|B)P(B)+P(A|B^c)(1-P(B))}$는 $P(B)$에 대해 증가함수다.` },
+        { q: '베이즈 정리의 분모가 하는 역할은?', choices: ['사후확률의 합이 1이 되도록 맞추는 정규화', '사전확률을 갱신하는 것', '가능도를 계산하는 것', '독립성을 확인하는 것'], why: r`분모는 $P(A)$, 즉 전확률이다. 모든 $j$에 대한 사후확률을 더하면 1이 되게 만든다.` },
+      ],
+      cards: [
+        { q: '베이즈 정리', a: r`$P(B_j\mid A)=\dfrac{P(A\mid B_j)P(B_j)}{\sum_i P(A\mid B_i)P(B_i)}$` },
+        { q: '사전확률 · 가능도 · 사후확률', a: r`사전 $P(B)$, 가능도 $P(A\mid B)$, 사후 $P(B\mid A)$. 사후 ∝ 가능도 × 사전` },
+      ],
+      summary: '사후확률은 가능도와 사전확률의 곱에 비례한다. 드문 원인은 강한 증거가 있어도 여전히 드물 수 있다.',
+    },
+
+    /* ───────────── Unit 2. 확률변수 ───────────── */
+    {
+      id: 4, unit: 2, title: '확률변수와 분포함수',
+      hook: '확률변수는 결과를 숫자로 바꾸는 함수이고, CDF는 그 숫자가 x 이하일 확률이다.',
+      body: [
+        r`동전 세 번의 결과(HTH 등)를 "앞면 개수"라는 숫자로 바꾸는 것처럼, 확률변수 $X$는 표본공간에서 실수로 가는 함수다. 숫자가 되면 더하고 평균 내는 계산이 가능해진다.`,
+        r`<b>이산형</b>은 확률질량함수(PMF) $p(x)=P(X=x)$로, <b>연속형</b>은 확률밀도함수(PDF) $f(x)$로 표현한다. 연속형은 넓이가 확률이다: $P(a\le X\le b)=\int_a^b f(x)\,dx$.`,
+        r`둘을 하나로 묶는 게 <b>누적분포함수</b>(CDF) $F(x)=P(X\le x)$다. 비감소, 오른쪽 연속, $-\infty$에서 0, $+\infty$에서 1. 연속형이면 $f(x)=F'(x)$.`,
+      ],
+      formulas: [
+        { label: 'CDF', tex: r`F(x)=P(X\le x)` },
+        { label: '연속형', tex: r`P(a\le X\le b)=\int_a^b f(x)\,dx = F(b)-F(a)` },
+      ],
+      example: {
+        q: r`$f(x)=2x$ ($0<x<1$)일 때 $P(X\le 1/2)$와 CDF는?`,
+        a: r`$P(X\le 1/2)=\int_0^{1/2}2x\,dx=\left[x^2\right]_0^{1/2}=1/4$. CDF는 $0<x<1$에서 $F(x)=x^2$.`,
+      },
+      pitfall: r`PDF 값 자체는 확률이 아니다. $f(x)$는 1보다 클 수 있고, 연속형에서는 $P(X=a)=0$이다.`,
+      quiz: [
+        { q: r`$f(x)=cx^2$ ($0<x<3$)가 PDF가 되려면 $c$는?`, choices: ['1/9', '1/3', '1/27', '3'], why: r`$\int_0^3 cx^2\,dx=9c=1$이므로 $c=1/9$.` },
+        { q: r`연속확률변수 $X$에 대해 $P(X=2)$는?`, choices: ['0', r`$f(2)$`, r`$F(2)$`, '알 수 없다'], why: r`한 점의 넓이는 0이다.` },
+        { q: 'CDF의 성질이 <b>아닌</b> 것은?', choices: ['항상 연속함수다', '비감소한다', r`$x\to\infty$이면 1로 간다`, '오른쪽 연속이다'], why: '이산형의 CDF는 계단함수라 점프가 있다. 오른쪽 연속까지만 보장된다.' },
+      ],
+      cards: [
+        { q: 'CDF의 네 가지 성질', a: r`비감소 · 오른쪽 연속 · $F(-\infty)=0$ · $F(\infty)=1$` },
+        { q: 'PDF와 CDF의 관계', a: r`$F(x)=\int_{-\infty}^x f(t)\,dt$, $f(x)=F'(x)$` },
+      ],
+      summary: '이산은 PMF, 연속은 PDF, 둘 다 CDF로 통일된다. 연속형에서 확률은 넓이다.',
+    },
+    {
+      id: 5, unit: 2, title: '기댓값',
+      hook: '기댓값은 분포의 무게중심이다.',
+      body: [
+        r`각 값에 그 확률만큼 무게를 실어 평균 낸 것이 기댓값이다. 막대 위에 확률만큼 추를 올려놓으면 균형이 잡히는 지점이 $E[X]$다.`,
+        r`$X$의 함수 $g(X)$의 기댓값은 $g(X)$의 분포를 새로 구할 필요 없이 $\sum g(x)p(x)$로 바로 계산한다(LOTUS, 무의식적 통계학자의 법칙).`,
+        r`가장 강력한 성질은 <b>선형성</b>이다. $E[aX+b]=aE[X]+b$, 그리고 $E[X+Y]=E[X]+E[Y]$는 $X, Y$가 독립이 아니어도 언제나 성립한다.`,
+      ],
+      formulas: [
+        { label: '정의', tex: r`E[X]=\sum_x x\,p(x)\quad\text{또는}\quad\int x\,f(x)\,dx` },
+        { label: 'LOTUS', tex: r`E[g(X)]=\sum_x g(x)\,p(x)` },
+        { label: '선형성', tex: r`E[aX+bY+c]=aE[X]+bE[Y]+c` },
+      ],
+      example: {
+        q: r`(1) 공정한 주사위 (2) $f(x)=2x$ ($0<x<1$)의 기댓값은?`,
+        a: r`(1) $\frac{1+2+\cdots+6}{6}=3.5$. (2) $\int_0^1 x\cdot2x\,dx=\frac{2}{3}$.`,
+      },
+      pitfall: r`일반적으로 $E[g(X)]\ne g(E[X])$이다. 특히 $E[X^2]\ne(E[X])^2$이고, 그 차이가 바로 다음 레슨의 분산이다.`,
+      quiz: [
+        { q: r`$E[X]=3$이면 $E[2X-1]$은?`, choices: ['5', '6', '3', '2'], why: r`$2\cdot3-1=5$.` },
+        { q: r`$E[X+Y]=E[X]+E[Y]$가 성립하려면 필요한 조건은?`, choices: ['각 기댓값이 존재하기만 하면 된다', 'X, Y가 독립', 'X, Y가 같은 분포', 'X, Y가 정규분포'], why: '선형성은 독립과 무관하게 성립한다. 독립이 필요한 건 곱의 기댓값 $E[XY]=E[X]E[Y]$ 쪽이다.' },
+        { q: r`$P(X=0)=P(X=2)=0.5$일 때 $E[X^2]$은?`, choices: ['2', '1', '4', '0.5'], why: r`$0^2\cdot0.5+2^2\cdot0.5=2$. 반면 $(E[X])^2=1$이다.` },
+      ],
+      cards: [
+        { q: 'LOTUS란?', a: r`$E[g(X)]=\sum g(x)p(x)$ 또는 $\int g(x)f(x)dx$. $g(X)$의 분포를 따로 구할 필요 없음` },
+        { q: '기댓값의 선형성에 독립이 필요한가?', a: r`아니다. $E[X+Y]=E[X]+E[Y]$는 항상 성립` },
+      ],
+      summary: '기댓값은 확률 가중 평균이고, 선형성은 독립 없이도 성립하는 가장 쓸모 있는 성질이다.',
+    },
+    {
+      id: 6, unit: 2, title: '분산과 표준편차',
+      hook: '분산은 평균에서 떨어진 거리를 제곱해서 평균 낸 값이다.',
+      body: [
+        r`평균 $\mu=E[X]$에서 얼마나 퍼져 있는지 재려면 거리 $X-\mu$를 봐야 하는데, 그냥 평균 내면 0이 된다. 그래서 제곱해서 평균 낸다. 단위를 원래대로 돌리려면 제곱근을 씌워 <b>표준편차</b> $\sigma$를 쓴다.`,
+        r`계산할 땐 정의보다 <b>"제곱의 평균 − 평균의 제곱"</b> 공식이 훨씬 편하다.`,
+        r`상수를 더하면 분포가 옮겨갈 뿐 퍼짐은 그대로고, $a$배하면 퍼짐은 $a^2$배가 된다. 독립인 두 변수의 합의 분산은 분산의 합이다.`,
+      ],
+      formulas: [
+        { label: '계산 공식', tex: r`\operatorname{Var}(X)=E[X^2]-(E[X])^2` },
+        { label: '선형변환', tex: r`\operatorname{Var}(aX+b)=a^2\operatorname{Var}(X)` },
+        { label: '독립합', tex: r`\operatorname{Var}(X\pm Y)=\operatorname{Var}(X)+\operatorname{Var}(Y)` },
+      ],
+      example: {
+        q: r`공정한 주사위의 분산은?`,
+        a: r`$E[X^2]=\frac{1+4+9+16+25+36}{6}=\frac{91}{6}$, $(E[X])^2=\frac{49}{4}$. $\operatorname{Var}(X)=\frac{91}{6}-\frac{49}{4}=\frac{182-147}{12}=\frac{35}{12}\approx2.92$.`,
+      },
+      pitfall: r`독립일 때 $\operatorname{Var}(X-Y)$도 분산을 <b>더한다</b>. 빼는 게 아니다. 불확실한 것끼리 빼도 불확실성은 쌓인다.`,
+      quiz: [
+        { q: r`$\operatorname{Var}(X)=4$이면 $\operatorname{Var}(3X+5)$는?`, choices: ['36', '12', '17', '41'], why: r`$3^2\cdot4=36$. 더한 5는 퍼짐에 영향이 없다.` },
+        { q: r`독립인 $X, Y$의 분산이 각각 2, 3이면 $\operatorname{Var}(X-Y)$는?`, choices: ['5', '−1', '1', '6'], why: r`$\operatorname{Var}(X)+(-1)^2\operatorname{Var}(Y)=5$.` },
+        { q: r`$E[X]=2,\ E[X^2]=7$이면 $\operatorname{Var}(X)$는?`, choices: ['3', '5', '7', '11'], why: r`$7-2^2=3$.` },
+      ],
+      cards: [
+        { q: '분산 계산 공식', a: r`$\operatorname{Var}(X)=E[X^2]-(E[X])^2$` },
+        { q: r`$\operatorname{Var}(aX+b)$ = ?`, a: r`$a^2\operatorname{Var}(X)$` },
+      ],
+      summary: '분산은 제곱의 평균에서 평균의 제곱을 뺀 값이다. 상수배는 제곱으로, 독립합은 그대로 더해진다.',
+    },
+    {
+      id: 7, unit: 2, title: '적률생성함수 (MGF)',
+      hook: 'MGF는 분포의 모든 적률을 함수 하나에 담아둔 지문이다.',
+      body: [
+        r`$M_X(t)=E[e^{tX}]$를 테일러 전개하면 $1+tE[X]+\frac{t^2}{2!}E[X^2]+\cdots$가 된다. 그래서 $t=0$에서 $k$번 미분하면 $k$차 적률 $E[X^k]$가 튀어나온다.`,
+        r`더 중요한 건 <b>유일성</b>이다. 두 확률변수의 MGF가 0 근방에서 같으면 분포도 같다. 그래서 "MGF를 계산해 보니 정규분포의 MGF 모양이네 → 정규분포다"라는 논증이 가능하다.`,
+        r`독립인 변수의 합은 MGF의 <b>곱</b>이 된다. 합의 분포를 구할 때 적분(합성곱) 대신 곱셈만 하면 된다.`,
+      ],
+      formulas: [
+        { label: '정의와 적률', tex: r`M_X(t)=E[e^{tX}],\qquad M_X^{(k)}(0)=E[X^k]` },
+        { label: '독립합 · 선형변환', tex: r`M_{X+Y}(t)=M_X(t)M_Y(t),\qquad M_{aX+b}(t)=e^{bt}M_X(at)` },
+        { label: '정규분포', tex: r`X\sim N(\mu,\sigma^2)\ \Rightarrow\ M_X(t)=e^{\mu t+\sigma^2t^2/2}` },
+      ],
+      example: {
+        q: r`베르누이($p$)의 MGF와 평균은? 이항$(n,p)$의 MGF는?`,
+        a: r`$M(t)=(1-p)e^{0}+pe^{t}=1-p+pe^t$, $M'(0)=p$. 이항은 독립 베르누이 $n$개의 합이므로 $(1-p+pe^t)^n$.`,
+      },
+      pitfall: r`모든 분포에 MGF가 있는 건 아니다. 코시분포처럼 꼬리가 두꺼우면 $E[e^{tX}]$가 $t\ne0$에서 무한대가 된다.`,
+      quiz: [
+        { q: r`$M_X(t)=e^{2t+3t^2}$이면 $\operatorname{Var}(X)$는?`, choices: ['6', '3', '2', '9'], why: r`정규 MGF $e^{\mu t+\sigma^2t^2/2}$와 비교하면 $\sigma^2/2=3$, 즉 $\sigma^2=6$.` },
+        { q: r`$Y=aX+b$의 MGF는?`, choices: [r`$e^{bt}M_X(at)$`, r`$aM_X(t)+b$`, r`$M_X(at+b)$`, r`$e^{at}M_X(bt)$`], why: r`$E[e^{t(aX+b)}]=e^{bt}E[e^{(at)X}]$.` },
+        { q: '독립인 $X, Y$에 대해 $M_{X+Y}(t)$는?', choices: [r`$M_X(t)M_Y(t)$`, r`$M_X(t)+M_Y(t)$`, r`$M_X(M_Y(t))$`, '독립만으로는 알 수 없다'], why: r`$E[e^{tX}e^{tY}]=E[e^{tX}]E[e^{tY}]$ (독립이라 곱이 분리됨).` },
+      ],
+      cards: [
+        { q: 'MGF로 적률 구하기', a: r`$E[X^k]=M_X^{(k)}(0)$` },
+        { q: '정규분포 MGF', a: r`$e^{\mu t+\sigma^2t^2/2}$` },
+      ],
+      summary: 'MGF를 미분하면 적률, MGF가 같으면 분포가 같고, 독립합은 MGF의 곱이다.',
+    },
+
+    /* ───────────── Unit 3. 주요 분포 ───────────── */
+    {
+      id: 8, unit: 3, title: '베르누이와 이항분포',
+      hook: '이항분포는 성공확률 p인 독립 시행을 n번 했을 때의 성공 횟수다.',
+      body: [
+        r`한 번의 성공/실패를 1/0으로 나타낸 것이 <b>베르누이</b>($p$)다. 평균 $p$, 분산 $p(1-p)$.`,
+        r`독립 베르누이를 $n$개 더하면 <b>이항</b>$(n,p)$이 된다. $k$번 성공하는 특정 순서의 확률은 $p^k(1-p)^{n-k}$이고, 그런 순서가 $\binom{n}{k}$가지다.`,
+        r`평균과 분산은 베르누이 $n$개의 합이라는 사실만으로 바로 나온다: 평균 $np$, 분산 $np(1-p)$. 아래에서 $n$과 $p$를 움직여 모양을 확인해 보자.`,
+      ],
+      formulas: [
+        { label: 'PMF', tex: r`P(X=k)=\binom{n}{k}p^k(1-p)^{n-k},\quad k=0,1,\dots,n` },
+        { label: '평균 · 분산', tex: r`E[X]=np,\qquad \operatorname{Var}(X)=np(1-p)` },
+      ],
+      widget: 'binom',
+      example: {
+        q: r`공정한 동전을 10번 던져 앞면이 정확히 3번 나올 확률은?`,
+        a: r`$\binom{10}{3}(1/2)^{10}=\frac{120}{1024}\approx0.117$.`,
+      },
+      pitfall: r`시행이 독립이고 $p$가 매번 같아야 이항이다. 52장에서 카드를 <b>비복원</b>으로 뽑으면 $p$가 매번 바뀌므로 초기하분포다.`,
+      quiz: [
+        { q: r`$X\sim B(20,\,0.3)$일 때 $\operatorname{Var}(X)$는?`, choices: ['4.2', '6', '0.21', '14'], why: r`$20\times0.3\times0.7=4.2$. (평균은 6)` },
+        { q: r`독립인 $X\sim B(5,p),\ Y\sim B(7,p)$에 대해 $X+Y$의 분포는?`, choices: [r`$B(12,p)$`, r`$B(12,2p)$`, r`$B(35,p)$`, '이항분포가 아니다'], why: '베르누이 5개 + 7개 = 같은 $p$의 베르누이 12개. ($p$가 다르면 이항이 아니다.)' },
+        { q: r`$X\sim B(3,\,1/2)$일 때 $P(X\ge1)$은?`, choices: ['7/8', '1/2', '3/8', '1/8'], why: r`여사건: $1-P(X=0)=1-(1/2)^3=7/8$.` },
+      ],
+      cards: [
+        { q: '이항분포 PMF', a: r`$\binom{n}{k}p^k(1-p)^{n-k}$` },
+        { q: '이항분포 평균 · 분산', a: r`$np$, $np(1-p)$` },
+      ],
+      summary: '이항은 독립 베르누이의 합이라서, 평균과 분산도 베르누이의 n배다.',
+    },
+    {
+      id: 9, unit: 3, title: '포아송분포',
+      hook: '포아송은 일정 구간에서 드물게 일어나는 사건의 개수다.',
+      body: [
+        r`한 시간에 걸려오는 전화 수, 한 페이지의 오타 수처럼 "기회는 엄청 많은데 각각은 드물게 일어나는" 사건의 개수를 센다. 모수는 평균 발생 횟수 $\lambda$ 하나뿐이다.`,
+        r`이항$(n,p)$에서 $n\to\infty$, $p\to0$이면서 $np=\lambda$로 고정하면 포아송$(\lambda)$이 된다. 그래서 $n$이 크고 $p$가 작은 이항은 포아송으로 근사한다.`,
+        r`포아송의 지문은 <b>평균 = 분산 = $\lambda$</b>다. 독립 포아송의 합은 다시 포아송이고 모수는 더해진다.`,
+      ],
+      formulas: [
+        { label: 'PMF', tex: r`P(X=k)=\frac{e^{-\lambda}\lambda^k}{k!},\quad k=0,1,2,\dots` },
+        { label: '평균 · 분산', tex: r`E[X]=\operatorname{Var}(X)=\lambda` },
+        { label: '재생성', tex: r`X\sim\text{Poi}(\lambda_1),\ Y\sim\text{Poi}(\lambda_2)\ \text{독립}\Rightarrow X+Y\sim\text{Poi}(\lambda_1+\lambda_2)` },
+      ],
+      example: {
+        q: r`콜센터에 시간당 평균 2통의 전화가 온다. 한 시간 동안 한 통도 안 올 확률은?`,
+        a: r`$P(X=0)=e^{-2}\approx0.135$.`,
+      },
+      pitfall: r`실제 데이터에서 분산이 평균보다 훨씬 크면(과대산포) 포아송 가정이 틀렸을 가능성이 크다. 평균과 분산 비교가 1차 점검이다.`,
+      quiz: [
+        { q: r`$X\sim\text{Poi}(3)$일 때 $\operatorname{Var}(X)$는?`, choices: ['3', '9', r`$\sqrt3$`, '1/3'], why: '포아송은 평균과 분산이 같다.' },
+        { q: r`독립인 $X\sim\text{Poi}(2),\ Y\sim\text{Poi}(3)$에 대해 $X+Y$는?`, choices: [r`$\text{Poi}(5)$`, r`$\text{Poi}(6)$`, r`$\text{Poi}(2.5)$`, '포아송이 아니다'], why: r`모수가 더해진다. MGF $e^{\lambda(e^t-1)}$를 곱해 보면 바로 확인된다.` },
+        { q: r`$B(1000,\,0.002)$를 포아송으로 근사하면 $\lambda$는?`, choices: ['2', '0.002', '1000', '20'], why: r`$\lambda=np=2$.` },
+      ],
+      cards: [
+        { q: '포아송 PMF', a: r`$e^{-\lambda}\lambda^k/k!$` },
+        { q: '포아송의 평균과 분산', a: r`둘 다 $\lambda$` },
+      ],
+      summary: '포아송은 드문 사건의 개수이고, 평균과 분산이 같으며, 독립합의 모수는 더해진다.',
+    },
+    {
+      id: 10, unit: 3, title: '기하분포와 무기억성',
+      hook: '기하분포는 첫 성공이 나올 때까지 걸린 시행 횟수다.',
+      body: [
+        r`성공확률 $p$인 독립 시행을 반복해서 처음 성공이 $k$번째에 나오려면 앞의 $k-1$번은 실패여야 한다. 그래서 $P(X=k)=(1-p)^{k-1}p$.`,
+        r`"$k$번 넘게 걸린다"는 건 처음 $k$번이 모두 실패라는 뜻이므로 $P(X>k)=(1-p)^k$. 이 식 하나로 많은 계산이 끝난다.`,
+        r`<b>무기억성</b>: 이미 $m$번 실패했다는 사실은 앞으로의 대기에 아무 영향이 없다. 동전은 과거를 기억하지 않는다. 이산분포 중 이 성질을 가진 건 기하분포뿐이다.`,
+      ],
+      formulas: [
+        { label: 'PMF와 꼬리', tex: r`P(X=k)=(1-p)^{k-1}p,\qquad P(X>k)=(1-p)^k` },
+        { label: '평균 · 분산', tex: r`E[X]=\frac1p,\qquad \operatorname{Var}(X)=\frac{1-p}{p^2}` },
+        { label: '무기억성', tex: r`P(X>m+n\mid X>m)=P(X>n)` },
+      ],
+      example: {
+        q: r`주사위를 6이 나올 때까지 던진다. 평균 몇 번 던지게 될까? 4번 넘게 던져야 할 확률은?`,
+        a: r`$E[X]=1/(1/6)=6$번. $P(X>4)=(5/6)^4\approx0.482$.`,
+      },
+      pitfall: r`교재에 따라 "성공 전까지의 <b>실패</b> 횟수"($Y=X-1$)로 정의하기도 한다. 그때 평균은 $(1-p)/p$다. 어느 정의인지 먼저 확인하자.`,
+      quiz: [
+        { q: r`$p=0.2$인 기하분포(시행 횟수)의 평균은?`, choices: ['5', '4', '0.2', '20'], why: r`$1/p=5$.` },
+        { q: r`$p=1/2$일 때 $P(X>3)$은?`, choices: ['1/8', '1/16', '3/8', '7/8'], why: r`처음 3번 모두 실패: $(1/2)^3$.` },
+        { q: '이산분포 중 무기억성을 가진 유일한 분포는?', choices: ['기하분포', '포아송분포', '이항분포', '균등분포'], why: '연속에서는 지수분포가 같은 역할을 한다. 다음 레슨에서 다룬다.' },
+      ],
+      cards: [
+        { q: '기하분포 평균 (시행 횟수 정의)', a: r`$1/p$` },
+        { q: '무기억성', a: r`$P(X>m+n\mid X>m)=P(X>n)$` },
+      ],
+      summary: '기하분포는 첫 성공까지의 대기이고, 꼬리확률은 (1−p)^k, 과거를 기억하지 않는다.',
+    },
+    {
+      id: 11, unit: 3, title: '균등분포와 지수분포',
+      hook: '지수분포는 연속 시간에서의 기다림이고, 기하분포처럼 과거를 잊는다.',
+      body: [
+        r`<b>균등분포</b> $U(a,b)$는 구간 안 어디든 똑같이 그럴듯한 분포다. 밀도는 $1/(b-a)$로 평평하고, 평균은 가운데 $\frac{a+b}{2}$.`,
+        r`<b>지수분포</b> Exp($\lambda$)는 단위시간당 평균 $\lambda$번 일어나는 사건(포아송 과정)에서 다음 사건까지 기다리는 시간이다. 평균 대기시간은 $1/\lambda$.`,
+        r`$P(X>x)=e^{-\lambda x}$이므로 무기억성 $P(X>s+t\mid X>s)=P(X>t)$가 성립한다. 연속분포 중 무기억성을 가진 건 지수분포뿐이다.`,
+      ],
+      formulas: [
+        { label: '균등', tex: r`f(x)=\frac{1}{b-a},\quad E[X]=\frac{a+b}{2},\quad \operatorname{Var}(X)=\frac{(b-a)^2}{12}` },
+        { label: '지수', tex: r`f(x)=\lambda e^{-\lambda x}\ (x>0),\quad E[X]=\frac1\lambda,\quad \operatorname{Var}(X)=\frac1{\lambda^2}` },
+        { label: '꼬리확률', tex: r`P(X>x)=e^{-\lambda x}` },
+      ],
+      example: {
+        q: r`버스가 평균 10분 간격으로 (포아송 과정으로) 온다. 20분 넘게 기다릴 확률은?`,
+        a: r`$\lambda=1/10$. $P(X>20)=e^{-20/10}=e^{-2}\approx0.135$.`,
+      },
+      pitfall: r`지수분포를 율(rate) $\lambda$로 쓰는 교재와 평균 $\beta=1/\lambda$로 쓰는 교재가 있다. $f(x)=\frac1\beta e^{-x/\beta}$를 보면 평균이 $\beta$라는 뜻이다.`,
+      quiz: [
+        { q: r`$X\sim U(0,6)$의 분산은?`, choices: ['3', '6', '12', '36'], why: r`$6^2/12=3$.` },
+        { q: r`$X\sim\text{Exp}(\lambda=2)$의 평균은?`, choices: ['0.5', '2', '4', '0.25'], why: r`$1/\lambda=1/2$.` },
+        { q: '대기시간이 지수분포이고 이미 5분을 기다렸다. 앞으로 3분 넘게 더 기다릴 확률은?', choices: [r`$P(X>3)$`, r`$P(X>8)$`, r`$P(X>8)-P(X>5)$`, r`$P(X>5)$`], why: '무기억성 때문에 지금부터 새로 시작하는 것과 같다.' },
+      ],
+      cards: [
+        { q: '균등분포 U(a,b)의 분산', a: r`$(b-a)^2/12$` },
+        { q: '지수분포 Exp(λ)의 평균 · 분산 · 꼬리', a: r`$1/\lambda$, $1/\lambda^2$, $P(X>x)=e^{-\lambda x}$` },
+      ],
+      summary: '균등은 평평한 분포, 지수는 포아송 과정의 대기시간이며 무기억성을 가진 유일한 연속분포다.',
+    },
+    {
+      id: 12, unit: 3, title: '감마분포와 베타분포',
+      hook: '감마는 지수 대기시간을 여러 개 더한 것, 베타는 0과 1 사이 비율의 분포다.',
+      body: [
+        r`감마함수 $\Gamma(\alpha)=\int_0^\infty x^{\alpha-1}e^{-x}dx$는 팩토리얼의 연속판이다: $\Gamma(n)=(n-1)!$, $\Gamma(1/2)=\sqrt\pi$.`,
+        r`<b>감마분포</b> Gamma($\alpha,\lambda$)는 모양 $\alpha$, 율 $\lambda$를 가진다. 독립 Exp($\lambda$) $n$개의 합은 Gamma($n,\lambda$), 즉 $n$번째 사건까지의 대기시간이다. 카이제곱분포 $\chi^2_k$도 Gamma($k/2,\,1/2$)인 감마의 특수한 경우다.`,
+        r`<b>베타분포</b> Beta($a,b$)는 $(0,1)$ 위의 분포라 확률이나 비율을 모형화할 때 쓴다. $a=b=1$이면 균등분포. 마지막 레슨의 베이즈 추론에서 주인공으로 돌아온다.`,
+      ],
+      formulas: [
+        { label: '감마 (율 λ)', tex: r`f(x)=\frac{\lambda^\alpha}{\Gamma(\alpha)}x^{\alpha-1}e^{-\lambda x},\quad E[X]=\frac\alpha\lambda,\quad\operatorname{Var}(X)=\frac{\alpha}{\lambda^2}` },
+        { label: '베타', tex: r`f(x)=\frac{\Gamma(a+b)}{\Gamma(a)\Gamma(b)}x^{a-1}(1-x)^{b-1},\quad E[X]=\frac{a}{a+b}` },
+      ],
+      example: {
+        q: r`독립인 Exp($\lambda=2$) 세 개의 합의 분포와 평균은?`,
+        a: r`Gamma($3,\,2$). 평균은 $3/2=1.5$ (각 평균 $0.5$를 세 번 더한 것과 같다).`,
+      },
+      pitfall: r`감마분포도 율 $\lambda$ 대신 척도 $\beta=1/\lambda$로 쓰는 교재가 많다. 그때는 평균 $\alpha\beta$, 분산 $\alpha\beta^2$.`,
+      quiz: [
+        { q: r`$\Gamma(5)$의 값은?`, choices: ['24', '120', '5', '4'], why: r`$\Gamma(n)=(n-1)!$이므로 $4!=24$.` },
+        { q: r`Gamma($\alpha=4$, 율 $\lambda=2$)의 평균은?`, choices: ['2', '8', '0.5', '1'], why: r`$\alpha/\lambda=4/2=2$.` },
+        { q: r`Beta($2,3$)의 평균은?`, choices: ['0.4', '0.6', '2/3', '0.5'], why: r`$a/(a+b)=2/5$.` },
+      ],
+      cards: [
+        { q: '감마분포 (모양 α, 율 λ) 평균 · 분산', a: r`$\alpha/\lambda$, $\alpha/\lambda^2$` },
+        { q: '카이제곱과 감마의 관계', a: r`$\chi^2_k=\text{Gamma}(k/2,\ \text{율 }1/2)$` },
+      ],
+      summary: '감마는 지수의 합이자 카이제곱의 부모, 베타는 비율의 분포다.',
+    },
+    {
+      id: 13, unit: 3, title: '정규분포',
+      hook: '정규분포는 평균과 분산 두 숫자로 완전히 정해지는 종 모양 분포다.',
+      body: [
+        r`$N(\mu,\sigma^2)$은 $\mu$를 중심으로 좌우대칭이고, $\sigma$가 폭을 정한다. 어떤 정규분포든 <b>표준화</b> $Z=(X-\mu)/\sigma$를 하면 $N(0,1)$이 되므로 표준정규표 하나로 모든 확률을 구한다.`,
+        r`외워 둘 숫자: $\pm1\sigma$ 안에 약 68%, $\pm2\sigma$ 안에 약 95%, $\pm3\sigma$ 안에 약 99.7%. 정확한 95% 지점은 $\pm1.96\sigma$다.`,
+        r`독립 정규변수의 <b>선형결합도 정규</b>다. 평균은 선형으로, 분산은 계수의 제곱으로 합쳐진다. 이 성질 덕분에 표본평균의 분포가 깔끔하게 나온다.`,
+      ],
+      formulas: [
+        { label: '밀도', tex: r`f(x)=\frac{1}{\sqrt{2\pi}\,\sigma}\exp\!\left(-\frac{(x-\mu)^2}{2\sigma^2}\right)` },
+        { label: '표준화', tex: r`Z=\frac{X-\mu}{\sigma}\sim N(0,1)` },
+        { label: '선형결합 (독립)', tex: r`aX+bY\sim N(a\mu_X+b\mu_Y,\ a^2\sigma_X^2+b^2\sigma_Y^2)` },
+      ],
+      example: {
+        q: r`키가 $N(170,\,6^2)$를 따를 때 182cm보다 클 확률은?`,
+        a: r`$Z=(182-170)/6=2$. $P(Z>2)\approx0.0228$, 약 2.3%.`,
+      },
+      pitfall: r`$N(\mu,\sigma^2)$의 두 번째 자리는 <b>분산</b>이다. $N(10,4)$의 표준편차는 2다. 소프트웨어(예: R의 <code>dnorm</code>)는 표준편차를 받는 경우가 많으니 주의.`,
+      quiz: [
+        { q: r`$X\sim N(10,4)$일 때 $P(X<14)$에 가장 가까운 값은?`, choices: ['0.977', '0.841', '0.5', '0.999'], why: r`$\sigma=2$이므로 $Z=(14-10)/2=2$, $\Phi(2)\approx0.977$.` },
+        { q: r`독립인 $X\sim N(1,2),\ Y\sim N(3,5)$에 대해 $X+Y$는?`, choices: [r`$N(4,7)$`, r`$N(4,\sqrt7)$`, r`$N(4,3)$`, r`$N(2,7)$`], why: '평균끼리, 분산끼리 더한다.' },
+        { q: '표준정규분포에서 가운데 95%를 감싸는 구간은?', choices: [r`$\pm1.96$`, r`$\pm1.645$`, r`$\pm2.576$`, r`$\pm1$`], why: '1.645는 한쪽 5%, 2.576은 가운데 99%다.' },
+      ],
+      cards: [
+        { q: '68–95–99.7 규칙', a: r`$\pm1\sigma$: 68%, $\pm2\sigma$: 95%, $\pm3\sigma$: 99.7%` },
+        { q: '독립 정규의 선형결합', a: r`$aX+bY\sim N(a\mu_X+b\mu_Y,\ a^2\sigma_X^2+b^2\sigma_Y^2)$` },
+      ],
+      summary: '정규는 표준화로 하나의 표에 모이고, 독립 정규의 선형결합은 다시 정규다.',
+    },
+
+    /* ───────────── Unit 4. 여러 확률변수 ───────────── */
+    {
+      id: 14, unit: 4, title: '결합분포와 주변분포',
+      hook: '결합분포는 두 변수를 한 장의 지도로, 주변분포는 그 지도를 한쪽 축으로 접은 것이다.',
+      body: [
+        r`$(X,Y)$의 <b>결합밀도</b> $f(x,y)$는 평면 위의 확률 지형이다. 영역 $A$의 확률은 $\iint_A f(x,y)\,dx\,dy$.`,
+        r`$X$만 보고 싶으면 $y$ 방향으로 전부 적분해 없앤다. 이게 <b>주변분포</b> $f_X(x)=\int f(x,y)\,dy$. 특정 $x$에서 $y$의 분포를 보려면 그 단면을 주변밀도로 나눈 <b>조건부분포</b> $f(y\mid x)=f(x,y)/f_X(x)$를 쓴다.`,
+        r`<b>독립</b>은 결합밀도가 모든 점에서 주변밀도의 곱으로 쪼개진다는 뜻이다.`,
+      ],
+      formulas: [
+        { label: '주변 · 조건부', tex: r`f_X(x)=\int f(x,y)\,dy,\qquad f(y\mid x)=\frac{f(x,y)}{f_X(x)}` },
+        { label: '독립', tex: r`f(x,y)=f_X(x)\,f_Y(y)\quad\text{모든 }(x,y)` },
+      ],
+      example: {
+        q: r`$f(x,y)=x+y$ ($0<x<1,\ 0<y<1$)일 때 $f_X(x)$는? $X, Y$는 독립인가?`,
+        a: r`$f_X(x)=\int_0^1(x+y)\,dy=x+\tfrac12$. 대칭이라 $f_Y(y)=y+\tfrac12$. 곱 $(x+\tfrac12)(y+\tfrac12)\ne x+y$이므로 독립이 아니다.`,
+      },
+      pitfall: r`받침(밀도가 양수인 영역)이 직사각형이 아니면 독립일 수 없다. 예를 들어 $0<x<y<1$이면 $X$를 알면 $Y$의 범위가 바뀐다.`,
+      quiz: [
+        { q: r`$f(x,y)=6xy^2$ ($0<x,y<1$)일 때 $f_X(x)$는?`, choices: [r`$2x$`, r`$3y^2$`, r`$6x$`, r`$x$`], why: r`$\int_0^1 6xy^2\,dy=6x\cdot\frac13=2x$.` },
+        { q: r`위의 $f(x,y)=6xy^2$에서 $X, Y$는 독립인가?`, choices: ['독립이다', '독립이 아니다', '알 수 없다', '상관계수를 봐야 안다'], why: r`$f_X(x)=2x$, $f_Y(y)=3y^2$이고 곱이 $6xy^2$이며 받침도 직사각형이다.` },
+        { q: r`$f(x,y)=2$ ($0<x<y<1$)일 때 $X, Y$는?`, choices: ['독립이 아니다', '독립이다', '같은 분포를 따르는 독립변수다', '알 수 없다'], why: '받침이 삼각형이라 독립일 수 없다.' },
+      ],
+      cards: [
+        { q: '주변밀도 구하는 법', a: r`다른 변수로 적분: $f_X(x)=\int f(x,y)\,dy$` },
+        { q: '결합밀도로 독립 판정', a: r`모든 점에서 $f(x,y)=f_X(x)f_Y(y)$ (받침이 직사각형이어야 함)` },
+      ],
+      summary: '주변은 적분해서 없애고, 조건부는 나누고, 독립은 곱으로 쪼개진다.',
+    },
+    {
+      id: 15, unit: 4, title: '공분산과 상관계수',
+      hook: '공분산은 두 변수가 같이 움직이는 정도, 상관계수는 그것을 −1에서 1 사이로 맞춘 것이다.',
+      body: [
+        r`$X$가 평균보다 클 때 $Y$도 평균보다 크면 $(X-\mu_X)(Y-\mu_Y)$가 양수가 된다. 그 평균이 <b>공분산</b>이다. 계산은 "곱의 평균 − 평균의 곱".`,
+        r`공분산은 단위에 따라 크기가 바뀌므로 표준편차로 나눠 <b>상관계수</b> $\rho$를 만든다. 항상 $-1\le\rho\le1$이고, $|\rho|=1$이면 완벽한 직선 관계다.`,
+        r`공분산은 합의 분산에 끼어든다: $\operatorname{Var}(X+Y)=\operatorname{Var}X+\operatorname{Var}Y+2\operatorname{Cov}(X,Y)$. 독립이면 공분산이 0이라서 지난번 공식이 나왔던 것이다.`,
+      ],
+      formulas: [
+        { label: '공분산', tex: r`\operatorname{Cov}(X,Y)=E[XY]-E[X]E[Y]` },
+        { label: '상관계수', tex: r`\rho=\frac{\operatorname{Cov}(X,Y)}{\sigma_X\sigma_Y}\in[-1,1]` },
+        { label: '합의 분산', tex: r`\operatorname{Var}(aX+bY)=a^2\sigma_X^2+b^2\sigma_Y^2+2ab\operatorname{Cov}(X,Y)` },
+      ],
+      example: {
+        q: r`$X\sim U(-1,1)$, $Y=X^2$일 때 $\operatorname{Cov}(X,Y)$는?`,
+        a: r`$E[X]=0$, $E[XY]=E[X^3]=0$ (대칭). 따라서 공분산 0. 그런데 $Y$는 $X$로 완전히 결정되므로 독립이 아니다.`,
+      },
+      pitfall: r`독립 $\Rightarrow$ 공분산 0. 하지만 공분산 0 $\not\Rightarrow$ 독립. 공분산은 <b>직선</b> 관계만 잡아낸다.`,
+      quiz: [
+        { q: r`$\operatorname{Var}X=4,\ \operatorname{Var}Y=9,\ \operatorname{Cov}(X,Y)=3$이면 $\rho$는?`, choices: ['0.5', '0.25', '1/12', '3'], why: r`$3/(2\cdot3)=0.5$.` },
+        { q: r`같은 조건에서 $\operatorname{Var}(X+Y)$는?`, choices: ['19', '13', '16', '22'], why: r`$4+9+2\cdot3=19$.` },
+        { q: r`$\operatorname{Cov}(2X,\,3Y+1)$은?`, choices: [r`$6\operatorname{Cov}(X,Y)$`, r`$6\operatorname{Cov}(X,Y)+1$`, r`$5\operatorname{Cov}(X,Y)$`, r`$36\operatorname{Cov}(X,Y)$`], why: '공분산은 각 자리에서 선형이고, 상수 이동은 무시된다.' },
+      ],
+      cards: [
+        { q: '공분산 계산 공식', a: r`$E[XY]-E[X]E[Y]$` },
+        { q: '공분산이 0이면 독립인가?', a: r`아니다. 예: $X\sim U(-1,1)$, $Y=X^2$` },
+      ],
+      summary: '공분산은 함께 움직이는 정도, 상관계수는 그 표준화. 공분산 0이 독립을 뜻하지는 않는다.',
+    },
+    {
+      id: 16, unit: 4, title: '조건부기댓값',
+      hook: 'E[Y|X]는 숫자가 아니라 X의 함수, 즉 또 하나의 확률변수다.',
+      body: [
+        r`$X=x$로 고정했을 때 $Y$의 평균 $E[Y\mid X=x]$는 $x$에 따라 달라지는 함수 $h(x)$다. 여기에 $x$ 대신 $X$를 넣은 $h(X)=E[Y\mid X]$는 확률변수가 된다.`,
+        r`<b>반복기댓값의 법칙</b>: 그룹별 평균을 그룹 크기로 가중평균하면 전체 평균이 된다. $E[E[Y\mid X]]=E[Y]$.`,
+        r`<b>전분산 공식</b>: 전체 퍼짐 = 그룹 <i>안</i> 퍼짐의 평균 + 그룹 평균<i>끼리의</i> 퍼짐. 분산분석(ANOVA)과 회귀의 $R^2$가 모두 이 분해에서 나온다.`,
+      ],
+      formulas: [
+        { label: '반복기댓값', tex: r`E\big[E[Y\mid X]\big]=E[Y]` },
+        { label: '전분산 공식', tex: r`\operatorname{Var}(Y)=E\big[\operatorname{Var}(Y\mid X)\big]+\operatorname{Var}\big(E[Y\mid X]\big)` },
+      ],
+      example: {
+        q: r`가게의 하루 손님 수가 Poi(10)이고, 손님 한 명은 평균 2만 원을 쓴다(손님 수와 독립). 하루 매출 기댓값은?`,
+        a: r`손님 수 $N$이 주어지면 매출 평균은 $2N$. 따라서 $E[\text{매출}]=E[2N]=2\times10=20$만 원.`,
+      },
+      pitfall: r`$E[Y\mid X]$를 그냥 숫자로 취급하면 반복기댓값을 쓸 수 없다. 늘 "무엇의 함수인가"를 의식하자.`,
+      quiz: [
+        { q: r`$E[Y\mid X]=2X$이고 $E[X]=3$이면 $E[Y]$는?`, choices: ['6', '3', '2', '5'], why: r`$E[2X]=6$.` },
+        { q: r`$X\sim\text{Exp}(1)$이고 $Y\mid X\sim\text{Poi}(X)$일 때 $\operatorname{Var}(Y)$는?`, choices: ['2', '1', '0', '3'], why: r`$E[\operatorname{Var}(Y|X)]=E[X]=1$, $\operatorname{Var}(E[Y|X])=\operatorname{Var}(X)=1$. 합은 2.` },
+        { q: r`$E[Y\mid X]$의 정체는?`, choices: [r`$X$의 함수인 확률변수`, '하나의 상수', r`$Y$의 함수`, r`$X$와 $Y$의 결합밀도`], why: r`$X$가 확률적이므로 $h(X)$도 확률적이다.` },
+      ],
+      cards: [
+        { q: '반복기댓값의 법칙', a: r`$E[E[Y\mid X]]=E[Y]$` },
+        { q: '전분산 공식', a: r`$\operatorname{Var}Y=E[\operatorname{Var}(Y|X)]+\operatorname{Var}(E[Y|X])$` },
+      ],
+      summary: '조건부기댓값은 X의 함수이고, 평균의 평균은 전체 평균, 분산은 안쪽과 바깥쪽으로 나뉜다.',
+    },
+    {
+      id: 17, unit: 4, title: '변수변환',
+      hook: 'Y = g(X)의 분포는 CDF를 거쳐 구하는 게 가장 안전하다.',
+      body: [
+        r`<b>CDF 방법</b>: $F_Y(y)=P(g(X)\le y)$를 $X$에 대한 사건으로 바꿔 계산한 뒤 미분한다. 어떤 $g$에도 통하는 만능 방법이다.`,
+        r`$g$가 단조이면 공식으로 줄일 수 있다. 밀도는 "역함수 자리에 넣고, 역함수 도함수의 절댓값을 곱한다." 그 절댓값이 구간이 늘거나 줄어든 비율(야코비안)이다.`,
+        r`<b>확률적분변환</b>: 연속형 $X$에 자기 CDF를 씌우면 $F_X(X)\sim U(0,1)$. 거꾸로 $U(0,1)$에 $F^{-1}$을 씌우면 원하는 분포의 난수를 만들 수 있다.`,
+      ],
+      formulas: [
+        { label: '단조변환', tex: r`f_Y(y)=f_X\big(g^{-1}(y)\big)\left|\frac{d}{dy}g^{-1}(y)\right|` },
+        { label: '확률적분변환', tex: r`F_X(X)\sim U(0,1)` },
+      ],
+      example: {
+        q: r`$X\sim U(0,1)$, $Y=-\ln X$의 분포는?`,
+        a: r`$y>0$에서 $F_Y(y)=P(-\ln X\le y)=P(X\ge e^{-y})=1-e^{-y}$. 이것은 Exp(1)의 CDF다.`,
+      },
+      pitfall: r`$g$가 단조가 아니면(예: $Y=X^2$, $X$가 음수도 가짐) 공식을 그대로 쓰면 안 된다. 역상이 여러 개이므로 CDF 방법으로 조각을 다 더해야 한다.`,
+      quiz: [
+        { q: r`$X\sim U(0,1)$, $Y=X^2$의 밀도 $f_Y(y)$ ($0<y<1$)는?`, choices: [r`$\frac{1}{2\sqrt y}$`, r`$2y$`, r`$\sqrt y$`, '1'], why: r`$F_Y(y)=P(X\le\sqrt y)=\sqrt y$, 미분하면 $\frac{1}{2\sqrt y}$.` },
+        { q: r`$Z\sim N(0,1)$일 때 $Z^2$의 분포는?`, choices: [r`$\chi^2_1$`, r`$N(0,1)$`, r`$\text{Exp}(1)$`, r`$t_1$`], why: '표준정규의 제곱이 자유도 1의 카이제곱의 정의다.' },
+        { q: r`$X\sim\text{Exp}(\lambda)$이면 $Y=2X$는?`, choices: [r`$\text{Exp}(\lambda/2)$`, r`$\text{Exp}(2\lambda)$`, r`$\text{Gamma}(2,\lambda)$`, '지수분포가 아니다'], why: r`$P(Y>y)=P(X>y/2)=e^{-(\lambda/2)y}$. 평균이 두 배가 되니 율은 절반.` },
+      ],
+      cards: [
+        { q: '단조변환의 밀도 공식', a: r`$f_Y(y)=f_X(g^{-1}(y))\,|(g^{-1})'(y)|$` },
+        { q: '확률적분변환', a: r`연속형이면 $F_X(X)\sim U(0,1)$` },
+      ],
+      summary: 'CDF 방법은 언제나 통하고, 단조변환이면 야코비안 공식으로 빨리 끝난다.',
+    },
+  ]);
+})();
+
+;
+/* 하루 수리통계 — 커리큘럼 2부 (Unit 5~7) */
+(function () {
+  const r = String.raw;
+
+  window.STAT_LESSONS = (window.STAT_LESSONS || []).concat([
+    /* ───────────── Unit 5. 표본분포와 극한정리 ───────────── */
+    {
+      id: 18, unit: 5, title: '확률표본과 표본평균',
+      hook: '표본평균은 모평균을 겨냥하고, 그 흔들림은 표본 크기의 제곱근만큼 줄어든다.',
+      body: [
+        r`$X_1,\dots,X_n$이 서로 독립이고 같은 분포(iid)를 따르면 <b>확률표본</b>이라 한다. 표본의 함수 중 미지의 모수를 포함하지 않는 것을 <b>통계량</b>이라 한다. $\bar X$, $S^2$, $\max X_i$ 모두 통계량이다.`,
+        r`기댓값의 선형성으로 $E[\bar X]=\mu$, 독립합의 분산으로 $\operatorname{Var}(\bar X)=\sigma^2/n$. 표본평균의 표준편차 $\sigma/\sqrt n$을 <b>표준오차</b>라 부른다.`,
+        r`<b>표본분산</b>은 $n$이 아니라 $n-1$로 나눈다. $\bar X$가 데이터에 맞춰져 있어서 편차 제곱합이 실제보다 작게 나오는데, $n-1$로 나누면 정확히 보정되어 $E[S^2]=\sigma^2$가 된다.`,
+      ],
+      formulas: [
+        { label: '표본평균', tex: r`E[\bar X]=\mu,\qquad \operatorname{Var}(\bar X)=\frac{\sigma^2}{n}` },
+        { label: '표본분산', tex: r`S^2=\frac{1}{n-1}\sum_{i=1}^n(X_i-\bar X)^2,\qquad E[S^2]=\sigma^2` },
+      ],
+      example: {
+        q: r`모표준편차가 10인 모집단에서 $n=25$개를 뽑았다. $\bar X$의 표준오차는?`,
+        a: r`$10/\sqrt{25}=2$. 개별 관측값보다 다섯 배 덜 흔들린다.`,
+      },
+      pitfall: r`표준오차를 절반으로 줄이려면 표본을 두 배가 아니라 <b>네 배</b> 늘려야 한다. $\sqrt n$에 반비례하기 때문이다.`,
+      quiz: [
+        { q: '표본 크기를 4배로 늘리면 표본평균의 표준오차는?', choices: ['1/2로 준다', '1/4로 준다', '1/16로 준다', '변하지 않는다'], why: r`$\sigma/\sqrt{4n}=\frac12\cdot\sigma/\sqrt n$.` },
+        { q: r`표본분산을 $n-1$로 나누는 이유는?`, choices: [r`$E[S^2]=\sigma^2$이 되도록(불편성)`, '계산을 쉽게 하려고', '분산을 항상 작게 하려고', '정규분포일 때만 필요해서'], why: r`$n$으로 나누면 기댓값이 $\frac{n-1}{n}\sigma^2$로 살짝 작아진다.` },
+        { q: '다음 중 통계량이 <b>아닌</b> 것은? (μ는 미지의 모평균)', choices: [r`$\bar X-\mu$`, r`$\bar X$`, r`$\max_i X_i$`, r`$\sum X_i^2$`], why: '미지의 모수 μ가 들어가면 데이터만으로 계산할 수 없다.' },
+      ],
+      cards: [
+        { q: '표본평균의 평균과 분산', a: r`$E[\bar X]=\mu$, $\operatorname{Var}(\bar X)=\sigma^2/n$` },
+        { q: '표본분산은 왜 n−1로 나누나?', a: r`그래야 $E[S^2]=\sigma^2$ (불편)` },
+      ],
+      summary: '표본평균은 모평균을 정확히 겨냥하고, 흔들림은 σ/√n으로 줄어든다.',
+    },
+    {
+      id: 19, unit: 5, title: '체비셰프 부등식과 큰 수의 법칙',
+      hook: '표본이 커지면 표본평균은 모평균에 달라붙는다. 체비셰프 부등식이 그 이유를 한 줄로 보여준다.',
+      body: [
+        r`<b>마르코프 부등식</b>: 음이 아닌 $X$에 대해 $P(X\ge a)\le E[X]/a$. 평균이 작으면 큰 값이 나오기 어렵다는 상식을 식으로 쓴 것이다.`,
+        r`이걸 $(X-\mu)^2$에 적용하면 <b>체비셰프 부등식</b>이 된다. 분포를 몰라도 평균에서 $k\sigma$ 이상 벗어날 확률은 $1/k^2$ 이하다.`,
+        r`$\bar X_n$에 적용하면 $P(|\bar X_n-\mu|\ge\varepsilon)\le\frac{\sigma^2}{n\varepsilon^2}\to0$. 이것이 <b>(약한) 큰 수의 법칙</b>: $\bar X_n$이 $\mu$로 <b>확률수렴</b>한다. 아래에서 동전을 던져 직접 확인해 보자.`,
+      ],
+      formulas: [
+        { label: '마르코프', tex: r`P(X\ge a)\le\frac{E[X]}{a}\quad(X\ge0,\ a>0)` },
+        { label: '체비셰프', tex: r`P(|X-\mu|\ge k\sigma)\le\frac{1}{k^2}` },
+        { label: '약한 큰 수의 법칙', tex: r`\bar X_n\xrightarrow{\;p\;}\mu` },
+      ],
+      widget: 'lln',
+      example: {
+        q: r`평균 50, 표준편차 5인 분포에서 값이 40 이하이거나 60 이상일 확률의 상한은?`,
+        a: r`$|X-50|\ge10=2\sigma$이므로 체비셰프로 $1/2^2=0.25$ 이하. (정규분포라면 실제로는 약 0.046이다. 체비셰프는 어떤 분포에도 성립하는 대신 느슨하다.)`,
+      },
+      pitfall: r`큰 수의 법칙은 "앞면이 많이 나왔으니 이제 뒷면이 나올 차례"라는 뜻이 아니다(도박사의 오류). 과거를 보상하는 게 아니라 새 시행이 쌓이며 과거의 영향이 희석되는 것이다.`,
+      quiz: [
+        { q: r`체비셰프 부등식에서 $k=3$일 때 $P(|X-\mu|\ge3\sigma)$의 상한은?`, choices: ['1/9', '1/3', '0.003', '1/27'], why: r`$1/k^2=1/9$.` },
+        { q: r`$X\ge0$, $E[X]=2$일 때 마르코프 부등식이 주는 $P(X\ge10)$의 상한은?`, choices: ['0.2', '0.02', '0.5', '0.8'], why: r`$2/10$.` },
+        { q: '약한 큰 수의 법칙이 말하는 것은?', choices: [r`$\bar X_n$이 $\mu$로 확률수렴한다`, r`$\bar X_n$의 분포가 정규분포로 간다`, r`$X_n$이 $\mu$로 수렴한다`, '편차가 반드시 보상된다'], why: '분포의 모양(정규)은 다음 레슨의 중심극한정리가 말한다.' },
+      ],
+      cards: [
+        { q: '체비셰프 부등식', a: r`$P(|X-\mu|\ge k\sigma)\le 1/k^2$` },
+        { q: '약한 큰 수의 법칙', a: r`$\bar X_n\to\mu$ (확률수렴)` },
+      ],
+      summary: '체비셰프는 분포 없이 꼬리를 막아주고, 그 덕에 표본평균은 모평균으로 확률수렴한다.',
+    },
+    {
+      id: 20, unit: 5, title: '중심극한정리',
+      hook: '원래 분포가 무엇이든, 표본평균을 표준화하면 정규분포로 간다.',
+      body: [
+        r`큰 수의 법칙은 $\bar X_n$이 <i>어디로</i> 가는지 말하고, <b>중심극한정리</b>(CLT)는 그 주변에서 <i>어떤 모양으로</i> 흔들리는지 말한다. 분산이 유한하기만 하면 그 모양은 정규분포다.`,
+        r`실용적으로는 "$n$이 충분히 크면 $\bar X\approx N(\mu,\sigma^2/n)$"으로 쓴다. 신뢰구간과 검정의 상당수가 이 근사 위에 서 있다.`,
+        r`아래 시뮬레이터에서 주사위, 지수분포처럼 정규와 전혀 다른 모집단을 골라도 $n$을 키우면 표본평균의 히스토그램이 종 모양이 되는 걸 볼 수 있다.`,
+      ],
+      formulas: [
+        { label: 'CLT', tex: r`\frac{\bar X_n-\mu}{\sigma/\sqrt n}\xrightarrow{\;d\;}N(0,1)` },
+        { label: '근사', tex: r`\bar X_n\approx N\!\left(\mu,\ \frac{\sigma^2}{n}\right),\qquad \sum X_i\approx N(n\mu,\ n\sigma^2)` },
+      ],
+      widget: 'clt',
+      example: {
+        q: r`공정한 주사위를 100번 던졌을 때 눈의 평균이 3.8보다 클 확률은?`,
+        a: r`$\mu=3.5$, $\sigma^2=35/12$. 표준오차 $\sqrt{35/12}/10\approx0.171$. $Z=(3.8-3.5)/0.171\approx1.75$, $P(Z>1.75)\approx0.04$.`,
+      },
+      pitfall: r`CLT는 <b>표본평균</b>의 분포에 관한 정리다. 데이터를 많이 모은다고 데이터 자체의 히스토그램이 정규가 되지는 않는다.`,
+      quiz: [
+        { q: r`$\operatorname{Var}(X)=16$, $n=64$일 때 $\bar X$의 근사 표준편차는?`, choices: ['0.5', '0.25', '2', '4'], why: r`$\sqrt{16/64}=0.5$.` },
+        { q: 'CLT가 적용되지 <b>않는</b> 모집단은?', choices: ['코시분포', '지수분포', '베르누이분포', '균등분포'], why: '코시분포는 평균과 분산이 존재하지 않는다. 코시 표본의 평균은 n과 무관하게 다시 코시다.' },
+        { q: r`CLT의 수렴 종류는?`, choices: ['분포수렴', '확률수렴', '거의 확실한 수렴', '평균제곱 수렴'], why: r`CDF가 $\Phi$로 수렴한다는 뜻이다.` },
+      ],
+      cards: [
+        { q: '중심극한정리', a: r`$\dfrac{\bar X_n-\mu}{\sigma/\sqrt n}\xrightarrow{d}N(0,1)$ (분산 유한)` },
+        { q: '큰 수의 법칙 vs CLT', a: 'LLN: 어디로 가나(μ). CLT: 그 주변 흔들림의 모양(정규, 폭 σ/√n)' },
+      ],
+      summary: '분산만 유한하면 표본평균의 흔들림은 정규 모양이고, 그 폭은 σ/√n이다.',
+    },
+    {
+      id: 21, unit: 5, title: '카이제곱, t, F 분포',
+      hook: '정규표본에서 분산을 모를 때 필요한 세 분포다.',
+      body: [
+        r`표준정규 $k$개의 제곱합이 <b>카이제곱</b> $\chi^2_k$이다. 정규표본이면 $(n-1)S^2/\sigma^2\sim\chi^2_{n-1}$이고, 놀랍게도 $\bar X$와 $S^2$은 독립이다.`,
+        r`$\bar X$를 표준화할 때 모르는 $\sigma$ 대신 $S$를 넣으면 분모도 흔들리므로 정규보다 꼬리가 두꺼운 <b>t분포</b>가 된다. 자유도가 커지면 $N(0,1)$에 가까워진다.`,
+        r`독립인 두 카이제곱을 자유도로 나눠 비를 만들면 <b>F분포</b>다. 두 분산의 비교나 회귀·분산분석에서 쓴다.`,
+      ],
+      formulas: [
+        { label: '정규표본의 분산', tex: r`\frac{(n-1)S^2}{\sigma^2}\sim\chi^2_{n-1}` },
+        { label: 't 통계량', tex: r`T=\frac{Z}{\sqrt{V/k}}\sim t_k,\qquad \frac{\bar X-\mu}{S/\sqrt n}\sim t_{n-1}` },
+        { label: 'F', tex: r`F=\frac{U/m}{V/n}\sim F_{m,n}\quad(U\sim\chi^2_m,\ V\sim\chi^2_n\ \text{독립})` },
+      ],
+      example: {
+        q: r`정규모집단에서 $n=10$개를 뽑아 $\frac{\bar X-\mu}{S/\sqrt{10}}$을 계산했다. 이 값의 분포는?`,
+        a: r`$t_9$. 자유도는 $n-1=9$. 95% 지점은 $\pm1.96$이 아니라 $\pm2.262$로 더 넓다.`,
+      },
+      pitfall: r`t분포가 정확히 성립하려면 모집단이 정규여야 한다. 정규가 아니면 $n$이 클 때 CLT 덕분에 근사적으로만 맞는다.`,
+      quiz: [
+        { q: r`$\chi^2_k$의 평균은?`, choices: [r`$k$`, r`$2k$`, r`$k-1$`, r`$\sqrt k$`], why: r`$E[Z^2]=1$을 $k$번 더한다. 분산은 $2k$.` },
+        { q: '자유도가 무한히 커지면 t분포는?', choices: [r`$N(0,1)$로 간다`, '카이제곱으로 간다', '코시분포로 간다', '변하지 않는다'], why: r`$S\to\sigma$이므로 분모의 흔들림이 사라진다.` },
+        { q: r`$T\sim t_k$이면 $T^2$의 분포는?`, choices: [r`$F_{1,k}$`, r`$\chi^2_k$`, r`$F_{k,1}$`, r`$t_{2k}$`], why: r`$T^2=\frac{Z^2/1}{V/k}$이고 $Z^2\sim\chi^2_1$.` },
+      ],
+      cards: [
+        { q: '정규표본에서 S²의 분포', a: r`$(n-1)S^2/\sigma^2\sim\chi^2_{n-1}$, 그리고 $\bar X$와 독립` },
+        { q: 'σ 대신 S를 넣은 표준화', a: r`$\dfrac{\bar X-\mu}{S/\sqrt n}\sim t_{n-1}$` },
+      ],
+      summary: '정규표본에서 S²은 카이제곱, σ를 S로 바꾸면 t, 분산의 비는 F다.',
+    },
+
+    /* ───────────── Unit 6. 추정 ───────────── */
+    {
+      id: 22, unit: 6, title: '점추정: 불편성과 MSE',
+      hook: '좋은 추정량은 과녁 중심을 겨냥하고(편향 작게), 덜 흔들려야 한다(분산 작게).',
+      body: [
+        r`모수 $\theta$를 데이터로 맞히는 통계량 $\hat\theta$를 <b>추정량</b>이라 한다. $E[\hat\theta]=\theta$이면 <b>불편</b>추정량이고, $E[\hat\theta]-\theta$를 <b>편향</b>이라 한다.`,
+        r`정확도를 하나의 숫자로 재는 것이 <b>평균제곱오차</b> MSE $=E[(\hat\theta-\theta)^2]$다. 이것은 정확히 분산과 편향 제곱의 합으로 쪼개진다.`,
+        r`그래서 불편성이 전부는 아니다. 약간 편향되더라도 분산이 훨씬 작으면 MSE가 더 작을 수 있다(편향-분산 트레이드오프).`,
+      ],
+      formulas: [
+        { label: '편향', tex: r`\operatorname{Bias}(\hat\theta)=E[\hat\theta]-\theta` },
+        { label: 'MSE 분해', tex: r`\operatorname{MSE}(\hat\theta)=\operatorname{Var}(\hat\theta)+\operatorname{Bias}(\hat\theta)^2` },
+      ],
+      example: {
+        q: r`$\hat\sigma^2=\frac1n\sum(X_i-\bar X)^2$의 편향은?`,
+        a: r`$\hat\sigma^2=\frac{n-1}{n}S^2$이므로 $E[\hat\sigma^2]=\frac{n-1}{n}\sigma^2$. 편향은 $-\sigma^2/n$으로, $n$이 크면 사라진다. (정규표본에서는 이 편향된 추정량의 MSE가 오히려 $S^2$보다 작다.)`,
+      },
+      pitfall: r`불편추정량의 함수는 보통 불편이 아니다. $S^2$은 $\sigma^2$에 불편이지만 $S$는 $\sigma$에 불편이 아니다($E[S]<\sigma$).`,
+      quiz: [
+        { q: r`분산 4, 편향 1인 추정량의 MSE는?`, choices: ['5', '4', '3', '17'], why: r`$4+1^2=5$.` },
+        { q: r`$\frac1n\sum(X_i-\bar X)^2$의 기댓값은?`, choices: [r`$\frac{n-1}{n}\sigma^2$`, r`$\sigma^2$`, r`$\frac{n}{n-1}\sigma^2$`, r`$\sigma^2/n$`], why: r`$S^2$의 $\frac{n-1}{n}$배이기 때문이다.` },
+        { q: 'MSE 관점에서 옳은 말은?', choices: ['편향된 추정량이 불편추정량보다 나을 수 있다', '불편추정량이 항상 MSE가 가장 작다', 'MSE는 분산과 같다', '편향이 0이면 MSE도 0이다'], why: 'MSE = 분산 + 편향². 분산을 크게 줄이면 약간의 편향은 손해가 아니다.' },
+      ],
+      cards: [
+        { q: 'MSE 분해', a: r`$\operatorname{MSE}=\operatorname{Var}+\operatorname{Bias}^2$` },
+        { q: 'S가 σ의 불편추정량인가?', a: r`아니다. $E[S]<\sigma$ (젠센 부등식)` },
+      ],
+      summary: '추정량의 정확도는 MSE로 재고, MSE는 분산과 편향 제곱의 합이다.',
+    },
+    {
+      id: 23, unit: 6, title: '적률추정법',
+      hook: '모집단 적률을 표본 적률과 같다고 놓고 풀면 그게 적률추정량이다.',
+      body: [
+        r`모수가 $k$개면 처음 $k$개의 적률을 맞춘다: $E[X^j]=\frac1n\sum X_i^j$, $j=1,\dots,k$. 연립방정식을 풀면 끝이다.`,
+        r`장점은 단순함과, 큰 수의 법칙 덕분에 대체로 <b>일치성</b>이 있다는 것. 단점은 효율이 떨어질 수 있고, 가끔 말이 안 되는 값을 준다는 것이다.`,
+        r`다음 레슨의 최대가능도추정과 같은 답이 나오는 경우(포아송, 정규)도 많지만, 다른 경우(균등분포)에는 차이가 극명하다.`,
+      ],
+      formulas: [
+        { label: '원리', tex: r`E_\theta[X^j]=\frac{1}{n}\sum_{i=1}^n X_i^j,\qquad j=1,\dots,k` },
+      ],
+      example: {
+        q: r`$U(0,\theta)$와 Exp($\lambda$)의 적률추정량은?`,
+        a: r`균등: $E[X]=\theta/2=\bar X$에서 $\hat\theta=2\bar X$. 지수: $E[X]=1/\lambda=\bar X$에서 $\hat\lambda=1/\bar X$.`,
+      },
+      pitfall: r`$U(0,\theta)$에서 데이터가 1, 2, 9이면 $\hat\theta=2\bar X=8$인데, 이미 9가 관측됐으므로 $\theta\ge9$여야 한다. 적률추정량은 데이터와 모순될 수 있다.`,
+      quiz: [
+        { q: r`포아송($\lambda$)의 적률추정량은?`, choices: [r`$\bar X$`, r`$1/\bar X$`, r`$S^2$`, r`$\bar X^2$`], why: r`$E[X]=\lambda$를 $\bar X$와 같다고 놓는다.` },
+        { q: r`$U(0,\theta)$에서 데이터 1, 3, 5를 얻었다. 적률추정값은?`, choices: ['6', '5', '3', '9'], why: r`$\bar X=3$, $\hat\theta=6$.` },
+        { q: r`정규 $N(\mu,\sigma^2)$의 적률추정량 $\hat\sigma^2$은?`, choices: [r`$\frac1n\sum(X_i-\bar X)^2$`, r`$S^2$`, r`$\frac1n\sum X_i^2$`, r`$\bar X^2$`], why: r`$E[X^2]=\sigma^2+\mu^2=\frac1n\sum X_i^2$에서 $\hat\sigma^2=\frac1n\sum X_i^2-\bar X^2$.` },
+      ],
+      cards: [
+        { q: '적률추정법의 원리', a: r`$E_\theta[X^j]=\frac1n\sum X_i^j$를 모수 개수만큼 풀기` },
+        { q: 'U(0,θ)의 적률추정량', a: r`$2\bar X$ (최대값보다 작게 나올 수 있음)` },
+      ],
+      summary: '적률추정은 표본 적률과 모집단 적률을 맞추는 가장 단순한 방법이다.',
+    },
+    {
+      id: 24, unit: 6, title: '최대가능도추정 (MLE)',
+      hook: 'MLE는 관측된 데이터가 나올 확률을 가장 크게 만드는 모수 값이다.',
+      body: [
+        r`데이터를 고정하고 모수의 함수로 본 결합밀도가 <b>가능도</b> $L(\theta)=\prod f(x_i;\theta)$다. "이 모수라면 이 데이터가 얼마나 그럴듯한가"를 잰다.`,
+        r`곱은 다루기 어려우니 로그를 씌워 합으로 바꾸고($\ell(\theta)=\sum\log f(x_i;\theta)$), 미분해서 0이 되는 점을 찾는다. 이 방정식을 <b>스코어 방정식</b>이라 한다.`,
+        r`<b>불변성</b>: $\hat\theta$가 MLE이면 $g(\theta)$의 MLE는 그냥 $g(\hat\theta)$다. 표준편차의 MLE는 분산 MLE의 제곱근이다.`,
+      ],
+      formulas: [
+        { label: '로그가능도', tex: r`\ell(\theta)=\sum_{i=1}^n\log f(x_i;\theta),\qquad \frac{\partial\ell}{\partial\theta}\Big|_{\hat\theta}=0` },
+        { label: '자주 나오는 MLE', tex: r`\text{Bern}: \hat p=\bar X,\quad \text{Poi}: \hat\lambda=\bar X,\quad \text{Exp}: \hat\lambda=1/\bar X` },
+      ],
+      example: {
+        q: r`베르누이($p$) 표본의 MLE를 구하라.`,
+        a: r`$\ell(p)=\sum x_i\log p+(n-\sum x_i)\log(1-p)$. 미분: $\frac{\sum x_i}{p}-\frac{n-\sum x_i}{1-p}=0$에서 $\hat p=\bar X$. 성공 비율이라는 당연한 답이 나온다.`,
+      },
+      pitfall: r`받침이 모수에 의존하면(예: $U(0,\theta)$) 미분으로 풀면 안 된다. $L(\theta)=\theta^{-n}$ ($\theta\ge\max x_i$)는 감소함수이므로 MLE는 $\hat\theta=\max X_i$다.`,
+      quiz: [
+        { q: r`포아송($\lambda$)의 MLE는?`, choices: [r`$\bar X$`, r`$1/\bar X$`, r`$\max X_i$`, r`$S^2$`], why: r`$\ell=-n\lambda+\sum x_i\log\lambda+C$, 미분하면 $-n+\sum x_i/\lambda=0$.` },
+        { q: r`$U(0,\theta)$의 MLE는?`, choices: [r`$\max X_i$`, r`$2\bar X$`, r`$\bar X$`, r`$\min X_i$`], why: r`$\theta$가 작을수록 가능도가 크지만, 관측값보다 작을 수는 없다.` },
+        { q: r`$\hat p$가 $p$의 MLE일 때 $p^2$의 MLE는?`, choices: [r`$\hat p^2$`, r`$\hat p$`, r`$\sqrt{\hat p}$`, '다시 계산해야 한다'], why: 'MLE의 불변성.' },
+      ],
+      cards: [
+        { q: 'MLE 구하는 순서', a: r`가능도 → 로그 → $\theta$로 미분 = 0 → 최대인지 확인 (받침이 $\theta$에 의존하면 직접 최대화)` },
+        { q: 'MLE의 불변성', a: r`$\widehat{g(\theta)}=g(\hat\theta)$` },
+      ],
+      summary: 'MLE는 가능도를 최대화하는 값이고, 로그 씌우고 미분하는 게 기본 루트다.',
+    },
+    {
+      id: 25, unit: 6, title: '충분통계량',
+      hook: '충분통계량은 모수에 관한 정보를 하나도 잃지 않고 데이터를 요약한 것이다.',
+      body: [
+        r`동전 100번의 결과 전체를 기억할 필요 없이 "앞면 개수" 하나면 $p$에 대해 알 수 있는 건 다 안다. 이처럼 $T(X)$가 주어졌을 때 데이터의 조건부분포가 $\theta$에 의존하지 않으면 $T$는 <b>충분</b>하다.`,
+        r`정의로 확인하기는 번거롭고, 실전에서는 <b>인수분해 정리</b>를 쓴다. 결합밀도를 "$T$와 $\theta$가 섞인 부분 × $\theta$가 없는 부분"으로 쪼갤 수 있으면 $T$는 충분통계량이다.`,
+        r`<b>라오-블랙웰 정리</b>: 어떤 불편추정량이든 충분통계량으로 조건부기댓값을 취하면 분산이 줄어든다(늘지는 않는다). 좋은 추정량은 충분통계량의 함수다.`,
+      ],
+      formulas: [
+        { label: '인수분해 정리', tex: r`f(x_1,\dots,x_n;\theta)=g\big(T(x);\theta\big)\,h(x)` },
+        { label: '라오-블랙웰', tex: r`\tilde\theta=E[\hat\theta\mid T],\qquad \operatorname{Var}(\tilde\theta)\le\operatorname{Var}(\hat\theta)` },
+      ],
+      example: {
+        q: r`베르누이($p$) 표본의 충분통계량을 찾아라.`,
+        a: r`$f=\prod p^{x_i}(1-p)^{1-x_i}=p^{\sum x_i}(1-p)^{n-\sum x_i}$. 이것은 $T=\sum X_i$와 $p$만의 함수이고 $h(x)=1$이므로 $\sum X_i$가 충분하다.`,
+      },
+      pitfall: r`충분통계량은 하나가 아니다. 충분통계량의 일대일 함수(예: $\sum X_i$ 대신 $\bar X$)도 충분하고, 데이터 전체도 (쓸모는 없지만) 충분하다.`,
+      quiz: [
+        { q: r`포아송($\lambda$) 표본의 충분통계량은?`, choices: [r`$\sum X_i$`, r`$\max X_i$`, r`$\prod X_i!$`, r`$X_1$`], why: r`$f=e^{-n\lambda}\lambda^{\sum x_i}\cdot\frac{1}{\prod x_i!}$로 쪼개진다.` },
+        { q: r`$U(0,\theta)$ 표본의 충분통계량은?`, choices: [r`$\max X_i$`, r`$\sum X_i$`, r`$\bar X$`, r`$\min X_i$`], why: r`$f=\theta^{-n}\mathbf 1(\max x_i\le\theta)$이므로 $\theta$와 얽힌 건 최대값뿐이다.` },
+        { q: r`$\mu,\sigma^2$ 모두 미지인 정규표본의 충분통계량은?`, choices: [r`$(\sum X_i,\ \sum X_i^2)$`, r`$\sum X_i$`, r`$\sum X_i^2$`, r`$\max X_i$`], why: r`지수 부분 $\sum(x_i-\mu)^2=\sum x_i^2-2\mu\sum x_i+n\mu^2$에 두 합이 등장한다.` },
+      ],
+      cards: [
+        { q: '인수분해 정리', a: r`$f(x;\theta)=g(T(x);\theta)h(x)$ 꼴이면 $T$는 충분` },
+        { q: '라오-블랙웰 정리', a: r`$E[\hat\theta\mid T]$는 분산이 더 작거나 같은 (불편이면 여전히 불편인) 추정량` },
+      ],
+      summary: '충분통계량은 정보 손실 없는 요약이고, 인수분해로 찾으며, 좋은 추정량은 그 함수다.',
+    },
+    {
+      id: 26, unit: 6, title: '피셔 정보량과 크래머-라오 하한',
+      hook: '불편추정량의 분산에는 넘을 수 없는 바닥이 있고, 그 바닥은 피셔 정보량이 정한다.',
+      body: [
+        r`로그가능도가 $\theta$ 근처에서 뾰족할수록 데이터가 $\theta$를 잘 짚어낸다. 그 뾰족함(곡률)이 <b>피셔 정보량</b> $I(\theta)$다. 관측치 하나당 정보량이고, $n$개면 $nI(\theta)$.`,
+        r`<b>크래머-라오 하한</b>(CRLB): 어떤 불편추정량도 분산이 $1/(nI(\theta))$보다 작을 수 없다. 정보가 많을수록 바닥이 낮아진다.`,
+        r`분산이 이 하한과 정확히 같은 불편추정량을 <b>효율적</b>이라 한다. 그런 추정량이 있으면 그보다 나은 불편추정량은 없다.`,
+      ],
+      formulas: [
+        { label: '피셔 정보량', tex: r`I(\theta)=E\!\left[\left(\frac{\partial}{\partial\theta}\log f(X;\theta)\right)^{2}\right]=-E\!\left[\frac{\partial^2}{\partial\theta^2}\log f(X;\theta)\right]` },
+        { label: 'CRLB', tex: r`\operatorname{Var}(\hat\theta)\ge\frac{1}{n\,I(\theta)}\quad(\hat\theta\text{ 불편})` },
+      ],
+      example: {
+        q: r`베르누이($p$)의 피셔 정보량과 CRLB를 구하고 $\bar X$가 효율적인지 확인하라.`,
+        a: r`$\log f=x\log p+(1-x)\log(1-p)$, 두 번 미분하면 $-\frac{x}{p^2}-\frac{1-x}{(1-p)^2}$. 기댓값에 마이너스: $I(p)=\frac1p+\frac1{1-p}=\frac{1}{p(1-p)}$. CRLB $=\frac{p(1-p)}{n}=\operatorname{Var}(\bar X)$이므로 효율적이다.`,
+      },
+      pitfall: r`CRLB는 정칙조건(받침이 $\theta$에 의존하지 않는 등)이 있을 때만 성립한다. $U(0,\theta)$에는 적용할 수 없다.`,
+      quiz: [
+        { q: r`포아송($\lambda$) 표본에서 불편추정량 분산의 하한(CRLB)은?`, choices: [r`$\lambda/n$`, r`$1/(n\lambda)$`, r`$\lambda^2/n$`, r`$\lambda$`], why: r`$I(\lambda)=1/\lambda$이므로 $1/(n\cdot\frac1\lambda)=\lambda/n$. $\bar X$의 분산과 같다.` },
+        { q: r`$\sigma^2$을 아는 $N(\mu,\sigma^2)$에서 $\mu$에 대한 $I(\mu)$는?`, choices: [r`$1/\sigma^2$`, r`$\sigma^2$`, r`$1/\sigma$`, r`$n/\sigma^2$`], why: r`$\partial^2\log f/\partial\mu^2=-1/\sigma^2$. 관측치 하나당 정보량이다.` },
+        { q: '표본 크기를 키우면 CRLB는?', choices: ['1/n에 비례해 줄어든다', '변하지 않는다', '커진다', r`$1/\sqrt n$에 비례해 줄어든다`], why: r`$1/(nI)$이다.` },
+      ],
+      cards: [
+        { q: '피셔 정보량 (두 가지 표현)', a: r`$E[(\partial_\theta\log f)^2]=-E[\partial_\theta^2\log f]$` },
+        { q: '크래머-라오 하한', a: r`불편 $\hat\theta$에 대해 $\operatorname{Var}(\hat\theta)\ge 1/(nI(\theta))$` },
+      ],
+      summary: '피셔 정보량은 로그가능도의 곡률이고, 불편추정량의 분산은 1/(nI)보다 작을 수 없다.',
+    },
+    {
+      id: 27, unit: 6, title: '일치성과 MLE의 점근정규성',
+      hook: '표본이 커지면 MLE는 참값으로 가고, 그 주변 흔들림은 CRLB를 달성하는 정규분포가 된다.',
+      body: [
+        r`$\hat\theta_n\xrightarrow{p}\theta$이면 <b>일치추정량</b>이다. 확인하는 쉬운 방법: $\operatorname{MSE}\to0$이면 (체비셰프 부등식에 의해) 일치한다.`,
+        r`정칙조건 아래에서 MLE는 일치하고, 더 나아가 <b>점근정규</b>다. 분산이 정확히 $1/(nI(\theta))$, 즉 크래머-라오 하한이다. 큰 표본에서 MLE가 사랑받는 이유다.`,
+        r`<b>델타 방법</b>: $\hat\theta$가 점근정규면 매끄러운 함수 $g(\hat\theta)$도 점근정규이고, 분산은 $g'(\theta)^2$배가 된다.`,
+      ],
+      formulas: [
+        { label: 'MLE 점근정규성', tex: r`\sqrt n(\hat\theta-\theta)\xrightarrow{d}N\!\left(0,\ \frac{1}{I(\theta)}\right)` },
+        { label: '델타 방법', tex: r`\sqrt n\big(g(\hat\theta)-g(\theta)\big)\xrightarrow{d}N\!\left(0,\ \frac{g'(\theta)^2}{I(\theta)}\right)` },
+      ],
+      example: {
+        q: r`Exp($\lambda$)에서 MLE $\hat\lambda=1/\bar X$의 근사분포는?`,
+        a: r`$\log f=\log\lambda-\lambda x$, 두 번 미분하면 $-1/\lambda^2$, 따라서 $I(\lambda)=1/\lambda^2$. 그러므로 $\hat\lambda\approx N(\lambda,\ \lambda^2/n)$.`,
+      },
+      pitfall: r`불편성과 일치성은 별개다. $\hat\lambda=1/\bar X$는 편향이 있지만 일치하고, $X_1$ 하나만 쓰는 추정량은 불편이지만 일치하지 않는다.`,
+      quiz: [
+        { q: r`$\operatorname{MSE}(\hat\theta_n)\to0$이면?`, choices: ['일치추정량이다', '불편추정량이다', '효율적이다', '충분통계량이다'], why: r`$P(|\hat\theta_n-\theta|\ge\varepsilon)\le\operatorname{MSE}/\varepsilon^2\to0$.` },
+        { q: r`베르누이에서 $\hat p=\bar X$일 때 델타 방법으로 구한 $\hat p^2$의 근사분산은?`, choices: [r`$4p^3(1-p)/n$`, r`$p(1-p)/n$`, r`$p^2(1-p)^2/n$`, r`$2p(1-p)/n$`], why: r`$g'(p)^2\cdot\frac{p(1-p)}{n}=(2p)^2\frac{p(1-p)}{n}$.` },
+        { q: r`정칙조건 아래 MLE의 점근분산은?`, choices: [r`$1/(nI(\theta))$`, r`$I(\theta)/n$`, r`$\sigma^2/n$`, r`$1/I(\theta)$`], why: '크래머-라오 하한을 점근적으로 달성한다.' },
+      ],
+      cards: [
+        { q: 'MLE의 점근분포', a: r`$\hat\theta\approx N(\theta,\ 1/(nI(\theta)))$` },
+        { q: '델타 방법', a: r`$g(\hat\theta)\approx N(g(\theta),\ g'(\theta)^2\operatorname{Var}(\hat\theta))$` },
+      ],
+      summary: 'MLE는 일치하고 점근정규이며 CRLB를 달성한다. 함수를 씌우면 델타 방법으로 분산을 옮긴다.',
+    },
+    {
+      id: 28, unit: 6, title: '신뢰구간',
+      hook: '95% 신뢰구간은 같은 방법을 반복하면 95%의 경우 참값을 잡는 그물이다.',
+      body: [
+        r`<b>추축량</b>(pivot)은 모수와 데이터가 섞여 있지만 분포는 모수에 의존하지 않는 양이다. 예: $Z=\frac{\bar X-\mu}{\sigma/\sqrt n}\sim N(0,1)$. 이 분포의 가운데 95%를 잡고 $\mu$에 대해 풀면 구간이 나온다.`,
+        r`$\sigma$를 모르면 $S$를 쓰고 $z$ 대신 $t_{n-1}$ 분위수를 쓴다. 비율이면 CLT로 $\hat p\pm z\sqrt{\hat p(1-\hat p)/n}$.`,
+        r`구간 폭은 $1/\sqrt n$에 비례한다. 폭을 절반으로 줄이려면 표본이 네 배 필요하다.`,
+      ],
+      formulas: [
+        { label: '평균 (σ 앎)', tex: r`\bar X\pm z_{\alpha/2}\frac{\sigma}{\sqrt n}` },
+        { label: '평균 (σ 모름, 정규)', tex: r`\bar X\pm t_{n-1,\alpha/2}\frac{S}{\sqrt n}` },
+        { label: '비율 (대표본)', tex: r`\hat p\pm z_{\alpha/2}\sqrt{\frac{\hat p(1-\hat p)}{n}}` },
+      ],
+      example: {
+        q: r`$\sigma=10$인 정규모집단에서 $n=25$, $\bar x=50$을 얻었다. 95% 신뢰구간은?`,
+        a: r`$50\pm1.96\times\frac{10}{5}=50\pm3.92$, 즉 $(46.08,\ 53.92)$.`,
+      },
+      pitfall: r`계산된 구간 $(46.08,\,53.92)$에 대해 "$\mu$가 이 안에 있을 확률이 95%"라고 하면 틀린다. $\mu$는 고정된 상수라 들어 있거나 아니거나다. 95%는 <b>구간을 만드는 절차</b>의 성질이다.`,
+      quiz: [
+        { q: '다른 조건이 같을 때 신뢰구간 폭을 절반으로 줄이려면 표본 크기를?', choices: ['4배로', '2배로', r`$\sqrt2$배로`, '절반으로'], why: r`폭 $\propto1/\sqrt n$.` },
+        { q: r`정규모집단, $\sigma$ 미지, $n=10$일 때 평균의 신뢰구간에 쓰는 분위수는?`, choices: [r`$t_9$`, r`$t_{10}$`, r`$z$`, r`$\chi^2_9$`], why: r`$\frac{\bar X-\mu}{S/\sqrt n}\sim t_{n-1}$.` },
+        { q: '95% 신뢰구간의 올바른 해석은?', choices: ['이 방법으로 구간을 반복해서 만들면 약 95%가 참값을 포함한다', '참값이 이 구간 안에 있을 확률이 95%다', '데이터의 95%가 이 구간 안에 있다', '표본평균이 이 구간에 있을 확률이 95%다'], why: '확률적인 것은 구간(데이터)이고, 모수는 고정되어 있다.' },
+      ],
+      cards: [
+        { q: '추축량(pivot)이란?', a: r`모수와 데이터의 함수인데 분포가 모수에 의존하지 않는 양. 예: $\frac{\bar X-\mu}{\sigma/\sqrt n}$` },
+        { q: '95% 신뢰구간의 뜻', a: '절차를 반복하면 95%의 구간이 참값을 포함한다' },
+      ],
+      summary: '추축량의 분포를 잡고 모수에 대해 풀면 신뢰구간이다. 95%는 절차의 성공률이다.',
+    },
+
+    /* ───────────── Unit 7. 가설검정 ───────────── */
+    {
+      id: 29, unit: 7, title: '가설검정: 두 가지 오류와 검정력',
+      hook: '가설검정은 무죄추정의 원칙이다. 증거가 충분할 때만 귀무가설을 기각한다.',
+      body: [
+        r`<b>귀무가설</b> $H_0$는 "효과 없음" 같은 기본 입장, <b>대립가설</b> $H_1$은 보이고 싶은 주장이다. 데이터가 $H_0$ 아래에서 일어나기 어려운 영역(<b>기각역</b>)에 떨어지면 $H_0$를 기각한다.`,
+        r`실수는 두 종류다. <b>제1종 오류</b>: $H_0$가 참인데 기각(무고한 사람 유죄). 확률 $\alpha$, 유의수준. <b>제2종 오류</b>: $H_1$이 참인데 기각 못함(범인 무죄). 확률 $\beta$.`,
+        r`<b>검정력</b> $1-\beta$는 효과가 실제로 있을 때 그것을 잡아낼 확률이다. 표본 크기가 고정이면 $\alpha$를 줄일수록 $\beta$는 커진다. 둘 다 줄이려면 $n$을 키워야 한다.`,
+      ],
+      formulas: [
+        { label: '두 오류', tex: r`\alpha=P(\text{기각}\mid H_0),\qquad \beta=P(\text{채택}\mid H_1)` },
+        { label: '검정력 함수', tex: r`\pi(\theta)=P_\theta(\text{기각}),\qquad \pi(\theta_1)=1-\beta` },
+      ],
+      example: {
+        q: r`$X_i\sim N(\mu,1)$, $n=25$. $H_0:\mu=0$ vs $H_1:\mu>0$을 $\alpha=0.05$로 검정한다. 기각역과 $\mu=0.5$에서의 검정력은?`,
+        a: r`기각역: $\bar X>1.645/\sqrt{25}=0.329$. $\mu=0.5$이면 $P(\bar X>0.329)=P\big(Z>(0.329-0.5)\times5\big)=P(Z>-0.855)\approx0.80$.`,
+      },
+      pitfall: r`$H_0$를 기각하지 못했다고 $H_0$가 참이라는 증거는 아니다. "증거 불충분"일 뿐이다. 검정력이 낮으면 효과가 있어도 놓친다.`,
+      quiz: [
+        { q: '제1종 오류는?', choices: [r`$H_0$가 참인데 기각하는 것`, r`$H_0$가 거짓인데 채택하는 것`, r`$H_1$이 참인데 기각하는 것`, '표본을 잘못 뽑는 것'], why: '유의수준 α가 제1종 오류의 확률이다.' },
+        { q: r`$n$이 고정일 때 $\alpha$를 0.05에서 0.01로 줄이면 $\beta$는?`, choices: ['커진다', '작아진다', '그대로다', '0이 된다'], why: '기각역이 좁아져 실제 효과도 놓치기 쉬워진다.' },
+        { q: '검정력을 높이는 방법이 <b>아닌</b> 것은?', choices: [r`$\alpha$를 더 작게 잡기`, '표본 크기 늘리기', '측정 잡음(σ) 줄이기', '효과가 큰 상황에서 검정하기'], why: r`$\alpha$를 줄이면 검정력도 줄어든다.` },
+      ],
+      cards: [
+        { q: '제1종 · 제2종 오류', a: r`1종: $H_0$ 참인데 기각 (확률 $\alpha$). 2종: $H_1$ 참인데 채택 (확률 $\beta$)` },
+        { q: '검정력', a: r`$1-\beta$ = 대립가설이 참일 때 기각할 확률` },
+      ],
+      summary: 'α는 억울한 기각, β는 놓친 효과, 검정력은 효과를 잡아낼 확률이다.',
+    },
+    {
+      id: 30, unit: 7, title: 'p-값',
+      hook: 'p-값은 귀무가설이 참이라면 지금만큼 또는 더 극단적인 결과가 나올 확률이다.',
+      body: [
+        r`검정통계량의 관측값을 $t_{\text{obs}}$라 하자. $H_0$ 아래에서 이것보다 더 극단적인 값이 나올 확률이 <b>p-값</b>이다. 작을수록 $H_0$와 데이터가 잘 안 맞는다.`,
+        r`판정 규칙: $p\le\alpha$이면 기각. 이것은 "관측값이 기각역에 들어갔다"와 정확히 같은 말이다. p-값은 모든 $\alpha$에 대한 답을 한 숫자에 담은 것이다.`,
+        r`양측검정이면 양쪽 꼬리를 모두 더한다. 대칭 분포라면 한쪽 꼬리 확률의 두 배다.`,
+      ],
+      formulas: [
+        { label: '단측 (오른쪽)', tex: r`p=P_{H_0}(T\ge t_{\text{obs}})` },
+        { label: '양측 (대칭)', tex: r`p=2\,P_{H_0}(T\ge|t_{\text{obs}}|)` },
+      ],
+      example: {
+        q: r`양측 $z$검정에서 $z_{\text{obs}}=2.1$이 나왔다. p-값은? $\alpha=0.05$에서 결론은?`,
+        a: r`$p=2\times(1-\Phi(2.1))\approx2\times0.0179=0.036$. $0.036<0.05$이므로 $H_0$를 기각한다.`,
+      },
+      pitfall: r`p-값은 "$H_0$가 참일 확률"이 아니고, 효과의 크기도 아니다. 표본이 아주 크면 쓸모없을 만큼 작은 효과도 아주 작은 p-값을 낸다.`,
+      quiz: [
+        { q: 'p-값의 올바른 정의는?', choices: [r`$H_0$가 참일 때 관측값 이상으로 극단적인 결과가 나올 확률`, r`$H_0$가 참일 확률`, r`$H_1$이 참일 확률`, '결과가 우연일 확률'], why: 'p-값은 H₀를 가정하고 계산한 데이터에 대한 확률이다.' },
+        { q: r`$p=0.03$, $\alpha=0.05$이면?`, choices: [r`$H_0$를 기각한다`, r`$H_0$를 채택한다`, r`$H_0$가 참일 확률이 3%다`, '판단할 수 없다'], why: r`$p\le\alpha$.` },
+        { q: '대칭 분포에서 단측 p-값이 0.02라면, 같은 관측값에 대한 양측 p-값은?', choices: ['0.04', '0.01', '0.02', '0.98'], why: '양쪽 꼬리를 더하므로 두 배.' },
+      ],
+      cards: [
+        { q: 'p-값의 정의', a: r`$H_0$ 아래에서 관측값만큼 또는 더 극단적인 결과가 나올 확률` },
+        { q: 'p-값이 아닌 것', a: r`$H_0$가 참일 확률도, 효과의 크기도 아니다` },
+      ],
+      summary: 'p-값은 H₀ 세계에서 이 데이터가 얼마나 놀라운지를 재고, p ≤ α이면 기각한다.',
+    },
+    {
+      id: 31, unit: 7, title: '네이만-피어슨 정리와 가능도비 검정',
+      hook: '가장 강력한 검정은 가능도비가 큰 곳을 기각역으로 삼는 검정이다.',
+      body: [
+        r`<b>네이만-피어슨 정리</b>: 단순가설 $H_0:\theta=\theta_0$ vs $H_1:\theta=\theta_1$에서, 크기 $\alpha$인 검정 중 검정력이 가장 큰 것은 $\frac{L(\theta_1)}{L(\theta_0)}>k$일 때 기각하는 검정이다. "$H_1$ 아래에서 상대적으로 더 그럴듯한 데이터"부터 기각역에 담는 셈이다.`,
+        r`정규평균처럼 가능도비가 $\bar X$의 증가함수이면 기각역이 $\bar X>c$가 된다. 이 기각역이 $\theta_1$ 값과 무관하므로 단측 대립가설 전체에 대해 최강력, 즉 <b>균일최강력(UMP)</b> 검정이다.`,
+        r`복합가설에는 <b>일반화 가능도비 검정</b>(GLRT)을 쓴다. $\Lambda$가 작을수록 $H_0$에 불리하다. <b>윌크스 정리</b>: $H_0$ 아래 $-2\log\Lambda$는 근사적으로 카이제곱을 따르고, 자유도는 두 가설의 자유 모수 개수 차이다.`,
+      ],
+      formulas: [
+        { label: '네이만-피어슨', tex: r`\text{기각}\iff\frac{L(\theta_1;x)}{L(\theta_0;x)}>k` },
+        { label: 'GLRT와 윌크스', tex: r`\Lambda=\frac{\sup_{\theta\in\Theta_0}L(\theta)}{\sup_{\theta\in\Theta}L(\theta)},\qquad -2\log\Lambda\ \overset{\cdot}{\sim}\ \chi^2_{d}` },
+      ],
+      example: {
+        q: r`$X_i\sim N(\mu,1)$에서 $H_0:\mu=0$ vs $H_1:\mu=1$. 최강력 검정의 형태는?`,
+        a: r`$\frac{L(1)}{L(0)}=\exp\!\big(\sum x_i-\frac n2\big)$은 $\bar x$의 증가함수. 따라서 $\bar X>c$일 때 기각하고, $c$는 $\alpha$에 맞춰 $1.645/\sqrt n$ 등으로 정한다.`,
+      },
+      pitfall: r`네이만-피어슨 정리 자체는 <b>단순 대 단순</b> 가설에 대한 것이다. 양측 대립가설에는 일반적으로 UMP 검정이 존재하지 않는다.`,
+      quiz: [
+        { q: '네이만-피어슨 정리가 직접 적용되는 상황은?', choices: ['단순가설 vs 단순가설', '복합가설 vs 복합가설', '양측 대립가설', '모수가 없는 검정'], why: '복합가설로의 확장은 단조가능도비 등 추가 조건이 필요하다.' },
+        { q: r`정규모형에서 $H_0:\mu=0,\ \sigma^2$ 미지 vs $H_1$: 둘 다 자유일 때, 윌크스 정리의 자유도는?`, choices: ['1', '2', '0', r`$n-1$`], why: '전체 2개(μ, σ²) − 귀무 1개(σ²) = 1.' },
+        { q: r`가능도비 $\Lambda$의 범위와 해석으로 옳은 것은?`, choices: [r`$0\le\Lambda\le1$, 작을수록 $H_0$ 기각`, r`$0\le\Lambda\le1$, 클수록 $H_0$ 기각`, r`$\Lambda\ge1$, 클수록 기각`, r`$\Lambda$는 음수가 될 수 있다`], why: '분자는 제한된 최대, 분모는 전체 최대라 Λ ≤ 1. 제한하면 손해가 클수록 H₀가 의심스럽다.' },
+      ],
+      cards: [
+        { q: '네이만-피어슨 정리', a: r`단순 vs 단순에서 $L(\theta_1)/L(\theta_0)>k$로 기각하는 검정이 최강력` },
+        { q: '윌크스 정리', a: r`$-2\log\Lambda\overset{\cdot}{\sim}\chi^2_d$, $d$ = 자유 모수 개수의 차이` },
+      ],
+      summary: '최강력 검정은 가능도비로 만들고, 복합가설에서는 −2logΛ가 카이제곱을 따른다.',
+    },
+    {
+      id: 32, unit: 7, title: '베이즈 추론 맛보기',
+      hook: '베이즈 추론에서는 모수도 확률변수다. 사후분포는 가능도 곱하기 사전분포다.',
+      body: [
+        r`지금까지는 $\theta$를 고정된 미지의 상수로 봤다(빈도주의). 베이즈에서는 $\theta$에 대한 믿음을 <b>사전분포</b> $\pi(\theta)$로 표현하고, 데이터를 본 뒤 베이즈 정리로 <b>사후분포</b>로 갱신한다. 3일차의 베이즈 정리가 그대로 분포 버전이 된 것이다.`,
+        r`사전분포와 사후분포가 같은 분포족이면 <b>켤레</b>라 한다. 대표적으로 베타 사전분포 + 이항 가능도 → 베타 사후분포. 계산이 "성공은 $a$에, 실패는 $b$에 더하기"로 끝난다.`,
+        r`사후평균은 사전평균과 표본비율 사이의 가중평균이다. 데이터가 많아질수록 데이터 쪽으로 쏠려 결국 MLE와 거의 같아진다.`,
+      ],
+      formulas: [
+        { label: '사후분포', tex: r`\pi(\theta\mid x)\ \propto\ L(\theta;x)\,\pi(\theta)` },
+        { label: '베타-이항 켤레', tex: r`\text{Beta}(a,b)\ \xrightarrow{\ n\text{회 중 }x\text{회 성공}\ }\ \text{Beta}(a+x,\ b+n-x)` },
+        { label: '사후평균', tex: r`E[p\mid x]=\frac{a+x}{a+b+n}` },
+      ],
+      example: {
+        q: r`균등 사전분포 Beta(1,1)로 시작해 10번 중 7번 성공을 관측했다. 사후분포와 사후평균은?`,
+        a: r`Beta$(1+7,\ 1+3)=$ Beta$(8,4)$. 사후평균 $8/12\approx0.667$. MLE $0.7$보다 사전평균 $0.5$ 쪽으로 살짝 당겨졌다.`,
+      },
+      pitfall: r`베이즈 신용구간 "$P(\theta\in C\mid x)=0.95$"는 신뢰구간과 해석이 다르다. 베이즈에서는 모수가 확률변수라서 "모수가 구간 안에 있을 확률 95%"라고 말해도 된다.`,
+      quiz: [
+        { q: r`사전분포 Beta(2,2)에서 5번 중 3번 성공을 관측했다. 사후분포는?`, choices: ['Beta(5, 4)', 'Beta(3, 2)', 'Beta(5, 5)', 'Beta(4, 5)'], why: r`$a+x=2+3=5$, $b+n-x=2+2=4$.` },
+        { q: '데이터가 아주 많아지면 사후평균은?', choices: ['MLE(표본비율)에 가까워진다', '사전평균에 가까워진다', '0.5로 간다', '변하지 않는다'], why: r`$\frac{a+x}{a+b+n}$에서 $n$이 커지면 $a, b$의 영향이 사라진다.` },
+        { q: "'켤레 사전분포'의 뜻은?", choices: ['사후분포가 사전분포와 같은 분포족이 되는 사전분포', '정보가 전혀 없는 사전분포', '가능도와 모양이 같은 사전분포', '두 개의 사전분포를 곱한 것'], why: '계산이 모수 갱신만으로 끝나는 편리한 조합이다.' },
+      ],
+      cards: [
+        { q: '사후분포', a: r`$\pi(\theta\mid x)\propto L(\theta;x)\pi(\theta)$` },
+        { q: '베타-이항 켤레 갱신', a: r`Beta$(a,b)$ → Beta$(a+x,\ b+n-x)$` },
+      ],
+      summary: '사후 ∝ 가능도 × 사전. 켤레 분포면 갱신은 덧셈이고, 데이터가 많으면 MLE에 수렴한다.',
+    },
+  ]);
+})();
+
+;
+/* 하루 수리통계 — 앱 로직
+ * 화면: #today(오늘) · #course(커리큘럼) · #lesson-N(레슨) · #review(복습)
+ * 진도는 이 브라우저의 localStorage에만 저장된다.
+ */
+(function () {
+  'use strict';
+
+  const UNITS = window.STAT_UNITS || [];
+  const LESSONS = (window.STAT_LESSONS || []).slice().sort((a, b) => a.id - b.id);
+  const byId = new Map(LESSONS.map((l) => [l.id, l]));
+  const STORE_KEY = 'haru-suritong-v1';
+  const INTERVALS = [1, 3, 7, 14, 30, 60]; // 복습 상자별 다음 복습까지 일수
+
+  /* ───────── 저장소 ───────── */
+  const blank = () => ({ completed: {}, activity: {}, reviewDays: {}, cards: {}, quiz: {} });
+  let state = load();
+
+  function load() {
+    try {
+      const raw = window.localStorage.getItem(STORE_KEY);
+      if (!raw) return blank();
+      return Object.assign(blank(), JSON.parse(raw));
+    } catch (e) {
+      return blank();
+    }
+  }
+  function save() {
+    try { window.localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* 저장 불가 환경: 세션 동안만 유지 */ }
+  }
+
+  /* ───────── 날짜 ───────── */
+  const pad = (n) => String(n).padStart(2, '0');
+  const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const today = () => ymd(new Date());
+  function addDays(dateStr, n) {
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return ymd(new Date(y, m - 1, d + n));
+  }
+  const WEEK = ['일', '월', '화', '수', '목', '금', '토'];
+  function prettyToday() {
+    const d = new Date();
+    return `${d.getMonth() + 1}월 ${d.getDate()}일 ${WEEK[d.getDay()]}요일`;
+  }
+
+  /* ───────── 진도 계산 ───────── */
+  const isDone = (id) => Boolean(state.completed[id]);
+  const doneCount = () => LESSONS.filter((l) => isDone(l.id)).length;
+  const nextLesson = () => LESSONS.find((l) => !isDone(l.id)) || null;
+  const lessonsToday = () => LESSONS.filter((l) => state.completed[l.id] === today()).length;
+  const activeOn = (d) => (state.activity[d] || 0) > 0 || Boolean(state.reviewDays[d]);
+
+  function streak() {
+    let d = today();
+    if (!activeOn(d)) d = addDays(d, -1);
+    let n = 0;
+    while (activeOn(d)) { n += 1; d = addDays(d, -1); }
+    return n;
+  }
+  function dueCardKeys() {
+    const t = today();
+    return Object.keys(state.cards)
+      .filter((k) => state.cards[k].due <= t)
+      .sort((a, b) => state.cards[a].due.localeCompare(state.cards[b].due) || cardOrder(a) - cardOrder(b));
+  }
+  const cardOrder = (k) => { const [l, i] = k.split('-').map(Number); return l * 100 + i; };
+  function cardByKey(k) {
+    const [lid, idx] = k.split('-').map(Number);
+    const lesson = byId.get(lid);
+    return lesson && lesson.cards[idx] ? { lesson, card: lesson.cards[idx] } : null;
+  }
+  const dayLabel = (id) => `Day ${pad(id)}`;
+  const unitOf = (l) => UNITS.find((u) => u.id === l.unit) || { title: '' };
+
+  /* ───────── 유틸 ───────── */
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  function seededShuffle(arr, seed) {
+    const a = arr.slice();
+    let s = seed % 2147483647; if (s <= 0) s += 2147483646;
+    const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(rnd() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+  function toast(msg) {
+    document.querySelectorAll('.toast').forEach((t) => t.remove());
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.setAttribute('role', 'status');
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2600);
+  }
+
+  /* ───────── 수식 렌더링 (MathJax) ───────── */
+  let pendingTypeset = null;
+  function typeset(el) {
+    const mj = window.MathJax;
+    if (mj && mj.typesetPromise && mj.startup && mj.startup.promise) {
+      mj.startup.promise = mj.startup.promise
+        .then(() => mj.typesetPromise([el]))
+        .catch((e) => console.warn('MathJax', e));
+    } else {
+      pendingTypeset = el;
+    }
+  }
+  function clearTypeset() {
+    const mj = window.MathJax;
+    if (mj && mj.typesetClear) { try { mj.typesetClear(); } catch (e) { /* noop */ } }
+  }
+  window.__haruMathReady = function () {
+    if (pendingTypeset) { typeset(pendingTypeset); pendingTypeset = null; }
+  };
+
+  /* ───────── 라우팅 ───────── */
+  const app = document.getElementById('app');
+  const tabbar = document.getElementById('tabbar');
+  let session = { answers: {}, review: null, confirmReset: false };
+  let widgetCleanup = null;
+
+  function route() {
+    const h = (location.hash || '').replace('#', '');
+    const m = /^lesson-(\d+)$/.exec(h);
+    if (m && byId.has(Number(m[1]))) return { view: 'lesson', id: Number(m[1]) };
+    if (h === 'course') return { view: 'course' };
+    if (h === 'review') return { view: 'review' };
+    return { view: 'today' };
+  }
+
+  function render(opts) {
+    const r = route();
+    if (widgetCleanup) { widgetCleanup(); widgetCleanup = null; }
+    clearTypeset();
+    let html = '';
+    if (r.view === 'lesson') html = viewLesson(byId.get(r.id));
+    else if (r.view === 'course') html = viewCourse();
+    else if (r.view === 'review') html = viewReview();
+    else html = viewToday();
+    app.innerHTML = `<div class="wrap">${html}</div>`;
+    renderTabbar(r.view);
+    if (r.view === 'lesson') mountWidget(byId.get(r.id));
+    typeset(app);
+    if (!opts || !opts.keepScroll) window.scrollTo(0, 0);
+    const titles = { today: '오늘', course: '커리큘럼', review: '복습' };
+    document.title = r.view === 'lesson' ? `${dayLabel(r.id)} ${byId.get(r.id).title} · 하루 수리통계` : `하루 수리통계 · ${titles[r.view]}`;
+  }
+
+  function renderTabbar(view) {
+    const due = dueCardKeys().length;
+    const cur = (v) => (view === v || (v === 'course' && view === 'lesson') ? ' aria-current="page"' : '');
+    tabbar.innerHTML = `<div class="tabbar-inner">
+      <a class="tab" href="#today"${cur('today')}><span class="glyph" aria-hidden="true">∂</span>오늘</a>
+      <a class="tab" href="#course"${cur('course')}><span class="glyph" aria-hidden="true">∑</span>커리큘럼</a>
+      <a class="tab" href="#review"${cur('review')}><span class="glyph" aria-hidden="true">↻</span>복습${due ? `<span class="badge" aria-label="복습할 카드 ${due}장">${due}</span>` : ''}</a>
+    </div>`;
+  }
+
+  /* ───────── 화면: 오늘 ───────── */
+  function viewToday() {
+    const next = nextLesson();
+    const doneToday = lessonsToday();
+    const due = dueCardKeys().length;
+    const s = streak();
+
+    let main = '';
+    if (!next) {
+      main = `<section class="sheet today">
+        <span class="eyebrow">완주</span>
+        <h2 class="title">32일 과정을 모두 마쳤어요</h2>
+        <p class="muted">이제는 복습 카드가 기억을 지켜 줍니다. 매일 복습 탭만 비워 주세요.</p>
+        <a class="btn" href="#review">복습하러 가기</a>
+      </section>`;
+    } else if (doneToday > 0) {
+      main = `<section class="sheet today">
+        <span class="done-badge">✓ 오늘 분량 완료</span>
+        <h2 class="title">내일은 ${esc(next.title)}</h2>
+        <p class="hook">${next.hook}</p>
+        <p class="muted">하루 한 레슨이면 한 달 남짓에 수리통계 핵심을 한 바퀴 돕니다. 여유가 있으면 미리 봐도 좋아요.</p>
+        <div class="row">
+          ${due ? `<a class="btn" href="#review">복습 ${due}장 하기</a>` : ''}
+          <a class="btn ${due ? 'quiet' : 'ghost'}" href="#lesson-${next.id}">하나 더 하기 · ${dayLabel(next.id)}</a>
+        </div>
+      </section>`;
+    } else {
+      main = `<section class="sheet today">
+        <div class="row spread"><span class="eyebrow"><span class="day-tag">${dayLabel(next.id)}</span> · ${esc(unitOf(next).title)}</span><span class="eyebrow">약 5분</span></div>
+        <h2 class="title">${esc(next.title)}</h2>
+        <p class="hook">${next.hook}</p>
+        <a class="btn block" href="#lesson-${next.id}">오늘의 레슨 시작</a>
+      </section>`;
+    }
+
+    const reviewBox = `<section class="sheet">
+      <div class="row spread">
+        <h3>복습 카드</h3>
+        <span class="readout">${Object.keys(state.cards).length}장 보관 중</span>
+      </div>
+      ${due
+        ? `<p>오늘 다시 볼 카드가 <b>${due}장</b> 있어요. 기억이 흐려지기 직전에 꺼내 보는 게 가장 오래 남습니다.</p>
+           <a class="btn ${doneToday || !next ? '' : 'ghost'}" href="#review">복습 시작</a>`
+        : `<p class="muted">${Object.keys(state.cards).length ? '오늘 복습할 카드가 없어요. 다음 카드는 ' + nextDueText() + '에 돌아옵니다.' : '레슨을 끝내면 핵심 공식이 카드로 저장되고, 1·3·7·14·30일 간격으로 다시 나타나요.'}</p>`}
+    </section>`;
+
+    const strip = [];
+    for (let i = 13; i >= 0; i--) {
+      const d = addDays(today(), -i);
+      strip.push(`<span class="${activeOn(d) ? 'on' : ''}${i === 0 ? ' today' : ''}" title="${d}"></span>`);
+    }
+
+    const units = UNITS.map((u) => {
+      const ls = LESSONS.filter((l) => l.unit === u.id);
+      const d = ls.filter((l) => isDone(l.id)).length;
+      return `<div class="unit-row"><span class="name">${u.id}. ${esc(u.title)}</span><span class="count">${d}/${ls.length}</span><span class="bar"><i style="width:${ls.length ? (100 * d) / ls.length : 0}%"></i></span></div>`;
+    }).join('');
+
+    return `
+      <header class="masthead">
+        <div class="brand">
+          <span class="eyebrow">${prettyToday()}</span>
+          <span class="brand-name">하루 수리통계 <span class="theta">θ̂</span></span>
+        </div>
+        <div class="streak" aria-label="연속 학습 ${s}일"><b>${s}</b><span class="muted">일 연속</span></div>
+      </header>
+      ${main}
+      ${reviewBox}
+      <section class="sheet">
+        <div class="row spread"><h3>최근 2주</h3><span class="readout">${doneCount()}/${LESSONS.length} 레슨</span></div>
+        <div class="strip" aria-label="최근 14일 학습 기록">${strip.join('')}</div>
+        <div class="strip-legend"><span>2주 전</span><span>오늘</span></div>
+      </section>
+      <section class="sheet">
+        <h3>단원별 진도</h3>
+        <div class="units">${units}</div>
+      </section>`;
+  }
+
+  function nextDueText() {
+    const ds = Object.values(state.cards).map((c) => c.due).sort();
+    if (!ds.length) return '';
+    const d = ds[0];
+    if (d === addDays(today(), 1)) return '내일';
+    const [, m, dd] = d.split('-').map(Number);
+    return `${m}월 ${dd}일`;
+  }
+
+  /* ───────── 화면: 커리큘럼 ───────── */
+  function viewCourse() {
+    const next = nextLesson();
+    const blocks = UNITS.map((u) => {
+      const items = LESSONS.filter((l) => l.unit === u.id).map((l) => {
+        const st = isDone(l.id) ? '<span class="state done">완료</span>'
+          : next && next.id === l.id ? '<span class="state next">다음</span>'
+          : '<span class="state todo">·</span>';
+        return `<li><a class="lesson-link" href="#lesson-${l.id}"><span class="day-tag">${dayLabel(l.id)}</span><span class="t">${esc(l.title)}</span>${st}</a></li>`;
+      }).join('');
+      return `<section class="unit-block">
+        <div class="unit-head"><h3>${u.id}. ${esc(u.title)}</h3><span class="eyebrow">${esc(u.blurb)}</span></div>
+        <ul class="lesson-list">${items}</ul>
+      </section>`;
+    }).join('');
+
+    const reset = session.confirmReset
+      ? `<p>정말 모든 진도와 복습 카드를 지울까요? 되돌릴 수 없어요.</p>
+         <div class="row"><button class="btn" data-action="reset-yes" style="background:var(--bad);border-color:var(--bad)">모두 지우기</button><button class="btn quiet" data-action="reset-no">취소</button></div>`
+      : `<button class="btn quiet" data-action="reset-ask">진도 초기화</button>`;
+
+    return `
+      <header class="masthead">
+        <div class="brand"><span class="eyebrow">7개 단원 · ${LESSONS.length}일</span><h1>커리큘럼</h1></div>
+        <span class="readout">${doneCount()}/${LESSONS.length} 완료</span>
+      </header>
+      <p class="muted">확률의 언어에서 시작해 추정과 검정까지, 수리통계 교재의 뼈대를 하루 5분 분량으로 나눴어요. 순서대로 가는 걸 추천하지만 어느 레슨이든 바로 열 수 있어요.</p>
+      ${blocks}
+      <section class="danger-zone">${reset}<span class="muted">진도는 이 기기의 브라우저에만 저장됩니다.</span></section>`;
+  }
+
+  /* ───────── 화면: 레슨 ───────── */
+  function viewLesson(l) {
+    const unit = unitOf(l);
+    const ans = session.answers[l.id] || {};
+    const prev = byId.get(l.id - 1);
+    const nxt = byId.get(l.id + 1);
+
+    const formulas = l.formulas.map((f) => `<div class="formula"><span class="lbl">${esc(f.label)}</span><div class="tex">$$${f.tex}$$</div></div>`).join('');
+
+    const quiz = l.quiz.map((q, qi) => {
+      const order = seededShuffle(q.choices.map((_, i) => i), l.id * 97 + qi * 13 + 7);
+      const chosen = ans[qi];
+      const answered = chosen !== undefined;
+      const choices = order.map((ci, pos) => {
+        let cls = 'choice';
+        if (answered && ci === 0) cls += ' correct';
+        else if (answered && ci === chosen) cls += ' wrong';
+        return `<button class="${cls}" data-action="answer" data-l="${l.id}" data-q="${qi}" data-c="${ci}"${answered ? ' disabled' : ''}><span class="key">${'ABCD'[pos]}</span><span>${q.choices[ci]}</span></button>`;
+      }).join('');
+      const verdict = answered ? (chosen === 0 ? '<span class="verdict ok">정답</span>' : '<span class="verdict no">아쉬워요</span>') : '<span class="verdict"></span>';
+      return `<div class="q" id="q-${l.id}-${qi}">
+        <p class="q-text"><span class="q-num">Q${qi + 1}</span>${q.q}</p>
+        <div class="choices">${choices}</div>
+        <p class="why"${answered ? '' : ' hidden'}>${verdict}${q.why}</p>
+      </div>`;
+    }).join('');
+
+    const answeredN = Object.keys(ans).length;
+    const correctN = Object.values(ans).filter((c) => c === 0).length;
+    const done = isDone(l.id);
+
+    const completeBox = done
+      ? `<span class="done-badge">✓ ${state.completed[l.id]} 완료</span>
+         ${nxt ? `<a class="btn" href="#lesson-${nxt.id}">다음 레슨 · ${esc(nxt.title)}</a>` : `<a class="btn" href="#review">복습하러 가기</a>`}
+         <a class="btn quiet" href="#today">오늘 화면으로</a>`
+      : `<p class="muted" id="quiz-progress">${quizProgressText(l, answeredN, correctN)}</p>
+         <button class="btn block" data-action="complete" data-l="${l.id}">학습 완료 · 카드 ${l.cards.length}장 저장</button>`;
+
+    return `
+      <nav class="crumbs">
+        <a class="back" href="#course">← 커리큘럼</a>
+        <span class="eyebrow"><span class="day-tag">${dayLabel(l.id)}</span> / ${LESSONS.length}</span>
+      </nav>
+      <header class="lesson-head">
+        <span class="eyebrow">Unit ${l.unit} · ${esc(unit.title)}</span>
+        <h1>${esc(l.title)}</h1>
+        <p class="hook">${l.hook}</p>
+      </header>
+
+      <section class="sheet">
+        <h3 class="section-label">핵심 아이디어</h3>
+        <div class="prose">${l.body.map((p) => `<p>${p}</p>`).join('')}</div>
+      </section>
+
+      <section class="sheet">
+        <h3 class="section-label">외워 둘 공식</h3>
+        <div class="formulas">${formulas}</div>
+      </section>
+
+      ${l.widget ? `<section class="sheet widget" id="widget" data-kind="${l.widget}"></section>` : ''}
+
+      <section class="sheet">
+        <h3 class="section-label">예제</h3>
+        <p>${l.example.q}</p>
+        <details class="example"><summary>풀이 보기</summary><div class="sol">${l.example.a}</div></details>
+        <div class="pitfall"><span class="eyebrow">자주 하는 실수</span><p>${l.pitfall}</p></div>
+      </section>
+
+      <section class="sheet">
+        <h3 class="section-label">확인 퀴즈</h3>
+        <div class="quiz">${quiz}</div>
+      </section>
+
+      <section class="sheet">
+        <h3 class="section-label">오늘의 한 줄</h3>
+        <p class="summary-line">${l.summary}</p>
+        <div class="complete-box">${completeBox}</div>
+      </section>
+
+      <nav class="pager">
+        ${prev ? `<a class="back" href="#lesson-${prev.id}"><span>← <small>${dayLabel(prev.id)}</small>${esc(prev.title)}</span></a>` : '<span></span>'}
+        ${nxt ? `<a class="back" href="#lesson-${nxt.id}" style="justify-content:flex-end"><span><small>${dayLabel(nxt.id)}</small>${esc(nxt.title)} →</span></a>` : '<span></span>'}
+      </nav>`;
+  }
+
+  function quizProgressText(l, answeredN, correctN) {
+    if (answeredN < l.quiz.length) return `퀴즈 ${answeredN}/${l.quiz.length} 풀었어요. 다 풀고 완료하면 더 오래 기억납니다.`;
+    return correctN === l.quiz.length ? `퀴즈 ${correctN}/${l.quiz.length} 정답. 완벽해요.` : `퀴즈 ${correctN}/${l.quiz.length} 정답. 틀린 문제의 해설을 한 번 더 읽고 완료하세요.`;
+  }
+
+  function answer(lid, qi, ci) {
+    const l = byId.get(lid);
+    session.answers[lid] = session.answers[lid] || {};
+    if (session.answers[lid][qi] !== undefined) return;
+    session.answers[lid][qi] = ci;
+    const box = document.getElementById(`q-${lid}-${qi}`);
+    if (!box) return;
+    box.querySelectorAll('.choice').forEach((b) => {
+      const c = Number(b.dataset.c);
+      b.disabled = true;
+      if (c === 0) b.classList.add('correct');
+      else if (c === ci) b.classList.add('wrong');
+    });
+    const why = box.querySelector('.why');
+    const v = why.querySelector('.verdict');
+    v.textContent = ci === 0 ? '정답' : '아쉬워요';
+    v.className = 'verdict ' + (ci === 0 ? 'ok' : 'no');
+    why.hidden = false;
+    const ans = session.answers[lid];
+    const prog = document.getElementById('quiz-progress');
+    if (prog) prog.textContent = quizProgressText(l, Object.keys(ans).length, Object.values(ans).filter((c) => c === 0).length);
+  }
+
+  function complete(lid) {
+    const l = byId.get(lid);
+    if (isDone(lid)) return;
+    const t = today();
+    state.completed[lid] = t;
+    state.activity[t] = (state.activity[t] || 0) + 1;
+    const ans = session.answers[lid] || {};
+    state.quiz[lid] = Object.values(ans).filter((c) => c === 0).length;
+    l.cards.forEach((_, i) => {
+      const k = `${lid}-${i}`;
+      if (!state.cards[k]) state.cards[k] = { box: 0, due: addDays(t, 1) };
+    });
+    save();
+    toast(`${dayLabel(lid)} 완료. 복습 카드 ${l.cards.length}장이 내일 돌아와요.`);
+    render({ keepScroll: true });
+  }
+
+  /* ───────── 화면: 복습 ───────── */
+  function startReview(mode) {
+    let keys;
+    if (mode === 'free') {
+      keys = seededShuffle(Object.keys(state.cards), Date.now() % 100000 + 1).slice(0, 5);
+    } else {
+      keys = dueCardKeys();
+    }
+    session.review = { mode, queue: keys, idx: 0, shown: false, again: {}, remembered: 0, total: keys.length };
+  }
+
+  function viewReview() {
+    const rv = session.review;
+    if (rv && rv.idx < rv.queue.length) return viewFlash(rv);
+    if (rv && rv.idx >= rv.queue.length && rv.total > 0) {
+      const finished = rv;
+      session.review = null;
+      const left = dueCardKeys().length;
+      return `<header class="masthead"><div class="brand"><span class="eyebrow">복습</span><h1>복습 끝</h1></div></header>
+        <section class="sheet empty">
+          <span class="done-badge">✓ ${finished.total}장 완료</span>
+          <p>${finished.mode === 'free' ? '자유 복습이라 다음 일정은 바뀌지 않았어요.' : `한 번에 기억난 카드 ${finished.remembered}장은 더 긴 간격으로, 헷갈린 카드는 내일 다시 나와요.`}</p>
+          ${left ? `<button class="btn" data-action="review-start">남은 카드 ${left}장 계속</button>` : ''}
+          <a class="btn ${left ? 'quiet' : ''}" href="#today">오늘 화면으로</a>
+        </section>`;
+    }
+    const due = dueCardKeys().length;
+    const total = Object.keys(state.cards).length;
+    return `<header class="masthead"><div class="brand"><span class="eyebrow">간격 반복</span><h1>복습</h1></div><span class="readout">${total}장 보관 중</span></header>
+      <section class="sheet empty">
+        ${due
+          ? `<h3>오늘 볼 카드 ${due}장</h3><p class="muted">질문을 보고 먼저 머릿속으로 답한 뒤 뒤집어 보세요. 기억나면 다음 복습 간격이 1→3→7→14→30→60일로 늘어나고, 헷갈리면 내일 다시 나와요.</p>
+             <button class="btn block" data-action="review-start">복습 시작</button>`
+          : total
+            ? `<h3>오늘 복습은 비어 있어요</h3><p class="muted">다음 카드는 ${nextDueText()}에 돌아와요. 손이 심심하면 아무 카드나 5장 뽑아 볼 수 있어요. 자유 복습은 일정을 바꾸지 않아요.</p>
+               <button class="btn ghost" data-action="review-free">자유 복습 5장</button>`
+            : `<h3>아직 카드가 없어요</h3><p class="muted">레슨을 끝내면 그날의 핵심 공식이 카드로 저장돼요.</p><a class="btn" href="#today">첫 레슨 하러 가기</a>`}
+      </section>`;
+  }
+
+  function viewFlash(rv) {
+    const key = rv.queue[rv.idx];
+    const found = cardByKey(key);
+    if (!found) { rv.idx += 1; return viewReview(); }
+    const { lesson, card } = found;
+    const dots = rv.queue.map((_, i) => `<i class="${i < rv.idx ? 'on' : ''}"></i>`).join('');
+    return `<header class="masthead"><div class="brand"><span class="eyebrow">${rv.mode === 'free' ? '자유 복습' : '오늘의 복습'}</span><h1>${rv.idx + 1} / ${rv.queue.length}</h1></div>
+        <button class="btn quiet" data-action="review-quit">그만하기</button></header>
+      <div class="progress-dots" aria-hidden="true">${dots}</div>
+      <section class="sheet flash">
+        <div class="flash-meta"><span><span class="day-tag">${dayLabel(lesson.id)}</span> ${esc(lesson.title)}</span>${rv.mode === 'free' ? '' : `<span>상자 ${(state.cards[key] || { box: 0 }).box + 1}</span>`}</div>
+        <p class="front">${card.q}</p>
+        <div class="back-side" id="flash-back" hidden>${card.a}</div>
+        <div id="flash-actions">
+          <button class="btn block" data-action="flip">정답 보기</button>
+        </div>
+        <div class="grade" id="flash-grade" hidden>
+          <button class="btn quiet" data-action="grade" data-g="0">헷갈려요</button>
+          <button class="btn" data-action="grade" data-g="1">기억났어요</button>
+        </div>
+      </section>
+      <a class="back" href="#lesson-${lesson.id}">레슨 다시 보기 →</a>`;
+  }
+
+  function grade(ok) {
+    const rv = session.review;
+    if (!rv) return;
+    const key = rv.queue[rv.idx];
+    const t = today();
+    if (rv.mode !== 'free' && state.cards[key] && !rv.again[key]) {
+      const c = state.cards[key];
+      if (ok) {
+        c.box = Math.min(c.box + 1, INTERVALS.length - 1);
+        c.due = addDays(t, INTERVALS[c.box]);
+        rv.remembered += 1;
+      } else {
+        c.box = 0;
+        c.due = addDays(t, 1);
+      }
+    }
+    if (!ok && !rv.again[key]) { rv.again[key] = true; rv.queue.push(key); }
+    rv.idx += 1;
+    if (rv.idx >= rv.queue.length) {
+      state.reviewDays[t] = true;
+    }
+    save();
+    render();
+  }
+
+  /* ───────── 이벤트 ───────── */
+  document.addEventListener('click', (e) => {
+    const el = e.target.closest('[data-action]');
+    if (!el) return;
+    const a = el.dataset.action;
+    if (a === 'answer') answer(Number(el.dataset.l), Number(el.dataset.q), Number(el.dataset.c));
+    else if (a === 'complete') complete(Number(el.dataset.l));
+    else if (a === 'review-start') { startReview('due'); render(); }
+    else if (a === 'review-free') { startReview('free'); render(); }
+    else if (a === 'review-quit') { session.review = null; render(); }
+    else if (a === 'flip') {
+      document.getElementById('flash-back').hidden = false;
+      document.getElementById('flash-actions').hidden = true;
+      document.getElementById('flash-grade').hidden = false;
+    } else if (a === 'grade') grade(el.dataset.g === '1');
+    else if (a === 'reset-ask') { session.confirmReset = true; render({ keepScroll: true }); }
+    else if (a === 'reset-no') { session.confirmReset = false; render({ keepScroll: true }); }
+    else if (a === 'reset-yes') {
+      state = blank(); session = { answers: {}, review: null, confirmReset: false };
+      save(); toast('진도를 초기화했어요.'); location.hash = '#today'; render();
+    }
+  });
+  window.addEventListener('hashchange', () => {
+    if (route().view !== 'review' && session.review) session.review = null;
+    session.confirmReset = false;
+    render();
+  });
+
+  /* ───────── 위젯 (캔버스) ───────── */
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+
+  function setupCanvas(canvas) {
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth || 300;
+    const h = canvas.clientHeight || 200;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    return { ctx, w, h };
+  }
+  function axisLabels(ctx, w, h, labels, pad) {
+    ctx.fillStyle = css('--muted');
+    ctx.font = '11px ' + css('--font-mono');
+    ctx.textBaseline = 'bottom';
+    labels.forEach(([x, text, align]) => { ctx.textAlign = align || 'center'; ctx.fillText(text, x, h - 4); });
+    ctx.strokeStyle = css('--rule');
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(pad, h - 20.5); ctx.lineTo(w - pad, h - 20.5); ctx.stroke();
+  }
+
+  function mountWidget(lesson) {
+    const host = document.getElementById('widget');
+    if (!host || !lesson.widget) return;
+    const builders = { binom: widgetBinom, lln: widgetLLN, clt: widgetCLT };
+    const b = builders[lesson.widget];
+    if (!b) return;
+    const redraw = b(host);
+    const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+    const onTheme = () => requestAnimationFrame(redraw);
+    if (mq && mq.addEventListener) mq.addEventListener('change', onTheme);
+    const mo = new MutationObserver(onTheme);
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    let rt = null;
+    const onResize = () => { clearTimeout(rt); rt = setTimeout(redraw, 120); };
+    window.addEventListener('resize', onResize);
+    widgetCleanup = () => {
+      if (mq && mq.removeEventListener) mq.removeEventListener('change', onTheme);
+      mo.disconnect();
+      window.removeEventListener('resize', onResize);
+    };
+  }
+
+  // 이항분포 PMF 탐색기
+  function widgetBinom(host) {
+    host.innerHTML = `<h3 class="section-label">직접 움직여 보기</h3>
+      <canvas id="w-canvas" role="img" aria-label="이항분포 확률질량함수 막대그래프"></canvas>
+      <div class="controls">
+        <label for="w-n">n</label><input id="w-n" type="range" min="1" max="50" value="10"><output id="w-n-out">10</output>
+        <label for="w-p">p</label><input id="w-p" type="range" min="1" max="99" value="30"><output id="w-p-out">0.30</output>
+      </div>
+      <p class="readout" id="w-read"></p>`;
+    const nIn = host.querySelector('#w-n');
+    const pIn = host.querySelector('#w-p');
+    const canvas = host.querySelector('#w-canvas');
+    function draw() {
+      const n = Number(nIn.value);
+      const p = Number(pIn.value) / 100;
+      host.querySelector('#w-n-out').textContent = n;
+      host.querySelector('#w-p-out').textContent = p.toFixed(2);
+      const pmf = [Math.pow(1 - p, n)];
+      for (let k = 0; k < n; k++) pmf.push(pmf[k] * ((n - k) / (k + 1)) * (p / (1 - p)));
+      const { ctx, w, h } = setupCanvas(canvas);
+      const pad = 14, top = 12, base = h - 21;
+      const maxP = Math.max(...pmf);
+      const slot = (w - 2 * pad) / (n + 1);
+      const bw = Math.max(1, slot * 0.72);
+      const mean = n * p;
+      pmf.forEach((v, k) => {
+        const bh = (v / maxP) * (base - top);
+        const x = pad + k * slot + (slot - bw) / 2;
+        ctx.fillStyle = Math.abs(k - mean) <= Math.sqrt(n * p * (1 - p)) ? css('--accent') : css('--muted');
+        ctx.globalAlpha = Math.abs(k - mean) <= Math.sqrt(n * p * (1 - p)) ? 1 : 0.45;
+        ctx.fillRect(x, base - bh, bw, bh);
+      });
+      ctx.globalAlpha = 1;
+      const mx = pad + (mean + 0.5) * slot;
+      ctx.strokeStyle = css('--ink'); ctx.setLineDash([4, 4]); ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(mx, top); ctx.lineTo(mx, base); ctx.stroke(); ctx.setLineDash([]);
+      axisLabels(ctx, w, h, [[pad + slot / 2, '0', 'center'], [mx, 'np', 'center'], [pad + (n + 0.5) * slot, String(n), 'center']], pad);
+      host.querySelector('#w-read').textContent = `E[X] = np = ${mean.toFixed(2)}   Var(X) = np(1−p) = ${(n * p * (1 - p)).toFixed(2)}   진한 막대: 평균 ± 1σ`;
+    }
+    nIn.addEventListener('input', draw);
+    pIn.addEventListener('input', draw);
+    draw();
+    return draw;
+  }
+
+  // 큰 수의 법칙: 동전 던지기 누적 비율
+  function widgetLLN(host) {
+    host.innerHTML = `<h3 class="section-label">직접 던져 보기</h3>
+      <canvas id="w-canvas" role="img" aria-label="동전 던지기 누적 앞면 비율 그래프"></canvas>
+      <div class="seg">
+        <button data-k="10">+10번</button><button data-k="100">+100번</button><button data-k="1000">+1000번</button><button data-k="0">다시</button>
+      </div>
+      <p class="readout" id="w-read"></p>`;
+    const canvas = host.querySelector('#w-canvas');
+    let heads = 0;
+    let path = [];
+    function flip(k) {
+      for (let i = 0; i < k && path.length < 5000; i++) {
+        heads += Math.random() < 0.5 ? 1 : 0;
+        path.push(heads / (path.length + 1));
+      }
+      draw();
+    }
+    function draw() {
+      const { ctx, w, h } = setupCanvas(canvas);
+      const pad = 14, top = 10, base = h - 21;
+      const N = Math.max(50, path.length);
+      const y = (v) => base - v * (base - top);
+      const x = (i) => pad + (i / N) * (w - 2 * pad);
+      ctx.strokeStyle = css('--rule'); ctx.setLineDash([3, 4]); ctx.lineWidth = 1;
+      [0.25, 0.75].forEach((v) => { ctx.beginPath(); ctx.moveTo(pad, y(v) + 0.5); ctx.lineTo(w - pad, y(v) + 0.5); ctx.stroke(); });
+      ctx.setLineDash([]);
+      ctx.strokeStyle = css('--ink'); ctx.globalAlpha = 0.5;
+      ctx.beginPath(); ctx.moveTo(pad, y(0.5)); ctx.lineTo(w - pad, y(0.5)); ctx.stroke(); ctx.globalAlpha = 1;
+      if (path.length) {
+        ctx.strokeStyle = css('--accent'); ctx.lineWidth = 2;
+        ctx.beginPath();
+        path.forEach((v, i) => (i ? ctx.lineTo(x(i + 1), y(v)) : ctx.moveTo(x(1), y(v))));
+        ctx.stroke();
+        ctx.fillStyle = css('--accent');
+        ctx.beginPath(); ctx.arc(x(path.length), y(path[path.length - 1]), 3.5, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = css('--muted'); ctx.font = '11px ' + css('--font-mono'); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText('0.5', pad + 2, y(0.5) - 8);
+      axisLabels(ctx, w, h, [[pad, '1', 'left'], [w - pad, `${N}번`, 'right']], pad);
+      host.querySelector('#w-read').textContent = path.length
+        ? `${path.length}번 던짐 · 앞면 비율 ${(heads / path.length).toFixed(3)} · 0.5와의 차이 ${Math.abs(heads / path.length - 0.5).toFixed(3)}`
+        : '버튼을 눌러 동전을 던져 보세요. 처음엔 크게 출렁이다가 0.5 근처로 모입니다.';
+    }
+    host.querySelectorAll('.seg button').forEach((b) => b.addEventListener('click', () => {
+      const k = Number(b.dataset.k);
+      if (!k) { heads = 0; path = []; draw(); } else flip(k);
+    }));
+    flip(30);
+    return draw;
+  }
+
+  // 중심극한정리: 표본평균 히스토그램
+  function widgetCLT(host) {
+    const pops = {
+      dice: { name: '주사위', mu: 3.5, sd: Math.sqrt(35 / 12), lo: 1, hi: 6, draw: () => 1 + Math.floor(Math.random() * 6) },
+      exp: { name: '지수분포', mu: 1, sd: 1, lo: 0, hi: 3.5, draw: () => -Math.log(1 - Math.random()) },
+      bern: { name: '찌그러진 동전 p=0.2', mu: 0.2, sd: Math.sqrt(0.16), lo: 0, hi: 1, draw: () => (Math.random() < 0.2 ? 1 : 0) },
+    };
+    let popKey = 'exp';
+    host.innerHTML = `<h3 class="section-label">직접 뽑아 보기</h3>
+      <div class="seg" role="group" aria-label="모집단 선택">
+        ${Object.entries(pops).map(([k, p]) => `<button data-pop="${k}" aria-pressed="${k === popKey}">${p.name}</button>`).join('')}
+      </div>
+      <canvas id="w-canvas" role="img" aria-label="표본평균 2000개의 히스토그램과 정규 근사 곡선"></canvas>
+      <div class="controls">
+        <label for="w-n">표본 크기 n</label><input id="w-n" type="range" min="1" max="50" value="1"><output id="w-n-out">1</output>
+      </div>
+      <div class="row spread"><p class="readout" id="w-read"></p><button class="btn quiet" data-resample>다시 뽑기</button></div>`;
+    const canvas = host.querySelector('#w-canvas');
+    const nIn = host.querySelector('#w-n');
+    let means = [];
+    function sample() {
+      const pop = pops[popKey];
+      const n = Number(nIn.value);
+      host.querySelector('#w-n-out').textContent = n;
+      means = [];
+      for (let r = 0; r < 2000; r++) {
+        let s = 0;
+        for (let i = 0; i < n; i++) s += pop.draw();
+        means.push(s / n);
+      }
+      draw();
+    }
+    function draw() {
+      const pop = pops[popKey];
+      const n = Number(nIn.value);
+      const { ctx, w, h } = setupCanvas(canvas);
+      const pad = 14, top = 10, base = h - 21;
+      const bins = 40;
+      const lo = pop.lo, hi = pop.hi, width = (hi - lo) / bins;
+      const counts = new Array(bins).fill(0);
+      means.forEach((m) => { if (m < lo || m > hi) return; const b = Math.min(bins - 1, Math.floor((m - lo) / width)); counts[b] += 1; });
+      const se = pop.sd / Math.sqrt(n);
+      const peakNormal = (means.length * width) / (se * Math.sqrt(2 * Math.PI));
+      const maxC = Math.max(...counts, Math.min(peakNormal, Math.max(...counts) * 1.6));
+      const X = (v) => pad + ((v - lo) / (hi - lo)) * (w - 2 * pad);
+      const Y = (c) => base - (c / maxC) * (base - top);
+      ctx.fillStyle = css('--accent'); ctx.globalAlpha = 0.75;
+      counts.forEach((c, i) => {
+        const x0 = X(lo + i * width), x1 = X(lo + (i + 1) * width);
+        ctx.fillRect(x0 + 0.5, Y(c), Math.max(1, x1 - x0 - 1), base - Y(c));
+      });
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = css('--ink'); ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      for (let i = 0; i <= 200; i++) {
+        const v = lo + ((hi - lo) * i) / 200;
+        const dens = Math.exp(-((v - pop.mu) ** 2) / (2 * se * se)) / (se * Math.sqrt(2 * Math.PI));
+        const yy = Math.max(top - 6, Y(dens * means.length * width));
+        i ? ctx.lineTo(X(v), yy) : ctx.moveTo(X(v), yy);
+      }
+      ctx.stroke();
+      axisLabels(ctx, w, h, [[X(lo), String(lo), 'left'], [X(pop.mu), `μ=${pop.mu}`, 'center'], [X(hi), String(hi), 'right']], pad);
+      const m = means.reduce((a, b) => a + b, 0) / means.length;
+      const sd = Math.sqrt(means.reduce((a, b) => a + (b - m) ** 2, 0) / (means.length - 1));
+      host.querySelector('#w-read').textContent = `표본평균 2000개의 표준편차 ${sd.toFixed(3)} · 이론값 σ/√n = ${se.toFixed(3)} · 선: 정규 근사`;
+    }
+    host.querySelectorAll('[data-pop]').forEach((b) => b.addEventListener('click', () => {
+      popKey = b.dataset.pop;
+      host.querySelectorAll('[data-pop]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.pop === popKey)));
+      sample();
+    }));
+    nIn.addEventListener('input', sample);
+    host.querySelector('[data-resample]').addEventListener('click', sample);
+    sample();
+    return draw;
+  }
+
+  /* ───────── 시작 ───────── */
+  document.documentElement.lang = 'ko';
+  render();
+})();
+
+</script>
+</body>
+</html>
