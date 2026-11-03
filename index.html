@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>파이썬 한 입</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="하루 5분, 핵심만 골라 배우는 30일 파이썬 코스. 브라우저에서 바로 코드를 실행해요.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@700&family=IBM+Plex+Sans+KR:wght@400;500;700&family=JetBrains+Mono:wght@400;600&family=Nanum+Gothic+Coding&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="#">
+      <span class="brand-prompt" aria-hidden="true">&gt;&gt;&gt;</span>
+      <span class="brand-name">파이썬 한 입</span>
+    </a>
+    <nav class="nav" aria-label="주요 메뉴">
+      <a href="#" data-nav="home">오늘</a>
+      <a href="#course" data-nav="course">전체 과정</a>
+    </nav>
+    <div class="streak-chip" id="streak-chip" title="연속 학습일">
+      <span class="streak-num" id="streak-num">0</span><span class="streak-unit">일 연속</span>
+    </div>
+  </div>
+</header>
+
+<main id="app" class="wrap" tabindex="-1"></main>
+
+<footer class="foot wrap">
+  <p>코드는 브라우저 안에서 실행돼요(Brython). 학습 기록은 이 기기의 브라우저에만 저장돼요.</p>
+</footer>
+
+<script type="text/python" id="pyrunner">
+from browser import window
+import sys
+import json
+import traceback
+
+
+class _Out:
+    def __init__(self):
+        self.display = []
+        self.pure = []
+
+    def write(self, s):
+        s = str(s)
+        self.display.append(s)
+        self.pure.append(s)
+
+    def flush(self):
+        pass
+
+
+def _run(src, stdin_text):
+    out = _Out()
+    lines = str(stdin_text).split("\n") if stdin_text else []
+    pos = [0]
+
+    def _input(prompt=""):
+        out.display.append(str(prompt))
+        if pos[0] < len(lines):
+            value = lines[pos[0]]
+            pos[0] += 1
+            out.display.append(value + "\n")
+            return value
+        raise EOFError("입력값이 부족해요. '입력값' 칸에 줄을 추가하세요.")
+
+    saved = (sys.stdout, sys.stderr)
+    sys.stdout = out
+    sys.stderr = out
+    error = None
+    kind = None
+    try:
+        exec(src, {"__name__": "__main__", "input": _input})
+    except BaseException as e:
+        kind = type(e).__name__
+        tb = traceback.format_exc().rstrip("\n").split("\n")
+        start = 1
+        for i, line in enumerate(tb):
+            if 'File "<string>"' in line:
+                start = i
+                break
+        error = "\n".join([tb[0]] + tb[start:]) if start > 0 else "\n".join(tb)
+    finally:
+        sys.stdout, sys.stderr = saved
+    return json.dumps({
+        "display": "".join(out.display),
+        "out": "".join(out.pure),
+        "error": error,
+        "kind": kind,
+    })
+
+
+window.pyRun = _run
+</script>
+<script src="lessons.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
