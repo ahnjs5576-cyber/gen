@@ -1,0 +1,14 @@
+{
+  "name": "하루 CS",
+  "short_name": "하루 CS",
+  "description": "CS 핵심 6과목을 매일 5분씩",
+  "lang": "ko",
+  "start_url": "./#today",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eef1f4",
+  "theme_color": "#2348c9",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
