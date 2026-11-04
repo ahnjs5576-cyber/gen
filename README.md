@@ -44,6 +44,10 @@ scripts/smoke.mjs     브라우저 스모크 테스트 (Playwright)
 CONTENT_GUIDE.md      레슨 작성 규칙
 ```
 
+`moss-keeper/`는 앱과 별개인 단편 애니메이션(약 80초, 48MB 단일 HTML)입니다.
+[ChetasLua/moss-keeper](https://github.com/ChetasLua/moss-keeper)에서 그대로 가져왔고,
+`moss-keeper/index.html`을 브라우저로 열면 재생됩니다. 크기가 커서 오프라인 캐시에서는 뺐습니다.
+
 ## 레슨 추가·수정
 
 `CONTENT_GUIDE.md`의 형식대로 `content/<과목>.js`의 `lessons` 배열에 항목을 추가한 뒤 검사합니다.

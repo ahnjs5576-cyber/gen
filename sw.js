@@ -13,6 +13,8 @@ self.addEventListener('activate', e => {
 });
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  // moss-keeper/ 는 48MB짜리 단편 영상 페이지라 앱 캐시에 넣지 않는다.
+  if (new URL(e.request.url).pathname.includes('/moss-keeper/')) return;
   e.respondWith(
     fetch(e.request)
       .then(res => {
