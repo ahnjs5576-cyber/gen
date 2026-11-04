@@ -51,6 +51,9 @@ CONTENT_GUIDE.md      레슨 작성 규칙
 `two-storms/`는 위 레퍼런스 형식을 따라 만든 80초 단편입니다. 영상 파일 없이 그림·움직임·소리를 모두
 코드(Canvas 2D, Web Audio)로 실시간 생성하며, `two-storms/index.html` 하나만 열면 됩니다.
 
+`two-storms-hd/`는 같은 이야기를 32초·4컷으로 줄여 오프라인 렌더링한 고화질판입니다(코드로 그린 프레임을
+MP4로 구워 단일 HTML에 넣음). 다시 렌더링하는 방법은 `two-storms-hd/README.md`에 있습니다.
+
 ## 레슨 추가·수정
 
 `CONTENT_GUIDE.md`의 형식대로 `content/<과목>.js`의 `lessons` 배열에 항목을 추가한 뒤 검사합니다.
