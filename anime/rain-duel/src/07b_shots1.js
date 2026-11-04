@@ -126,8 +126,8 @@ shot(20.5, 23.5, 'clash', (ctx, lt, k, t) => {
   if (lt < .12) { ax -= 160 * (1 - lt / .12); bx += 160 * (1 - lt / .12); }
   if (lt > 2.4) { const u = easeOut(clamp((lt - 2.4) / .3, 0, 1)); ax -= 60 * u; bx += 60 * u; pa = lerpPose(P6.A, PZ.A_stance, u * .5); pb = lerpPose(P6.B, PZ.B_stance, u * .5); }
   const wind = k * 1.2;
-  seed('s6a', k); drawFigure(ctx, CH.A, pa, { x: ax, y: gy, s, f: 1, wind, rim: { d: [.9, -.1], c: '#ffd9a0', lc: '#ffb060', k: 2 }, lm: 'night' });
-  seed('s6b', k); drawFigure(ctx, CH.B, pb, { x: bx, y: gy, s, f: -1, wind, rim: { d: [-.9, -.1], c: '#ffd9a0', lc: '#ffb060', k: 2 }, lm: 'night' });
+  seed('s6a', k); drawFigure(ctx, CH.A, pa, { x: ax, y: gy, s, f: 1, wind, rim: { d: [.9, -.1], c: '#c9a07a', k: 1.3 }, lm: 'night' });
+  seed('s6b', k); drawFigure(ctx, CH.B, pb, { x: bx, y: gy, s, f: -1, wind, rim: { d: [-.9, -.1], c: '#c9a07a', k: 1.3 }, lm: 'night' });
   if (lt >= .12 && lt < 2.4) { const sz = lt < .4 ? 120 : 34 + (k % 2) * 18; drawSpark(ctx, meet[0] - 6, meet[1] + 4, sz, lt < .4 ? 1 : k, { n: lt < .4 ? 22 : 6 }); }
   ctx.restore();
   if (lt >= .12 && lt < 1.2) drawShockRing(ctx, meet[0], meet[1], 60 + (Math.floor((lt - .12) * 12) / 12) * 900, .6, k, '#dfe6fb', 12);
@@ -204,8 +204,8 @@ shot(26.5, 28.5, 'graze', (ctx, lt, k, t) => {
     cel(ctx, bl, { f: '#b9c3da', bands: [{ c: '#7f88a0', shape: shape([[x - 10, y + 4], [x + len + 10, y + 4], [x + len, y + 40], [x - 10, y + 40]], 0, 4), inside: true }], lw: 3, lc: '#1a1424' });
   }
   if (lt > cutT) {
-    const c = headPt(o, -.62, .5);
-    drawBloodSpray(ctx, c[0], c[1], Math.PI * 1.15, .5, Math.min(1.2, (slow - cutT) * 3.2 + .05), 81, 1.3, 'night');
+    const c = headPt(o, .42, .48);
+    drawBloodSpray(ctx, c[0], c[1], Math.PI * 1.1, .45, Math.min(1.2, (slow - cutT) * 3.2 + .05), 81, 1.3, 'night');
     // severed hair strands drifting
     seed('strand');
     for (let i = 0; i < 5; i++) { const sx = c[0] + rnd(-40, 60) - (slow - cutT) * 200, sy = c[1] - 160 + rnd(-30, 30) + (slow - cutT) * 120; stk(ctx, [sx, sy], [sx + rnd(14, 24), sy + rnd(-6, 6)], 2.4, lc1('#eec54c', 'night'), .2); }

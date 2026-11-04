@@ -40,16 +40,16 @@ const P12 = {
   st2: pose({ y: -142, lean: 4, hd: -22, tw: .4, yaw: .45, a1: [15, 50], a2: [-10, 40], l1: [12, 6], l2: [-10, 4], ex: { brow: -1, eye: 1, look: [.3, -.6], mouth: 'grit' } })
 };
 shot(38.5, 43.5, 'rise', (ctx, lt, k, t) => {
-  const camY = sv(lt, [[0, 0], [4.0, -60, .8]]);
+  const camY = sv(lt, [[0, 0], [4.6, -40, 1.0]]);
   bg(ctx, BG.med, 260, 150 + camY * 0, 1.35);
   ctx.save(); ctx.translate(0, -camY);
   const breath = Math.floor(lt * 12 / 5) % 2;
   const p = sv(lt, [[0, breath ? P12.kn2 : P12.kn1], [1.5, breath ? P12.kn2 : P12.kn1], [2.0, P12.up, .4], [2.4, P12.w1, .25], [2.75, P12.w2, .25], [3.2, P12.look, .3], [3.95, P12.st1, .4], [4.5, P12.st2, .4]]);
   const p2 = lt < 1.5 ? (breath ? P12.kn2 : P12.kn1) : p;
   seed('s12', k);
-  drawFigure(ctx, CH.A, p2, { x: 560, y: 770, s: 1.95, f: 1, wind: k * .9, blood: [[[-.95, -.3], [-.92, 0], [-.97, .2]], [[.12, .82], [.18, .98], [.15, 1.12]]], rim: { d: [-.95, -.2], c: '#d39860', lc: '#f0b070', k: 2.2 } });
+  drawFigure(ctx, CH.A, p2, { x: 600, y: 885, s: 2.5, f: 1, wind: k * .9, blood: [[[-.95, -.3], [-.92, 0], [-.97, .2]], [[.12, .82], [.18, .98], [.15, 1.12]]], rim: { d: [-.95, -.2], c: '#d39860', lc: '#f0b070', k: 2.2 } });
   // foreground rubble cel
-  paintRubble(ctx, 260, 760, 120, PAL.night, 121, 5); paintRubble(ctx, 1060, 790, 140, PAL.night, 122, 6);
+  paintRubble(ctx, 220, 800, 150, PAL.night, 121, 5); paintRubble(ctx, 1100, 820, 170, PAL.night, 122, 6);
   ctx.restore();
   drawRain(ctx, k, { d: [.6, .9, 1] });
 });
@@ -67,32 +67,32 @@ shot(43.5, 48.5, 'fire', (ctx, lt, k, t) => {
   const ho = { x: 880, y: 290, r: 118, f: -1, yaw: .3, lm: I > .25 ? 'fire' : 'night', ex: { brow: -.9, eye: 1, look: [.5, .3], mouth: 'grit' }, wind: k * (1 + I * 2), L: [-.4, .9], rim: { d: [-.85, .5], c: '#ffc070', lc: '#ff9040', k: .06 + I * .05 }, blood: [[[.95, -.3], [.92, 0], [.97, .2]]] };
   drawBust(ctx, CH.A, ho);
   // the fist and forearm, close to camera
-  const el = [940, 760], wr = [560, 470];
-  drawFireWind(ctx, el, [wr[0] - 70, wr[1] - 50], kf, I, 'back', 1.7);
-  const pf = pose({ x: 0, y: -143, tw: .2, a1: [0, 0], a2: [0, 0], l1: [0, 0], l2: [0, 0] });
-  const a = Math.atan2(wr[0] - el[0], wr[1] - el[1]) / D2R; // angle from down, screen-space (f=1)
-  const pp = Object.assign({}, pf, { a1: [a, 0, 0], order: ['A1'] });
-  const sc = dist(el, wr) / (BN.ua * .45 + BN.fa);
-  const e0 = jpos(pp, { x: 0, y: 0, s: sc, f: 1 }, 'A1.e'), w0 = jpos(pp, { x: 0, y: 0, s: sc, f: 1 }, 'A1.w');
+  const wr = [540, 450], dir = norm2([.78, .62]), sc = 8.5;
+  const el = [wr[0] + dir[0] * BN.fa * sc, wr[1] + dir[1] * BN.fa * sc];
+  const fistC = [wr[0] - dir[0] * 13 * sc, wr[1] - dir[1] * 13 * sc];
+  drawFireWind(ctx, el, fistC, kf, I, 'back', 2.4);
+  const a = Math.atan2(-dir[0], -dir[1]) / D2R;
+  const pp = pose({ x: 0, y: -143, tw: .2, a1: [a, 0, 0], a2: [0, 0], l1: [0, 0], l2: [0, 0], order: ['A1'] });
+  const w0 = jpos(pp, { x: 0, y: 0, s: sc, f: 1 }, 'A1.w');
   seed('s13f', k);
-  drawFigure(ctx, CH.A, pp, { x: wr[0] - w0[0], y: wr[1] - w0[1], s: sc, f: 1, lm: I > .25 ? 'fire' : 'night', rim: { d: [-.6, -.7], c: '#ffd080', lc: '#ff9a40', k: 3 } });
-  drawFireWind(ctx, el, [wr[0] - 70, wr[1] - 50], kf, I, 'front', 1.7);
+  drawFigure(ctx, CH.A, pp, { x: wr[0] - w0[0], y: wr[1] - w0[1], s: sc, f: 1, lm: I > .25 ? 'fire' : 'night', rim: { d: [-.6, -.7], c: '#ffd080', lc: '#ff9a40', k: 2 } });
+  drawFireWind(ctx, el, fistC, kf, I, 'front', 2.4);
   // rain spiralling in
   seed('sp13', kf);
-  for (let i = 0; i < 30 * I; i++) { const a0 = rnd(0, TAU), r0 = rnd(160, 420); const pts = []; for (let j = 0; j < 6; j++) { const a1 = a0 + j * .22, r1 = r0 * (1 - j * .12); pts.push([wr[0] - 40 + Math.cos(a1) * r1, wr[1] - 30 + Math.sin(a1) * r1 * .7]); } ink(ctx, pts, { w: rnd(1, 2.4), c: '#ffd9a0', a: .6, t0: .5, t1: .3 }); }
+  for (let i = 0; i < 30 * I; i++) { const a0 = rnd(0, TAU), r0 = rnd(180, 460); const pts = []; for (let j = 0; j < 6; j++) { const a1 = a0 + j * .22, r1 = r0 * (1 - j * .12); pts.push([fistC[0] + Math.cos(a1) * r1, fistC[1] + Math.sin(a1) * r1 * .7]); } ink(ctx, pts, { w: rnd(1, 2.4), c: '#ffd9a0', a: .6, t0: .5, t1: .3 }); }
   ctx.restore();
   if (lt > 3.6) drawConc(ctx, 520, 440, k, { r0: 320, n: 90, c: '#ffe6c0', a: .55, w: 6 });
   drawRain(ctx, k, { d: [.4, .7, 1 - I * .6] });
 });
 // ======================= S14 — lightning along B's blade =======================
-const P14 = pose({ y: -98, lean: 26, hd: -16, tw: .35, a1: [90, 10], w1: 92, h1: 'grip', a2: [92, 30], h2: 'blade', l1: [72, 118], l2: [-25, 105], ex: { brow: -.95, eye: .85, mouth: 'closed', look: [.3, .4] } });
+const P14 = pose({ y: -88, lean: 24, hd: -14, tw: .35, a1: [88, 8], w1: 92, h1: 'grip', a2: [96, 22], h2: 'blade', l1: [85, 85], l2: [-6, 96], ex: { brow: -.95, eye: .85, mouth: 'closed', look: [.3, .4] } });
 shot(48.5, 52.5, 'elec', (ctx, lt, k, t) => {
   const kf = Math.floor(lt * 24), fl = flashAt(t);
   const I = sstep(.4, 3.0, lt);
   bg(ctx, BG.sky, 140, 590, 1, fl);
   tintFrame(ctx, '#000', .3 * (1 - I));
   if (fl > .3) drawBolt(ctx, [1000, -40], [1200, 400], 141, 4, { br: 3 });
-  const beam = BG.skyBeamY - 590 - 28, s = 1.55, x = 760;
+  const beam = BG.skyBeamY - 590 - 28, s = 1.9, x = 860;
   const bladeA = jpos(P14, { x, y: beam, s, f: -1 }, 'A1.w');
   glow(ctx, bladeA[0] - 60, bladeA[1], 200 + I * 250, '#6f86ff', .12 + I * .3);
   seed('s14', k);
@@ -114,8 +114,8 @@ const P15 = {
 shot(52.5, 56, 'charge', (ctx, lt, k, t) => {
   const kf = Math.floor(lt * 24);
   drawSpeedBG(ctx, kf, ['#0d1226', '#1c2547', '#2a3560', '#3a2a40', '#141a33'], { ang: -.42, n: 180, cyc: 3 });
-  const u = clamp(lt / 3.4, 0, 1), e = easeIn(u) * .6 + u * .4;
-  const ax = lerp(-260, 520, e), ay = lerp(900, 470, e), bx = lerp(1540, 780, e), by = lerp(-160, 300, e);
+  const u = clamp(lt / 3.4, 0, 1), e = easeIn(u) * .3 + u * .7;
+  const ax = lerp(-40, 520, e), ay = lerp(820, 470, e), bx = lerp(1330, 780, e), by = lerp(-20, 300, e);
   const s = 1.05;
   // trails
   const fa = jpos(P15.A, { x: ax, y: ay, s, f: 1 }, 'A1.e'), fw = jpos(P15.A, { x: ax, y: ay, s, f: 1 }, 'A1.w');
@@ -145,25 +145,30 @@ shot(56, 58, 'impact', (ctx, lt, k, t) => {
     return;
   }
   const u = easeOut(clamp((lt - .34) / 1.5, 0, 1));
-  tintFrame(ctx, '#05060c', 1);
-  const R0 = 80 + u * 900;
-  // painted sphere: fire half / lightning half
+  tintFrame(ctx, '#06070d', 1);
+  const R0 = 90 + u * 820, cx = 640, cy = 360;
+  // radial streak field behind
+  drawConc(ctx, cx, cy, kf, { r0: R0 * .7, n: 120, c: '#c9b8d8', a: .45, w: 10 });
+  // jagged energy sphere: outer fire/lightning halves, white core
   seed('sph', Math.floor(lt * 12));
-  for (let i = 0; i < 260; i++) {
-    const a = rnd(0, TAU), rr = Math.sqrt(R()) * R0; const x = 640 + Math.cos(a) * rr, y = 360 + Math.sin(a) * rr;
-    const left = x < 640 + vnoise(y / 40, 3) * 30;
-    const kk = rr / R0;
-    ctx.globalAlpha = .5 + .5 * (1 - kk);
-    brush(ctx, x, y, rnd(40, 120), a + Math.PI / 2 + rnd(-.3, .3), rnd(10, 30), mixc(left ? '#ffe9b0' : '#e6ecff', left ? '#e0601e' : '#4a5ad0', kk), { nob: 1 });
-  }
-  ctx.globalAlpha = 1;
-  glow(ctx, 640, 360, R0 * 1.3, '#ffffff', .6);
-  drawShockRing(ctx, 640, 360, R0 * .9, .9, kf, '#ffffff', 10);
-  drawShockRing(ctx, 640, 360, R0 * .6, .9, kf + 9, '#ffe0b0', 6);
+  const ring = (rr, jag) => { const pts = []; const n = 40; for (let i = 0; i < n; i++) { const a = i / n * TAU; const rj = rr * (1 + (i % 2 ? -jag : jag) * rnd(.3, 1)); const q = [cx + Math.cos(a) * rj, cy + Math.sin(a) * rj * .92]; if (i % 2 === 0) q[2] = 1; pts.push(q); } return spline(pts, true, 4); };
+  const outer = ring(R0, .08), mid = ring(R0 * .78, .06), core = ring(R0 * .5, .05);
+  glow(ctx, cx, cy, R0 * 1.6, '#ffffff', .35);
+  ctx.save(); poly(ctx, outer); ctx.clip();
+  ctx.fillStyle = css('#e0602a'); ctx.fillRect(0, 0, cx, H); ctx.fillStyle = css('#4f62d8'); ctx.fillRect(cx, 0, W, H);
+  // seam between the two forces
+  const seam = []; for (let y = -10; y <= H + 10; y += 30) seam.push([cx + rnd(-40, 40), y]);
+  ink(ctx, seam, { w: 26, c: '#fff6e0', t0: .1, t1: .1 });
+  poly(ctx, mid); ctx.fillStyle = css('#ffc46a'); ctx.save(); ctx.clip(); ctx.fillRect(0, 0, cx, H); ctx.fillStyle = css('#bccaff'); ctx.fillRect(cx, 0, W, H); ctx.restore();
+  fillD(ctx, core, '#fffaf0');
+  ctx.restore();
+  ink(ctx, outer, { dense: true, closed: true, w: 4, c: '#3a1a28' });
+  ink(ctx, mid, { dense: true, closed: true, w: 2, c: '#ffe8c0' });
+  drawShockRing(ctx, cx, cy, R0 * 1.15, .92, kf, '#ffffff', 12);
   // rain driven outward
   seed('rad', kf);
-  for (let i = 0; i < 120; i++) { const a = rnd(0, TAU), r1 = R0 * rnd(.9, 1.6); ink(ctx, [[640 + Math.cos(a) * r1, 360 + Math.sin(a) * r1], [640 + Math.cos(a) * (r1 + 60), 360 + Math.sin(a) * (r1 + 60)]], { w: rnd(1, 2.5), c: '#cdd6f0', a: .8 }); }
-  drawConc(ctx, 640, 360, kf, { r0: R0 * .8, n: 80, c: '#ffffff', a: .5, w: 8 });
+  for (let i = 0; i < 140; i++) { const a = rnd(0, TAU), r1 = R0 * rnd(1.1, 1.8); ink(ctx, [[cx + Math.cos(a) * r1, cy + Math.sin(a) * r1], [cx + Math.cos(a) * (r1 + 70), cy + Math.sin(a) * (r1 + 70)]], { w: rnd(1, 3), c: '#cdd6f0', a: .85 }); }
+  drawChunks(ctx, cx, cy + 40, u * .9, 18, 161, 1.6);
 });
 // ======================= S17 — inside the light (harmony frame, slow motion) =======================
 shot(58, 63, 'harmony', (ctx, lt, k, t) => {
@@ -229,9 +234,9 @@ shot(68, 74.5, 'overhead', (ctx, lt, k, t) => {
   const pA = pose({ x: 0, y: -143, tw: 1, yaw: 0, hd: 0, a1: [-75, 15], a2: [80, 25], l1: [-8, 4], l2: [10, 6], ex: { eye: eA, mouth: mA, look: [0, -.3], brow: -.1 } });
   const pB = pose({ x: 0, y: -143, tw: 1, yaw: 0, hd: 0, a1: [-85, 20], a2: [70, 10], l1: [-10, 6], l2: [8, 4], ex: { eye: eB, mouth: 'closed', look: [0, -1], brow: -.2 } });
   seed('s19a', Math.floor(k / 3));
-  ctx.save(); ctx.translate(560, 420); ctx.rotate(-2.2); drawFigure(ctx, CH.A, pA, { x: 0, y: 0 + 275 * 1.25, s: 1.25, f: 1, lm: 'night', blood: [[[-.4, -.3], [-.38, 0], [-.42, .2]]], cut: true, wind: 0 }); ctx.restore();
+  ctx.save(); ctx.translate(590, 395); ctx.rotate(.8); drawFigure(ctx, CH.A, pA, { x: 0, y: 0 + 268 * 1.4, s: 1.4, f: 1, lm: 'night', blood: [[[-.4, -.3], [-.38, 0], [-.42, .2]]], cut: true, wind: 0 }); ctx.restore();
   seed('s19b', Math.floor(k / 3));
-  ctx.save(); ctx.translate(730, 330); ctx.rotate(.95); drawFigure(ctx, CH.B, pB, { x: 0, y: 0 + 275 * 1.25, s: 1.25, f: 1, lm: 'night', blood: [[[.05, .8], [.12, .95]]], wind: 0 }); ctx.restore();
+  ctx.save(); ctx.translate(705, 315); ctx.rotate(-2.34); drawFigure(ctx, CH.B, pB, { x: 0, y: 0 + 268 * 1.4, s: 1.4, f: 1, lm: 'night', blood: [[[.05, .8], [.12, .95]]], wind: 0 }); ctx.restore();
   ctx.restore();
   // rain seen from above: short streaks radiating from the centre, drops striking
   seed('rtop', k);
@@ -243,9 +248,9 @@ shot(74.5, 80, 'moon', (ctx, lt, k, t) => {
   const camX = lerp(240, 205, easeIO(lt / 5.5));
   bg(ctx, BG.moon, camX, 0);
   // moonlight shaft
-  ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = .12 + .1 * sstep(0, 3, lt);
+  ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = .02 + .02 * sstep(0, 3, lt);
   seed('shaft');
-  for (let i = 0; i < 40; i++) { const x = 1090 - camX + rnd(-30, 30); brush(ctx, x, 140, rnd(300, 480), Math.PI / 2 + .22 + rnd(-.08, .08), rnd(30, 90), '#9aa8d8', { nob: 1, bend: 0 }); }
+  for (let i = 0; i < 40; i++) { const x = 1090 - camX + rnd(-60, 60); brush(ctx, x, 140, rnd(380, 520), Math.PI / 2 + .3 + rnd(-.14, .14), rnd(60, 160), '#9aa8d8', { nob: 1, bend: 0 }); }
   ctx.restore();
   glow(ctx, 1090 - camX, 120, 160, '#dfe6ff', .35);
   drawLying(ctx, CH.A, 600 - camX, 602, .4, -Math.PI / 2, k, 'moon', { p: { ex: { eye: .2, mouth: 'smirk' } } });

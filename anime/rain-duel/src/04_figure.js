@@ -112,14 +112,14 @@ function drawHead(ctx, C, o) {
   const hairBack = HAIR[C.id].back(yaw, o.wind || 0);
   {
     const d = shape(Mp(hairBack), jt, 3);
-    cel(ctx, d, { f: hr[0], bands: [{ c: hr[1], off: shOff(.16), lc: L.hl, lw: lwi * .7 }, rimB(d, .08)], lw, lc: C.id === 'A' ? mulc(lc1(C.hairLine, lm), 1) : L.lc });
+    cel(ctx, d, { f: hr[0], paint: o.paint ? o.paint * .6 : 0, bands: [{ c: hr[1], off: shOff(.16), lc: L.hl, lw: lwi * .7 }, rimB(d, .08)], lw, lc: C.id === 'A' ? mulc(lc1(C.hairLine, lm), 1) : L.lc });
   }
   // ----- face -----
   const fc = shape(Mp(headContour(yaw)), jt, 3);
   const capPts = HAIR[C.id].cap(yaw, o.wind || 0);
   const cap = shape(Mp(capPts.pts), jt, 3);
   const hairShadow = cap.map(p => [p[0] + Ld[0] * -.05 * r * f, p[1] + .13 * r]);
-  cel(ctx, fc, { f: sk[0], bands: [{ c: sk[1], off: shOff(.2), lc: L.hl, lw: lwi * .7 }, { c: sk[1], shape: hairShadow, inside: true }, rimB(fc, .07)], lw, lc: L.lc });
+  cel(ctx, fc, { f: sk[0], bands: [{ c: sk[1], off: shOff(.2), lc: L.hl, lw: lwi * .7 }, { c: sk[1], shape: hairShadow, inside: true }, rimB(fc, .07)], lw, lc: L.lc, paint: o.paint ? o.paint * .5 : 0 });
   // ear
   for (const lon of [-1.5708, 1.5708]) {
     const v = vis(lon); if (v < -.2) continue;
@@ -365,16 +365,33 @@ function drawFigure(ctx, C, p, o) {
       // short sleeve
       partD(rib([A.s, lerp2(A.s, A.e, .55)], [[10, 10], [8.5, 8.5]], { capE: .25 }), 'top', 4);
     }
+    // cloth folds at the elbow
+    if (s > .7) {
+      const n1 = norm2([A.e[0] - A.s[0], A.e[1] - A.s[1]]), n2 = norm2([A.w[0] - A.e[0], A.w[1] - A.e[1]]);
+      const bis = norm2([n1[0] - n2[0] + 1e-3, n1[1] - n2[1]]);
+      const side = (n1[0] * n2[1] - n1[1] * n2[0]) > 0 ? 1 : -1;
+      const inner = [A.e[0] + n1[1] * -side * 5, A.e[1] - n1[0] * -side * 5];
+      for (let q = 0; q < 2; q++) { const o0 = add2(inner, n1, -6 - q * 5), o1 = add2(add2(inner, n2, 2 + q * 3), [n1[1] * side, -n1[0] * side], 4 + q * 2); ink(ctx, [M(o0), M(lerp2(o0, o1, .5)), M(o1)], { w: lwi * .55, c: Lm.lc, t0: .5, t1: .5 }); }
+    }
     // hand
     const hp = handPts(hand).map(q => { const a = A.ha; const u = dirv(a), v = [u[1], -u[0]]; return M([A.w[0] + u[0] * q[0] + v[0] * q[1], A.w[1] + u[1] * q[0] + v[1] * q[1]]); }).map((q, i) => { const src = handPts(hand)[i]; if (src[2]) q[2] = 1; return q; });
     const hd = shape(hp, jt * .6, 2);
     partD(hd, 'skin', 2.5);
-    if ((hand === 'fist' || hand === 'grip') && s > .55) { const u = dirv(A.ha), v = [u[1], -u[0]]; const P2 = (a, b) => M([A.w[0] + u[0] * a + v[0] * b, A.w[1] + u[1] * a + v[1] * b]); ink(ctx, [P2(7, -5), P2(9, 0), P2(7, 4)], { w: lwi * .7, c: Lm.lc }); }
+    if (hand === 'fist' && s > 2.2) {
+      const u = dirv(A.ha), v = [u[1], -u[0]]; const P2 = (a, b) => M([A.w[0] + u[0] * a * 1.2 + v[0] * b * 1.2, A.w[1] + u[1] * a * 1.2 + v[1] * b * 1.2]);
+      for (const b of [-3.2, -.6, 2]) ink(ctx, [P2(6.5, b), P2(9.5, b + .4), P2(12.4, b + .9)], { w: lwi * .7, c: Lm.lc });
+      const th = shape([P2(1, 4.5), P2(6, 3), P2(10.5, 4.2), P2(10, 6.6), P2(3, 7)], jt * .4, 2);
+      cel(ctx, th, { f: pal('skin')[0], bands: bandsFor('skin', 1.5), lw: lwi, lc: Lm.lc });
+      ink(ctx, [P2(-1, -5), P2(2, -6.2), P2(5, -6)], { w: lwi * .6, c: Lm.lc });
+    }
+    if ((hand === 'fist' || hand === 'grip') && s > .55 && s <= 2.2) { const u = dirv(A.ha), v = [u[1], -u[0]]; const P2 = (a, b) => M([A.w[0] + u[0] * a + v[0] * b, A.w[1] + u[1] * a + v[1] * b]); ink(ctx, [P2(7, -5), P2(9, 0), P2(7, 4)], { w: lwi * .7, c: Lm.lc }); }
     if (weapon && !weapon.behind) drawWeapon(ctx, C, A, weapon, M, s, f, lm, lw, Ld, o);
   };
   const drawLeg = (Lg, near) => {
     const ch = [Lg.h, Lg.k, Lg.a];
     partD(rib(ch, [[13, 12.5], [12, 11], [9.5, 9.5], [9.5, 9.5], [8, 7.5]]), 'pants', 6);
+    // knee folds
+    if (s > .7) { const d1 = norm2([Lg.k[0] - Lg.h[0], Lg.k[1] - Lg.h[1]]), nn = [d1[1], -d1[0]]; for (let q = 0; q < 2; q++) { const c0 = add2(add2(Lg.k, d1, -12 - q * 7), nn, -5), c1 = add2(add2(Lg.k, d1, -4 - q * 6), nn, 6); ink(ctx, [M(c0), M(lerp2(c0, c1, .5)), M(c1)], { w: lwi * .5, c: Lm.lc, t0: .5, t1: .5 }); } }
     // shin wraps
     const wr = rib([lerp2(Lg.k, Lg.a, .45), Lg.a], [[7.3, 7.3], [5.8, 5.8]], { capE: .2, capS: .2 });
     partD(wr, 'wrap', 3);
@@ -405,6 +422,7 @@ function drawFigure(ctx, C, p, o) {
       if (s > .45) for (let k = -3; k < 4; k++) ink(ctx, [T(85, k * 6 - 2), T(93, k * 6 + 2)], { w: lwi * .5, c: Lm.lc });
       ink(ctx, [T(20, lerp(10, 0, tw)), T(48, lerp(14, 2, tw))], { w: lwi * .6, c: Lm.lc });
     }
+    if (s > .7) { ink(ctx, [T(30, lerp(-14, -18, tw)), T(44, lerp(-6, -10, tw)), T(52, lerp(2, -2, tw))], { w: lwi * .5, c: Lm.lc, t0: .5, t1: .5 }); ink(ctx, [T(62, lerp(8, 10, tw)), T(72, lerp(2, 4, tw))], { w: lwi * .5, c: Lm.lc, t0: .5, t1: .5 }); }
     ctx.restore();
     // collar
     const cw = lerp(9, 15, tw);

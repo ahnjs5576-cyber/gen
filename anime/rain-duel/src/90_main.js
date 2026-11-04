@@ -3,10 +3,15 @@
 // ===================================================================
 const SCR = document.getElementById('scr'), SX = SCR.getContext('2d');
 const CMP = mkCanvas(W, H), CX = CMP.getContext('2d');
-let lastFi = -1;
-function renderFrame(t) {
+let lastFi = -1, lastKey = '';
+// shots that have something moving on ones (effects, shakes, impact strobes)
+const ONES = new Set(['puddle', 'clash', 'exchange', 'graze', 'punch', 'kick', 'fire', 'elec', 'charge', 'impact']);
+function renderFrame(t, force) {
   const fi = Math.min(Math.floor(t * FPS), DUR * FPS - 1), tq = fi / FPS;
   const S = shotAt(tq), lt = tq - S.t0, k = Math.floor(lt * 12);
+  const key = S.name + ':' + (ONES.has(S.name) ? fi : k) + (tq > 78.2 ? fi : '');
+  if (key === lastKey && !force) { filmFinish(CMP, SX, fi, { fade: tq > 78.2 ? clamp((tq - 78.2) / 1.6, 0, 1) : null }); lastFi = fi; return; }
+  lastKey = key;
   CX.setTransform(1, 0, 0, 1, 0, 0); CX.globalAlpha = 1; CX.globalCompositeOperation = 'source-over'; CX.filter = 'none';
   CX.fillStyle = '#000'; CX.fillRect(0, 0, W, H);
   S.draw(CX, lt, k, tq);
@@ -15,7 +20,7 @@ function renderFrame(t) {
   filmFinish(CMP, SX, fi, { fade });
   lastFi = fi;
 }
-window.__render = t => { renderFrame(t); return shotAt(t).name; };
+window.__render = t => { renderFrame(t, true); return shotAt(t).name; };
 
 const UI = document.getElementById('ui'), MSG = document.getElementById('msg');
 let ready = false, playing = false, t0 = 0, pausedAt = 0, actx = null, master = null;

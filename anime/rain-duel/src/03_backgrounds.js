@@ -8,8 +8,8 @@ function board(w, h) { const c = mkCanvas(w, h); return [c, c.getContext('2d')];
 function paintCourtyard(g, w, h, P, o) {
   const hz = o.hz;
   paintSky(g, w, hz + 40, P);
-  if (o.moon) paintMoon(g, o.moon[0], o.moon[1], o.moon[2], P);
   paintStorm(g, w, hz + 20, P, { sd: o.sd || 0, rows: o.cloudRows, scale: o.cloudScale || 1 });
+  if (o.moon) paintMoon(g, o.moon[0], o.moon[1], o.moon[2], P);
   paintMountains(g, w, P, [
     { y: hz - 70 * o.ms, amp: 70 * o.ms, depth: 120, c: P.mtn[0], sd: 3.1 },
     { y: hz - 35 * o.ms, amp: 55 * o.ms, depth: 80, c: P.mtn[1], sd: 7.7 },
@@ -40,7 +40,11 @@ function paintCourtyard(g, w, h, P, o) {
   return lamps;
 }
 function paintMoon(g, x, y, r, P) {
-  for (let i = 0; i < 30; i++) { g.globalAlpha = .05; brush(g, x - r * 4 + rnd(0, r * 8), y + rnd(-r * 2, r * 2), rnd(r, r * 4), rnd(-.1, .1), rnd(r * .3, r), '#b8c2e0', { nob: 1 }); }
+  seed('moon');
+  // parted clouds: clear sky window with moonlit cloud edges
+  for (let i = 0; i < 260; i++) { const a = rnd(0, TAU), rr = Math.sqrt(R()) * r * 4.2; g.globalAlpha = .9; brush(g, x + Math.cos(a) * rr * 1.5 - 30, y + Math.sin(a) * rr * .7, rnd(30, 80), rnd(-.1, .1), rnd(8, 18), jitc(mixc('#3a4a78', '#1d2950', rr / (r * 4.2)), 4)); }
+  for (let i = 0; i < 70; i++) { const a = rnd(0, TAU), rr = r * rnd(3.6, 5); g.globalAlpha = rnd(.15, .4); brush(g, x + Math.cos(a) * rr * 1.5 - 20, y + Math.sin(a) * rr * .7, rnd(20, 60), rnd(-.3, .3), rnd(3, 8), jitc(P.cloudRim, 6)); }
+  g.globalAlpha = .18; for (let i = 0; i < 20; i++) brush(g, x - r * 3 + rnd(0, r * 6), y + rnd(-r * 1.4, r * 1.4), rnd(r, r * 3), rnd(-.1, .1), rnd(r * .3, r * .8), '#c8d0ee', { nob: 1 });
   g.globalAlpha = 1;
   const d = shape(Array.from({ length: 16 }, (_, i) => [x + Math.cos(i / 16 * TAU) * r, y + Math.sin(i / 16 * TAU) * r]), .6, 3);
   cel(g, d, { f: '#e8e6dc', bands: [{ c: '#c9cbd6', off: [r * .25, r * .2] }], lw: 0 });
@@ -106,7 +110,7 @@ function buildBackgrounds() {
       const q = jit([[x0 + 6, y0 + 6], [x1 - 6, y0 + 6], [x1 - 6, y1 - 6], [x0 + 6, y1 - 6]], 5);
       fillD(g, q, jitc(mixc(P.stone, P.stoneD, rnd(0, .5)), 6));
       g.save(); poly(g, q); g.clip();
-      for (let i = 0; i < 160; i++) brush(g, rnd(x0, x1), rnd(y0, y1), rnd(20, 70), rnd(0, TAU), rnd(3, 9), jitc(R() < .5 ? P.stoneL : P.stoneD, 6));
+      const sa = rnd(-.3, .3); for (let i = 0; i < 90; i++) brush(g, rnd(x0, x1), rnd(y0, y1), rnd(30, 90), sa + rnd(-.15, .15), rnd(6, 14), jitc(mixc(P.stone, R() < .5 ? P.stoneL : P.stoneD, .5), 4));
       g.restore();
     }
     // the puddle reflects the sky
@@ -189,7 +193,7 @@ function buildBackgrounds() {
     g.fillStyle = css(P.joint); g.fillRect(0, 0, 1400, 900);
     for (let y = -40; y < 940; y += 0) {
       const hh = rnd(150, 230); let x = -rnd(0, 200);
-      while (x < 1440) { const ww = rnd(180, 340); const q = jit([[x + 5, y + 5], [x + ww - 5, y + 5], [x + ww - 5, y + hh - 5], [x + 5, y + hh - 5]], 4); fillD(g, q, jitc(mixc(P.stone, P.stoneD, rnd(0, .6)), 6)); g.save(); poly(g, q); g.clip(); for (let i = 0; i < 70; i++) brush(g, rnd(x, x + ww), rnd(y, y + hh), rnd(20, 60), rnd(0, TAU), rnd(3, 8), jitc(R() < .5 ? P.stoneL : P.stoneD, 6)); g.restore(); x += ww; }
+      while (x < 1440) { const ww = rnd(180, 340); const q = jit([[x + 5, y + 5], [x + ww - 5, y + 5], [x + ww - 5, y + hh - 5], [x + 5, y + hh - 5]], 4); fillD(g, q, jitc(mixc(P.stone, P.stoneD, rnd(0, .6)), 6)); g.save(); poly(g, q); g.clip(); const sa = rnd(-.3, .3); for (let i = 0; i < 46; i++) brush(g, rnd(x, x + ww), rnd(y, y + hh), rnd(30, 80), sa + rnd(-.15, .15), rnd(6, 14), jitc(mixc(P.stone, R() < .5 ? P.stoneL : P.stoneD, .5), 4)); g.restore(); x += ww; }
       y += hh;
     }
     for (let i = 0; i < 9; i++) { const px = rnd(0, 1400), py = rnd(0, 900), rw = rnd(60, 180); const pts = []; for (let a = 0; a < 12; a++) { const an = a / 12 * TAU; pts.push([px + Math.cos(an) * rw * rnd(.6, 1.1), py + Math.sin(an) * rw * .7 * rnd(.6, 1.1)]); } const d = spline(pts, true, 4); fillD(g, d, mixc(P.water, P.sheen, .25)); g.save(); poly(g, d); g.clip(); for (let j = 0; j < 30; j++) brush(g, rnd(px - rw, px + rw), rnd(py - rw, py + rw), rnd(20, 60), rnd(0, TAU), rnd(3, 8), jitc(R() < .5 ? P.sheen : P.water, 6), { nob: 1 }); g.restore(); ink(g, d, { dense: true, closed: true, w: 2, c: P.joint, a: .8 }); }

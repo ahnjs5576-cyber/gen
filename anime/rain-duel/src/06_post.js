@@ -20,10 +20,10 @@ function filmFinish(src, out, fi, o = {}) {
   out.drawImage(src, -6 + wx, -4 + wy, W + 12, H + 8);
   // halation / bloom from bright areas
   const sg = FILM.sg;
-  sg.filter = 'brightness(.85) contrast(3.2)'; sg.globalCompositeOperation = 'source-over';
+  sg.filter = 'brightness(.85) contrast(3.2) blur(1.5px)'; sg.globalCompositeOperation = 'source-over';
   sg.drawImage(src, 0, 0, 160, 90); sg.filter = 'none';
-  out.save(); out.globalCompositeOperation = 'screen'; out.globalAlpha = (o.bloom ?? .22);
-  out.filter = 'blur(10px)'; out.drawImage(FILM.small, -10, -10, W + 20, H + 20); out.filter = 'none';
+  out.save(); out.globalCompositeOperation = 'screen'; out.globalAlpha = (o.bloom ?? .22); out.imageSmoothingQuality = 'high';
+  out.drawImage(FILM.small, -10, -10, W + 20, H + 20);
   out.restore();
   // exposure flicker
   const fl = rnd(-.025, .025);

@@ -214,49 +214,65 @@ function drawWaterBurst(ctx, x, y, sz, ph, sd, lm = 'night') {
     cel(ctx, d, { f: base, lw: lw * .7, lc });
   }
 }
+// ---- hand-drawn flame mass: merged tongues flowing one way, 3 cel tones ----
+function flameShape(c, R, flow, k, I, sd, scale = 1) {
+  seed('flm', sd, k);
+  const fa = Math.atan2(flow[1], flow[0]);
+  const n = 9, pts = [];
+  for (let i = 0; i < n; i++) {
+    const a0 = fa + Math.PI + (i / n) * TAU, a1 = a0 + TAU / n * .5;
+    // how much this side faces the flow direction
+    const facing = Math.max(0, Math.cos(a1 - fa));
+    const L = R * (.35 + facing * (1.4 + rnd(-.3, .5)) * (.5 + I)) * scale;
+    const vr = R * rnd(.75, .95);
+    pts.push([c[0] + Math.cos(a0) * vr, c[1] + Math.sin(a0) * vr]);
+    const tipA = a1 + (fa - a1) * .55 * facing + rnd(-.15, .15);
+    const tip = [c[0] + Math.cos(a1) * R * .8 + Math.cos(tipA) * L, c[1] + Math.sin(a1) * R * .8 + Math.sin(tipA) * L, 1];
+    // S-curve flank
+    pts.push([lerp(pts[pts.length - 1][0], tip[0], .5) + Math.cos(a1 + 1.4) * R * .18, lerp(pts[pts.length - 1][1], tip[1], .5) + Math.sin(a1 + 1.4) * R * .18]);
+    pts.push(tip);
+  }
+  return spline(pts, true, 2.5);
+}
+function drawFlameMass(ctx, c, R, flow, k, I, sc, sd = 0) {
+  const outer = flameShape(c, R, flow, k, I, sd, 1);
+  const mid = outer.map(p => [c[0] + (p[0] - c[0]) * .72 + flow[0] * R * .1, c[1] + (p[1] - c[1]) * .72 + flow[1] * R * .1]);
+  const core = outer.map(p => [c[0] + (p[0] - c[0]) * .42 + flow[0] * R * .05, c[1] + (p[1] - c[1]) * .42 + flow[1] * R * .05]);
+  cel(ctx, outer, { f: '#e2562a', bands: [{ c: '#ffa040', shape: mid, inside: true, lc: '#ffd27a', lw: 1 }, { c: '#fff2c4', shape: core, inside: true }], lw: Math.max(1.2, sc * 1.6), lc: '#4a120a' });
+}
 // ---- spiralling fire-wind wrapped around an arm (A's technique) ----
 // axis from a (elbow) to b (fist); layer 'back' | 'front'; k drawing idx; I intensity 0..1
 function drawFireWind(ctx, a, b, k, I, layer, sc = 1) {
   if (I <= .01) return;
   const ax = [b[0] - a[0], b[1] - a[1]], L = Math.hypot(ax[0], ax[1]); const u = [ax[0] / L, ax[1] / L], v = [-u[1], u[0]];
-  const nR = 2 + Math.round(I * 3), turns = 2.2;
-  const F = ['#fff3cc', '#ffc457', '#f0782c', '#5a1a0c'];
-  const lw = Math.max(1, sc * 1.4);
+  const nR = 2 + Math.round(I * 2), turns = 2.0;
   seed('fw', k, layer);
-  if (layer === 'back') glow(ctx, b[0], b[1], (60 + 140 * I) * sc, '#ff9a40', .25 + .35 * I);
+  if (layer === 'back') glow(ctx, b[0], b[1], (70 + 160 * I) * sc, '#ff9a40', .25 + .4 * I);
+  // thin spiralling wind-flame ribbons
   for (let r = 0; r < nR; r++) {
     const ph0 = r / nR * TAU + k * 1.1;
-    const N = 48; let seg = [];
+    const N = 56; let seg = [];
     const flush = () => {
-      if (seg.length > 4) {
-        const n = seg.length; const wmax = (4 + 9 * I) * sc * rnd(.8, 1.2);
-        const d = ribbon(seg, [[.6, .6], [wmax * .8, wmax * .6], [wmax, wmax], [wmax * .5, wmax * .4], [.4, .4]], { capE: .3, capS: .3 });
-        cel(ctx, d, { f: F[1], bands: [{ c: F[2], off: [u[0] * wmax * .6 + v[0] * wmax * .4, u[1] * wmax * .6 + v[1] * wmax * .4], lc: '#ff8a30', lw: lw * .6 }, { c: F[0], off: [-v[0] * wmax * .6, -v[1] * wmax * .6] }], lw, lc: F[3] });
+      if (seg.length > 5) {
+        const wmax = (2 + 4 * I) * sc * rnd(.8, 1.2);
+        const d = ribbon(seg, [[.4, .4], [wmax, wmax * .8], [wmax * .9, wmax * .7], [.4, .4]], { capE: .3, capS: .3 });
+        cel(ctx, d, { f: '#ffb24a', bands: [{ c: '#fff0c0', off: [-v[0] * wmax * .5, -v[1] * wmax * .5] }], lw: Math.max(.8, sc), lc: '#7a2410' });
       }
       seg = [];
     };
     for (let i = 0; i <= N; i++) {
-      const t = -.05 + i / N * (1.15 + .35 * I);
+      const t = -.05 + i / N * 1.05;
       const ang = ph0 + t * turns * TAU;
-      const front = Math.sin(ang) > 0;
-      if (front !== (layer === 'front')) { flush(); continue; }
-      const rad = (16 + 26 * I) * sc * (1 + Math.max(0, t - .7) * 1.4) * (1 + .12 * Math.sin(i * 1.3 + k * 2));
+      if ((Math.sin(ang) > 0) !== (layer === 'front')) { flush(); continue; }
+      const rad = (13 + 16 * I) * sc * (1 + .1 * Math.sin(i * 1.3 + k * 2));
       seg.push([a[0] + u[0] * L * t + v[0] * Math.cos(ang) * rad, a[1] + u[1] * L * t + v[1] * Math.cos(ang) * rad]);
     }
     flush();
   }
-  // flame tongues around the fist, swept back along the arm
   if (layer === 'front') {
-    const nT = Math.round(2 + 4 * I);
-    for (let i = 0; i < nT; i++) {
-      const off = rnd(-1, 1) * (20 + 30 * I) * sc, len = rnd(40, 110) * sc * (.4 + I), w = rnd(6, 13) * sc * (.5 + I * .5);
-      const p0 = [b[0] + v[0] * off + u[0] * rnd(-10, 20) * sc, b[1] + v[1] * off + u[1] * rnd(-10, 20) * sc];
-      const wv = rnd(-.5, .5);
-      const p1 = [p0[0] - u[0] * len * .5 + v[0] * len * wv * .3, p0[1] - u[1] * len * .5 + v[1] * len * wv * .3];
-      const p2 = [p0[0] - u[0] * len + v[0] * len * wv * .6, p0[1] - u[1] * len + v[1] * len * wv * .6];
-      const d = ribbon([p0, p1, p2], [[w, w], [w * .7, w * .6], [.4, .4]], { capS: 1, capE: .2 });
-      cel(ctx, d, { f: F[1], bands: [{ c: F[0], shape: d.map(q => [p0[0] + (q[0] - p0[0]) * .55, p0[1] + (q[1] - p0[1]) * .55]), inside: true }, { c: F[2], off: [v[0] * w * .5, v[1] * w * .5] }], lw: lw * .8, lc: F[3] });
-    }
+    // flame wrapping the fist, licking back along the forearm and upward
+    const flow = norm2([-u[0] * .7 + 0, -u[1] * .7 - .7]);
+    drawFlameMass(ctx, [b[0] - u[0] * 6 * sc, b[1] - u[1] * 6 * sc], (20 + 30 * I) * sc, flow, k, I, sc, 1);
   }
 }
 // ---- crackling electricity along a blade (B's technique) ----

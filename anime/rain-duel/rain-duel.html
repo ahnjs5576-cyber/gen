@@ -577,8 +577,8 @@ function board(w, h) { const c = mkCanvas(w, h); return [c, c.getContext('2d')];
 function paintCourtyard(g, w, h, P, o) {
   const hz = o.hz;
   paintSky(g, w, hz + 40, P);
-  if (o.moon) paintMoon(g, o.moon[0], o.moon[1], o.moon[2], P);
   paintStorm(g, w, hz + 20, P, { sd: o.sd || 0, rows: o.cloudRows, scale: o.cloudScale || 1 });
+  if (o.moon) paintMoon(g, o.moon[0], o.moon[1], o.moon[2], P);
   paintMountains(g, w, P, [
     { y: hz - 70 * o.ms, amp: 70 * o.ms, depth: 120, c: P.mtn[0], sd: 3.1 },
     { y: hz - 35 * o.ms, amp: 55 * o.ms, depth: 80, c: P.mtn[1], sd: 7.7 },
@@ -609,7 +609,11 @@ function paintCourtyard(g, w, h, P, o) {
   return lamps;
 }
 function paintMoon(g, x, y, r, P) {
-  for (let i = 0; i < 30; i++) { g.globalAlpha = .05; brush(g, x - r * 4 + rnd(0, r * 8), y + rnd(-r * 2, r * 2), rnd(r, r * 4), rnd(-.1, .1), rnd(r * .3, r), '#b8c2e0', { nob: 1 }); }
+  seed('moon');
+  // parted clouds: clear sky window with moonlit cloud edges
+  for (let i = 0; i < 260; i++) { const a = rnd(0, TAU), rr = Math.sqrt(R()) * r * 4.2; g.globalAlpha = .9; brush(g, x + Math.cos(a) * rr * 1.5 - 30, y + Math.sin(a) * rr * .7, rnd(30, 80), rnd(-.1, .1), rnd(8, 18), jitc(mixc('#3a4a78', '#1d2950', rr / (r * 4.2)), 4)); }
+  for (let i = 0; i < 70; i++) { const a = rnd(0, TAU), rr = r * rnd(3.6, 5); g.globalAlpha = rnd(.15, .4); brush(g, x + Math.cos(a) * rr * 1.5 - 20, y + Math.sin(a) * rr * .7, rnd(20, 60), rnd(-.3, .3), rnd(3, 8), jitc(P.cloudRim, 6)); }
+  g.globalAlpha = .18; for (let i = 0; i < 20; i++) brush(g, x - r * 3 + rnd(0, r * 6), y + rnd(-r * 1.4, r * 1.4), rnd(r, r * 3), rnd(-.1, .1), rnd(r * .3, r * .8), '#c8d0ee', { nob: 1 });
   g.globalAlpha = 1;
   const d = shape(Array.from({ length: 16 }, (_, i) => [x + Math.cos(i / 16 * TAU) * r, y + Math.sin(i / 16 * TAU) * r]), .6, 3);
   cel(g, d, { f: '#e8e6dc', bands: [{ c: '#c9cbd6', off: [r * .25, r * .2] }], lw: 0 });
@@ -675,7 +679,7 @@ function buildBackgrounds() {
       const q = jit([[x0 + 6, y0 + 6], [x1 - 6, y0 + 6], [x1 - 6, y1 - 6], [x0 + 6, y1 - 6]], 5);
       fillD(g, q, jitc(mixc(P.stone, P.stoneD, rnd(0, .5)), 6));
       g.save(); poly(g, q); g.clip();
-      for (let i = 0; i < 160; i++) brush(g, rnd(x0, x1), rnd(y0, y1), rnd(20, 70), rnd(0, TAU), rnd(3, 9), jitc(R() < .5 ? P.stoneL : P.stoneD, 6));
+      const sa = rnd(-.3, .3); for (let i = 0; i < 90; i++) brush(g, rnd(x0, x1), rnd(y0, y1), rnd(30, 90), sa + rnd(-.15, .15), rnd(6, 14), jitc(mixc(P.stone, R() < .5 ? P.stoneL : P.stoneD, .5), 4));
       g.restore();
     }
     // the puddle reflects the sky
@@ -758,7 +762,7 @@ function buildBackgrounds() {
     g.fillStyle = css(P.joint); g.fillRect(0, 0, 1400, 900);
     for (let y = -40; y < 940; y += 0) {
       const hh = rnd(150, 230); let x = -rnd(0, 200);
-      while (x < 1440) { const ww = rnd(180, 340); const q = jit([[x + 5, y + 5], [x + ww - 5, y + 5], [x + ww - 5, y + hh - 5], [x + 5, y + hh - 5]], 4); fillD(g, q, jitc(mixc(P.stone, P.stoneD, rnd(0, .6)), 6)); g.save(); poly(g, q); g.clip(); for (let i = 0; i < 70; i++) brush(g, rnd(x, x + ww), rnd(y, y + hh), rnd(20, 60), rnd(0, TAU), rnd(3, 8), jitc(R() < .5 ? P.stoneL : P.stoneD, 6)); g.restore(); x += ww; }
+      while (x < 1440) { const ww = rnd(180, 340); const q = jit([[x + 5, y + 5], [x + ww - 5, y + 5], [x + ww - 5, y + hh - 5], [x + 5, y + hh - 5]], 4); fillD(g, q, jitc(mixc(P.stone, P.stoneD, rnd(0, .6)), 6)); g.save(); poly(g, q); g.clip(); const sa = rnd(-.3, .3); for (let i = 0; i < 46; i++) brush(g, rnd(x, x + ww), rnd(y, y + hh), rnd(30, 80), sa + rnd(-.15, .15), rnd(6, 14), jitc(mixc(P.stone, R() < .5 ? P.stoneL : P.stoneD, .5), 4)); g.restore(); x += ww; }
       y += hh;
     }
     for (let i = 0; i < 9; i++) { const px = rnd(0, 1400), py = rnd(0, 900), rw = rnd(60, 180); const pts = []; for (let a = 0; a < 12; a++) { const an = a / 12 * TAU; pts.push([px + Math.cos(an) * rw * rnd(.6, 1.1), py + Math.sin(an) * rw * .7 * rnd(.6, 1.1)]); } const d = spline(pts, true, 4); fillD(g, d, mixc(P.water, P.sheen, .25)); g.save(); poly(g, d); g.clip(); for (let j = 0; j < 30; j++) brush(g, rnd(px - rw, px + rw), rnd(py - rw, py + rw), rnd(20, 60), rnd(0, TAU), rnd(3, 8), jitc(R() < .5 ? P.sheen : P.water, 6), { nob: 1 }); g.restore(); ink(g, d, { dense: true, closed: true, w: 2, c: P.joint, a: .8 }); }
@@ -884,14 +888,14 @@ function drawHead(ctx, C, o) {
   const hairBack = HAIR[C.id].back(yaw, o.wind || 0);
   {
     const d = shape(Mp(hairBack), jt, 3);
-    cel(ctx, d, { f: hr[0], bands: [{ c: hr[1], off: shOff(.16), lc: L.hl, lw: lwi * .7 }, rimB(d, .08)], lw, lc: C.id === 'A' ? mulc(lc1(C.hairLine, lm), 1) : L.lc });
+    cel(ctx, d, { f: hr[0], paint: o.paint ? o.paint * .6 : 0, bands: [{ c: hr[1], off: shOff(.16), lc: L.hl, lw: lwi * .7 }, rimB(d, .08)], lw, lc: C.id === 'A' ? mulc(lc1(C.hairLine, lm), 1) : L.lc });
   }
   // ----- face -----
   const fc = shape(Mp(headContour(yaw)), jt, 3);
   const capPts = HAIR[C.id].cap(yaw, o.wind || 0);
   const cap = shape(Mp(capPts.pts), jt, 3);
   const hairShadow = cap.map(p => [p[0] + Ld[0] * -.05 * r * f, p[1] + .13 * r]);
-  cel(ctx, fc, { f: sk[0], bands: [{ c: sk[1], off: shOff(.2), lc: L.hl, lw: lwi * .7 }, { c: sk[1], shape: hairShadow, inside: true }, rimB(fc, .07)], lw, lc: L.lc });
+  cel(ctx, fc, { f: sk[0], bands: [{ c: sk[1], off: shOff(.2), lc: L.hl, lw: lwi * .7 }, { c: sk[1], shape: hairShadow, inside: true }, rimB(fc, .07)], lw, lc: L.lc, paint: o.paint ? o.paint * .5 : 0 });
   // ear
   for (const lon of [-1.5708, 1.5708]) {
     const v = vis(lon); if (v < -.2) continue;
@@ -1137,16 +1141,33 @@ function drawFigure(ctx, C, p, o) {
       // short sleeve
       partD(rib([A.s, lerp2(A.s, A.e, .55)], [[10, 10], [8.5, 8.5]], { capE: .25 }), 'top', 4);
     }
+    // cloth folds at the elbow
+    if (s > .7) {
+      const n1 = norm2([A.e[0] - A.s[0], A.e[1] - A.s[1]]), n2 = norm2([A.w[0] - A.e[0], A.w[1] - A.e[1]]);
+      const bis = norm2([n1[0] - n2[0] + 1e-3, n1[1] - n2[1]]);
+      const side = (n1[0] * n2[1] - n1[1] * n2[0]) > 0 ? 1 : -1;
+      const inner = [A.e[0] + n1[1] * -side * 5, A.e[1] - n1[0] * -side * 5];
+      for (let q = 0; q < 2; q++) { const o0 = add2(inner, n1, -6 - q * 5), o1 = add2(add2(inner, n2, 2 + q * 3), [n1[1] * side, -n1[0] * side], 4 + q * 2); ink(ctx, [M(o0), M(lerp2(o0, o1, .5)), M(o1)], { w: lwi * .55, c: Lm.lc, t0: .5, t1: .5 }); }
+    }
     // hand
     const hp = handPts(hand).map(q => { const a = A.ha; const u = dirv(a), v = [u[1], -u[0]]; return M([A.w[0] + u[0] * q[0] + v[0] * q[1], A.w[1] + u[1] * q[0] + v[1] * q[1]]); }).map((q, i) => { const src = handPts(hand)[i]; if (src[2]) q[2] = 1; return q; });
     const hd = shape(hp, jt * .6, 2);
     partD(hd, 'skin', 2.5);
-    if ((hand === 'fist' || hand === 'grip') && s > .55) { const u = dirv(A.ha), v = [u[1], -u[0]]; const P2 = (a, b) => M([A.w[0] + u[0] * a + v[0] * b, A.w[1] + u[1] * a + v[1] * b]); ink(ctx, [P2(7, -5), P2(9, 0), P2(7, 4)], { w: lwi * .7, c: Lm.lc }); }
+    if (hand === 'fist' && s > 2.2) {
+      const u = dirv(A.ha), v = [u[1], -u[0]]; const P2 = (a, b) => M([A.w[0] + u[0] * a * 1.2 + v[0] * b * 1.2, A.w[1] + u[1] * a * 1.2 + v[1] * b * 1.2]);
+      for (const b of [-3.2, -.6, 2]) ink(ctx, [P2(6.5, b), P2(9.5, b + .4), P2(12.4, b + .9)], { w: lwi * .7, c: Lm.lc });
+      const th = shape([P2(1, 4.5), P2(6, 3), P2(10.5, 4.2), P2(10, 6.6), P2(3, 7)], jt * .4, 2);
+      cel(ctx, th, { f: pal('skin')[0], bands: bandsFor('skin', 1.5), lw: lwi, lc: Lm.lc });
+      ink(ctx, [P2(-1, -5), P2(2, -6.2), P2(5, -6)], { w: lwi * .6, c: Lm.lc });
+    }
+    if ((hand === 'fist' || hand === 'grip') && s > .55 && s <= 2.2) { const u = dirv(A.ha), v = [u[1], -u[0]]; const P2 = (a, b) => M([A.w[0] + u[0] * a + v[0] * b, A.w[1] + u[1] * a + v[1] * b]); ink(ctx, [P2(7, -5), P2(9, 0), P2(7, 4)], { w: lwi * .7, c: Lm.lc }); }
     if (weapon && !weapon.behind) drawWeapon(ctx, C, A, weapon, M, s, f, lm, lw, Ld, o);
   };
   const drawLeg = (Lg, near) => {
     const ch = [Lg.h, Lg.k, Lg.a];
     partD(rib(ch, [[13, 12.5], [12, 11], [9.5, 9.5], [9.5, 9.5], [8, 7.5]]), 'pants', 6);
+    // knee folds
+    if (s > .7) { const d1 = norm2([Lg.k[0] - Lg.h[0], Lg.k[1] - Lg.h[1]]), nn = [d1[1], -d1[0]]; for (let q = 0; q < 2; q++) { const c0 = add2(add2(Lg.k, d1, -12 - q * 7), nn, -5), c1 = add2(add2(Lg.k, d1, -4 - q * 6), nn, 6); ink(ctx, [M(c0), M(lerp2(c0, c1, .5)), M(c1)], { w: lwi * .5, c: Lm.lc, t0: .5, t1: .5 }); } }
     // shin wraps
     const wr = rib([lerp2(Lg.k, Lg.a, .45), Lg.a], [[7.3, 7.3], [5.8, 5.8]], { capE: .2, capS: .2 });
     partD(wr, 'wrap', 3);
@@ -1177,6 +1198,7 @@ function drawFigure(ctx, C, p, o) {
       if (s > .45) for (let k = -3; k < 4; k++) ink(ctx, [T(85, k * 6 - 2), T(93, k * 6 + 2)], { w: lwi * .5, c: Lm.lc });
       ink(ctx, [T(20, lerp(10, 0, tw)), T(48, lerp(14, 2, tw))], { w: lwi * .6, c: Lm.lc });
     }
+    if (s > .7) { ink(ctx, [T(30, lerp(-14, -18, tw)), T(44, lerp(-6, -10, tw)), T(52, lerp(2, -2, tw))], { w: lwi * .5, c: Lm.lc, t0: .5, t1: .5 }); ink(ctx, [T(62, lerp(8, 10, tw)), T(72, lerp(2, 4, tw))], { w: lwi * .5, c: Lm.lc, t0: .5, t1: .5 }); }
     ctx.restore();
     // collar
     const cw = lerp(9, 15, tw);
@@ -1506,49 +1528,65 @@ function drawWaterBurst(ctx, x, y, sz, ph, sd, lm = 'night') {
     cel(ctx, d, { f: base, lw: lw * .7, lc });
   }
 }
+// ---- hand-drawn flame mass: merged tongues flowing one way, 3 cel tones ----
+function flameShape(c, R, flow, k, I, sd, scale = 1) {
+  seed('flm', sd, k);
+  const fa = Math.atan2(flow[1], flow[0]);
+  const n = 9, pts = [];
+  for (let i = 0; i < n; i++) {
+    const a0 = fa + Math.PI + (i / n) * TAU, a1 = a0 + TAU / n * .5;
+    // how much this side faces the flow direction
+    const facing = Math.max(0, Math.cos(a1 - fa));
+    const L = R * (.35 + facing * (1.4 + rnd(-.3, .5)) * (.5 + I)) * scale;
+    const vr = R * rnd(.75, .95);
+    pts.push([c[0] + Math.cos(a0) * vr, c[1] + Math.sin(a0) * vr]);
+    const tipA = a1 + (fa - a1) * .55 * facing + rnd(-.15, .15);
+    const tip = [c[0] + Math.cos(a1) * R * .8 + Math.cos(tipA) * L, c[1] + Math.sin(a1) * R * .8 + Math.sin(tipA) * L, 1];
+    // S-curve flank
+    pts.push([lerp(pts[pts.length - 1][0], tip[0], .5) + Math.cos(a1 + 1.4) * R * .18, lerp(pts[pts.length - 1][1], tip[1], .5) + Math.sin(a1 + 1.4) * R * .18]);
+    pts.push(tip);
+  }
+  return spline(pts, true, 2.5);
+}
+function drawFlameMass(ctx, c, R, flow, k, I, sc, sd = 0) {
+  const outer = flameShape(c, R, flow, k, I, sd, 1);
+  const mid = outer.map(p => [c[0] + (p[0] - c[0]) * .72 + flow[0] * R * .1, c[1] + (p[1] - c[1]) * .72 + flow[1] * R * .1]);
+  const core = outer.map(p => [c[0] + (p[0] - c[0]) * .42 + flow[0] * R * .05, c[1] + (p[1] - c[1]) * .42 + flow[1] * R * .05]);
+  cel(ctx, outer, { f: '#e2562a', bands: [{ c: '#ffa040', shape: mid, inside: true, lc: '#ffd27a', lw: 1 }, { c: '#fff2c4', shape: core, inside: true }], lw: Math.max(1.2, sc * 1.6), lc: '#4a120a' });
+}
 // ---- spiralling fire-wind wrapped around an arm (A's technique) ----
 // axis from a (elbow) to b (fist); layer 'back' | 'front'; k drawing idx; I intensity 0..1
 function drawFireWind(ctx, a, b, k, I, layer, sc = 1) {
   if (I <= .01) return;
   const ax = [b[0] - a[0], b[1] - a[1]], L = Math.hypot(ax[0], ax[1]); const u = [ax[0] / L, ax[1] / L], v = [-u[1], u[0]];
-  const nR = 2 + Math.round(I * 3), turns = 2.2;
-  const F = ['#fff3cc', '#ffc457', '#f0782c', '#5a1a0c'];
-  const lw = Math.max(1, sc * 1.4);
+  const nR = 2 + Math.round(I * 2), turns = 2.0;
   seed('fw', k, layer);
-  if (layer === 'back') glow(ctx, b[0], b[1], (60 + 140 * I) * sc, '#ff9a40', .25 + .35 * I);
+  if (layer === 'back') glow(ctx, b[0], b[1], (70 + 160 * I) * sc, '#ff9a40', .25 + .4 * I);
+  // thin spiralling wind-flame ribbons
   for (let r = 0; r < nR; r++) {
     const ph0 = r / nR * TAU + k * 1.1;
-    const N = 48; let seg = [];
+    const N = 56; let seg = [];
     const flush = () => {
-      if (seg.length > 4) {
-        const n = seg.length; const wmax = (4 + 9 * I) * sc * rnd(.8, 1.2);
-        const d = ribbon(seg, [[.6, .6], [wmax * .8, wmax * .6], [wmax, wmax], [wmax * .5, wmax * .4], [.4, .4]], { capE: .3, capS: .3 });
-        cel(ctx, d, { f: F[1], bands: [{ c: F[2], off: [u[0] * wmax * .6 + v[0] * wmax * .4, u[1] * wmax * .6 + v[1] * wmax * .4], lc: '#ff8a30', lw: lw * .6 }, { c: F[0], off: [-v[0] * wmax * .6, -v[1] * wmax * .6] }], lw, lc: F[3] });
+      if (seg.length > 5) {
+        const wmax = (2 + 4 * I) * sc * rnd(.8, 1.2);
+        const d = ribbon(seg, [[.4, .4], [wmax, wmax * .8], [wmax * .9, wmax * .7], [.4, .4]], { capE: .3, capS: .3 });
+        cel(ctx, d, { f: '#ffb24a', bands: [{ c: '#fff0c0', off: [-v[0] * wmax * .5, -v[1] * wmax * .5] }], lw: Math.max(.8, sc), lc: '#7a2410' });
       }
       seg = [];
     };
     for (let i = 0; i <= N; i++) {
-      const t = -.05 + i / N * (1.15 + .35 * I);
+      const t = -.05 + i / N * 1.05;
       const ang = ph0 + t * turns * TAU;
-      const front = Math.sin(ang) > 0;
-      if (front !== (layer === 'front')) { flush(); continue; }
-      const rad = (16 + 26 * I) * sc * (1 + Math.max(0, t - .7) * 1.4) * (1 + .12 * Math.sin(i * 1.3 + k * 2));
+      if ((Math.sin(ang) > 0) !== (layer === 'front')) { flush(); continue; }
+      const rad = (13 + 16 * I) * sc * (1 + .1 * Math.sin(i * 1.3 + k * 2));
       seg.push([a[0] + u[0] * L * t + v[0] * Math.cos(ang) * rad, a[1] + u[1] * L * t + v[1] * Math.cos(ang) * rad]);
     }
     flush();
   }
-  // flame tongues around the fist, swept back along the arm
   if (layer === 'front') {
-    const nT = Math.round(2 + 4 * I);
-    for (let i = 0; i < nT; i++) {
-      const off = rnd(-1, 1) * (20 + 30 * I) * sc, len = rnd(40, 110) * sc * (.4 + I), w = rnd(6, 13) * sc * (.5 + I * .5);
-      const p0 = [b[0] + v[0] * off + u[0] * rnd(-10, 20) * sc, b[1] + v[1] * off + u[1] * rnd(-10, 20) * sc];
-      const wv = rnd(-.5, .5);
-      const p1 = [p0[0] - u[0] * len * .5 + v[0] * len * wv * .3, p0[1] - u[1] * len * .5 + v[1] * len * wv * .3];
-      const p2 = [p0[0] - u[0] * len + v[0] * len * wv * .6, p0[1] - u[1] * len + v[1] * len * wv * .6];
-      const d = ribbon([p0, p1, p2], [[w, w], [w * .7, w * .6], [.4, .4]], { capS: 1, capE: .2 });
-      cel(ctx, d, { f: F[1], bands: [{ c: F[0], shape: d.map(q => [p0[0] + (q[0] - p0[0]) * .55, p0[1] + (q[1] - p0[1]) * .55]), inside: true }, { c: F[2], off: [v[0] * w * .5, v[1] * w * .5] }], lw: lw * .8, lc: F[3] });
-    }
+    // flame wrapping the fist, licking back along the forearm and upward
+    const flow = norm2([-u[0] * .7 + 0, -u[1] * .7 - .7]);
+    drawFlameMass(ctx, [b[0] - u[0] * 6 * sc, b[1] - u[1] * 6 * sc], (20 + 30 * I) * sc, flow, k, I, sc, 1);
   }
 }
 // ---- crackling electricity along a blade (B's technique) ----
@@ -1613,10 +1651,10 @@ function filmFinish(src, out, fi, o = {}) {
   out.drawImage(src, -6 + wx, -4 + wy, W + 12, H + 8);
   // halation / bloom from bright areas
   const sg = FILM.sg;
-  sg.filter = 'brightness(.85) contrast(3.2)'; sg.globalCompositeOperation = 'source-over';
+  sg.filter = 'brightness(.85) contrast(3.2) blur(1.5px)'; sg.globalCompositeOperation = 'source-over';
   sg.drawImage(src, 0, 0, 160, 90); sg.filter = 'none';
-  out.save(); out.globalCompositeOperation = 'screen'; out.globalAlpha = (o.bloom ?? .22);
-  out.filter = 'blur(10px)'; out.drawImage(FILM.small, -10, -10, W + 20, H + 20); out.filter = 'none';
+  out.save(); out.globalCompositeOperation = 'screen'; out.globalAlpha = (o.bloom ?? .22); out.imageSmoothingQuality = 'high';
+  out.drawImage(FILM.small, -10, -10, W + 20, H + 20);
   out.restore();
   // exposure flicker
   const fl = rnd(-.025, .025);
@@ -1847,8 +1885,8 @@ shot(20.5, 23.5, 'clash', (ctx, lt, k, t) => {
   if (lt < .12) { ax -= 160 * (1 - lt / .12); bx += 160 * (1 - lt / .12); }
   if (lt > 2.4) { const u = easeOut(clamp((lt - 2.4) / .3, 0, 1)); ax -= 60 * u; bx += 60 * u; pa = lerpPose(P6.A, PZ.A_stance, u * .5); pb = lerpPose(P6.B, PZ.B_stance, u * .5); }
   const wind = k * 1.2;
-  seed('s6a', k); drawFigure(ctx, CH.A, pa, { x: ax, y: gy, s, f: 1, wind, rim: { d: [.9, -.1], c: '#ffd9a0', lc: '#ffb060', k: 2 }, lm: 'night' });
-  seed('s6b', k); drawFigure(ctx, CH.B, pb, { x: bx, y: gy, s, f: -1, wind, rim: { d: [-.9, -.1], c: '#ffd9a0', lc: '#ffb060', k: 2 }, lm: 'night' });
+  seed('s6a', k); drawFigure(ctx, CH.A, pa, { x: ax, y: gy, s, f: 1, wind, rim: { d: [.9, -.1], c: '#c9a07a', k: 1.3 }, lm: 'night' });
+  seed('s6b', k); drawFigure(ctx, CH.B, pb, { x: bx, y: gy, s, f: -1, wind, rim: { d: [-.9, -.1], c: '#c9a07a', k: 1.3 }, lm: 'night' });
   if (lt >= .12 && lt < 2.4) { const sz = lt < .4 ? 120 : 34 + (k % 2) * 18; drawSpark(ctx, meet[0] - 6, meet[1] + 4, sz, lt < .4 ? 1 : k, { n: lt < .4 ? 22 : 6 }); }
   ctx.restore();
   if (lt >= .12 && lt < 1.2) drawShockRing(ctx, meet[0], meet[1], 60 + (Math.floor((lt - .12) * 12) / 12) * 900, .6, k, '#dfe6fb', 12);
@@ -1925,8 +1963,8 @@ shot(26.5, 28.5, 'graze', (ctx, lt, k, t) => {
     cel(ctx, bl, { f: '#b9c3da', bands: [{ c: '#7f88a0', shape: shape([[x - 10, y + 4], [x + len + 10, y + 4], [x + len, y + 40], [x - 10, y + 40]], 0, 4), inside: true }], lw: 3, lc: '#1a1424' });
   }
   if (lt > cutT) {
-    const c = headPt(o, -.62, .5);
-    drawBloodSpray(ctx, c[0], c[1], Math.PI * 1.15, .5, Math.min(1.2, (slow - cutT) * 3.2 + .05), 81, 1.3, 'night');
+    const c = headPt(o, .42, .48);
+    drawBloodSpray(ctx, c[0], c[1], Math.PI * 1.1, .45, Math.min(1.2, (slow - cutT) * 3.2 + .05), 81, 1.3, 'night');
     // severed hair strands drifting
     seed('strand');
     for (let i = 0; i < 5; i++) { const sx = c[0] + rnd(-40, 60) - (slow - cutT) * 200, sy = c[1] - 160 + rnd(-30, 30) + (slow - cutT) * 120; stk(ctx, [sx, sy], [sx + rnd(14, 24), sy + rnd(-6, 6)], 2.4, lc1('#eec54c', 'night'), .2); }
@@ -2059,16 +2097,16 @@ const P12 = {
   st2: pose({ y: -142, lean: 4, hd: -22, tw: .4, yaw: .45, a1: [15, 50], a2: [-10, 40], l1: [12, 6], l2: [-10, 4], ex: { brow: -1, eye: 1, look: [.3, -.6], mouth: 'grit' } })
 };
 shot(38.5, 43.5, 'rise', (ctx, lt, k, t) => {
-  const camY = sv(lt, [[0, 0], [4.0, -60, .8]]);
+  const camY = sv(lt, [[0, 0], [4.6, -40, 1.0]]);
   bg(ctx, BG.med, 260, 150 + camY * 0, 1.35);
   ctx.save(); ctx.translate(0, -camY);
   const breath = Math.floor(lt * 12 / 5) % 2;
   const p = sv(lt, [[0, breath ? P12.kn2 : P12.kn1], [1.5, breath ? P12.kn2 : P12.kn1], [2.0, P12.up, .4], [2.4, P12.w1, .25], [2.75, P12.w2, .25], [3.2, P12.look, .3], [3.95, P12.st1, .4], [4.5, P12.st2, .4]]);
   const p2 = lt < 1.5 ? (breath ? P12.kn2 : P12.kn1) : p;
   seed('s12', k);
-  drawFigure(ctx, CH.A, p2, { x: 560, y: 770, s: 1.95, f: 1, wind: k * .9, blood: [[[-.95, -.3], [-.92, 0], [-.97, .2]], [[.12, .82], [.18, .98], [.15, 1.12]]], rim: { d: [-.95, -.2], c: '#d39860', lc: '#f0b070', k: 2.2 } });
+  drawFigure(ctx, CH.A, p2, { x: 600, y: 885, s: 2.5, f: 1, wind: k * .9, blood: [[[-.95, -.3], [-.92, 0], [-.97, .2]], [[.12, .82], [.18, .98], [.15, 1.12]]], rim: { d: [-.95, -.2], c: '#d39860', lc: '#f0b070', k: 2.2 } });
   // foreground rubble cel
-  paintRubble(ctx, 260, 760, 120, PAL.night, 121, 5); paintRubble(ctx, 1060, 790, 140, PAL.night, 122, 6);
+  paintRubble(ctx, 220, 800, 150, PAL.night, 121, 5); paintRubble(ctx, 1100, 820, 170, PAL.night, 122, 6);
   ctx.restore();
   drawRain(ctx, k, { d: [.6, .9, 1] });
 });
@@ -2086,32 +2124,32 @@ shot(43.5, 48.5, 'fire', (ctx, lt, k, t) => {
   const ho = { x: 880, y: 290, r: 118, f: -1, yaw: .3, lm: I > .25 ? 'fire' : 'night', ex: { brow: -.9, eye: 1, look: [.5, .3], mouth: 'grit' }, wind: k * (1 + I * 2), L: [-.4, .9], rim: { d: [-.85, .5], c: '#ffc070', lc: '#ff9040', k: .06 + I * .05 }, blood: [[[.95, -.3], [.92, 0], [.97, .2]]] };
   drawBust(ctx, CH.A, ho);
   // the fist and forearm, close to camera
-  const el = [940, 760], wr = [560, 470];
-  drawFireWind(ctx, el, [wr[0] - 70, wr[1] - 50], kf, I, 'back', 1.7);
-  const pf = pose({ x: 0, y: -143, tw: .2, a1: [0, 0], a2: [0, 0], l1: [0, 0], l2: [0, 0] });
-  const a = Math.atan2(wr[0] - el[0], wr[1] - el[1]) / D2R; // angle from down, screen-space (f=1)
-  const pp = Object.assign({}, pf, { a1: [a, 0, 0], order: ['A1'] });
-  const sc = dist(el, wr) / (BN.ua * .45 + BN.fa);
-  const e0 = jpos(pp, { x: 0, y: 0, s: sc, f: 1 }, 'A1.e'), w0 = jpos(pp, { x: 0, y: 0, s: sc, f: 1 }, 'A1.w');
+  const wr = [540, 450], dir = norm2([.78, .62]), sc = 8.5;
+  const el = [wr[0] + dir[0] * BN.fa * sc, wr[1] + dir[1] * BN.fa * sc];
+  const fistC = [wr[0] - dir[0] * 13 * sc, wr[1] - dir[1] * 13 * sc];
+  drawFireWind(ctx, el, fistC, kf, I, 'back', 2.4);
+  const a = Math.atan2(-dir[0], -dir[1]) / D2R;
+  const pp = pose({ x: 0, y: -143, tw: .2, a1: [a, 0, 0], a2: [0, 0], l1: [0, 0], l2: [0, 0], order: ['A1'] });
+  const w0 = jpos(pp, { x: 0, y: 0, s: sc, f: 1 }, 'A1.w');
   seed('s13f', k);
-  drawFigure(ctx, CH.A, pp, { x: wr[0] - w0[0], y: wr[1] - w0[1], s: sc, f: 1, lm: I > .25 ? 'fire' : 'night', rim: { d: [-.6, -.7], c: '#ffd080', lc: '#ff9a40', k: 3 } });
-  drawFireWind(ctx, el, [wr[0] - 70, wr[1] - 50], kf, I, 'front', 1.7);
+  drawFigure(ctx, CH.A, pp, { x: wr[0] - w0[0], y: wr[1] - w0[1], s: sc, f: 1, lm: I > .25 ? 'fire' : 'night', rim: { d: [-.6, -.7], c: '#ffd080', lc: '#ff9a40', k: 2 } });
+  drawFireWind(ctx, el, fistC, kf, I, 'front', 2.4);
   // rain spiralling in
   seed('sp13', kf);
-  for (let i = 0; i < 30 * I; i++) { const a0 = rnd(0, TAU), r0 = rnd(160, 420); const pts = []; for (let j = 0; j < 6; j++) { const a1 = a0 + j * .22, r1 = r0 * (1 - j * .12); pts.push([wr[0] - 40 + Math.cos(a1) * r1, wr[1] - 30 + Math.sin(a1) * r1 * .7]); } ink(ctx, pts, { w: rnd(1, 2.4), c: '#ffd9a0', a: .6, t0: .5, t1: .3 }); }
+  for (let i = 0; i < 30 * I; i++) { const a0 = rnd(0, TAU), r0 = rnd(180, 460); const pts = []; for (let j = 0; j < 6; j++) { const a1 = a0 + j * .22, r1 = r0 * (1 - j * .12); pts.push([fistC[0] + Math.cos(a1) * r1, fistC[1] + Math.sin(a1) * r1 * .7]); } ink(ctx, pts, { w: rnd(1, 2.4), c: '#ffd9a0', a: .6, t0: .5, t1: .3 }); }
   ctx.restore();
   if (lt > 3.6) drawConc(ctx, 520, 440, k, { r0: 320, n: 90, c: '#ffe6c0', a: .55, w: 6 });
   drawRain(ctx, k, { d: [.4, .7, 1 - I * .6] });
 });
 // ======================= S14 — lightning along B's blade =======================
-const P14 = pose({ y: -98, lean: 26, hd: -16, tw: .35, a1: [90, 10], w1: 92, h1: 'grip', a2: [92, 30], h2: 'blade', l1: [72, 118], l2: [-25, 105], ex: { brow: -.95, eye: .85, mouth: 'closed', look: [.3, .4] } });
+const P14 = pose({ y: -88, lean: 24, hd: -14, tw: .35, a1: [88, 8], w1: 92, h1: 'grip', a2: [96, 22], h2: 'blade', l1: [85, 85], l2: [-6, 96], ex: { brow: -.95, eye: .85, mouth: 'closed', look: [.3, .4] } });
 shot(48.5, 52.5, 'elec', (ctx, lt, k, t) => {
   const kf = Math.floor(lt * 24), fl = flashAt(t);
   const I = sstep(.4, 3.0, lt);
   bg(ctx, BG.sky, 140, 590, 1, fl);
   tintFrame(ctx, '#000', .3 * (1 - I));
   if (fl > .3) drawBolt(ctx, [1000, -40], [1200, 400], 141, 4, { br: 3 });
-  const beam = BG.skyBeamY - 590 - 28, s = 1.55, x = 760;
+  const beam = BG.skyBeamY - 590 - 28, s = 1.9, x = 860;
   const bladeA = jpos(P14, { x, y: beam, s, f: -1 }, 'A1.w');
   glow(ctx, bladeA[0] - 60, bladeA[1], 200 + I * 250, '#6f86ff', .12 + I * .3);
   seed('s14', k);
@@ -2133,8 +2171,8 @@ const P15 = {
 shot(52.5, 56, 'charge', (ctx, lt, k, t) => {
   const kf = Math.floor(lt * 24);
   drawSpeedBG(ctx, kf, ['#0d1226', '#1c2547', '#2a3560', '#3a2a40', '#141a33'], { ang: -.42, n: 180, cyc: 3 });
-  const u = clamp(lt / 3.4, 0, 1), e = easeIn(u) * .6 + u * .4;
-  const ax = lerp(-260, 520, e), ay = lerp(900, 470, e), bx = lerp(1540, 780, e), by = lerp(-160, 300, e);
+  const u = clamp(lt / 3.4, 0, 1), e = easeIn(u) * .3 + u * .7;
+  const ax = lerp(-40, 520, e), ay = lerp(820, 470, e), bx = lerp(1330, 780, e), by = lerp(-20, 300, e);
   const s = 1.05;
   // trails
   const fa = jpos(P15.A, { x: ax, y: ay, s, f: 1 }, 'A1.e'), fw = jpos(P15.A, { x: ax, y: ay, s, f: 1 }, 'A1.w');
@@ -2164,25 +2202,30 @@ shot(56, 58, 'impact', (ctx, lt, k, t) => {
     return;
   }
   const u = easeOut(clamp((lt - .34) / 1.5, 0, 1));
-  tintFrame(ctx, '#05060c', 1);
-  const R0 = 80 + u * 900;
-  // painted sphere: fire half / lightning half
+  tintFrame(ctx, '#06070d', 1);
+  const R0 = 90 + u * 820, cx = 640, cy = 360;
+  // radial streak field behind
+  drawConc(ctx, cx, cy, kf, { r0: R0 * .7, n: 120, c: '#c9b8d8', a: .45, w: 10 });
+  // jagged energy sphere: outer fire/lightning halves, white core
   seed('sph', Math.floor(lt * 12));
-  for (let i = 0; i < 260; i++) {
-    const a = rnd(0, TAU), rr = Math.sqrt(R()) * R0; const x = 640 + Math.cos(a) * rr, y = 360 + Math.sin(a) * rr;
-    const left = x < 640 + vnoise(y / 40, 3) * 30;
-    const kk = rr / R0;
-    ctx.globalAlpha = .5 + .5 * (1 - kk);
-    brush(ctx, x, y, rnd(40, 120), a + Math.PI / 2 + rnd(-.3, .3), rnd(10, 30), mixc(left ? '#ffe9b0' : '#e6ecff', left ? '#e0601e' : '#4a5ad0', kk), { nob: 1 });
-  }
-  ctx.globalAlpha = 1;
-  glow(ctx, 640, 360, R0 * 1.3, '#ffffff', .6);
-  drawShockRing(ctx, 640, 360, R0 * .9, .9, kf, '#ffffff', 10);
-  drawShockRing(ctx, 640, 360, R0 * .6, .9, kf + 9, '#ffe0b0', 6);
+  const ring = (rr, jag) => { const pts = []; const n = 40; for (let i = 0; i < n; i++) { const a = i / n * TAU; const rj = rr * (1 + (i % 2 ? -jag : jag) * rnd(.3, 1)); const q = [cx + Math.cos(a) * rj, cy + Math.sin(a) * rj * .92]; if (i % 2 === 0) q[2] = 1; pts.push(q); } return spline(pts, true, 4); };
+  const outer = ring(R0, .08), mid = ring(R0 * .78, .06), core = ring(R0 * .5, .05);
+  glow(ctx, cx, cy, R0 * 1.6, '#ffffff', .35);
+  ctx.save(); poly(ctx, outer); ctx.clip();
+  ctx.fillStyle = css('#e0602a'); ctx.fillRect(0, 0, cx, H); ctx.fillStyle = css('#4f62d8'); ctx.fillRect(cx, 0, W, H);
+  // seam between the two forces
+  const seam = []; for (let y = -10; y <= H + 10; y += 30) seam.push([cx + rnd(-40, 40), y]);
+  ink(ctx, seam, { w: 26, c: '#fff6e0', t0: .1, t1: .1 });
+  poly(ctx, mid); ctx.fillStyle = css('#ffc46a'); ctx.save(); ctx.clip(); ctx.fillRect(0, 0, cx, H); ctx.fillStyle = css('#bccaff'); ctx.fillRect(cx, 0, W, H); ctx.restore();
+  fillD(ctx, core, '#fffaf0');
+  ctx.restore();
+  ink(ctx, outer, { dense: true, closed: true, w: 4, c: '#3a1a28' });
+  ink(ctx, mid, { dense: true, closed: true, w: 2, c: '#ffe8c0' });
+  drawShockRing(ctx, cx, cy, R0 * 1.15, .92, kf, '#ffffff', 12);
   // rain driven outward
   seed('rad', kf);
-  for (let i = 0; i < 120; i++) { const a = rnd(0, TAU), r1 = R0 * rnd(.9, 1.6); ink(ctx, [[640 + Math.cos(a) * r1, 360 + Math.sin(a) * r1], [640 + Math.cos(a) * (r1 + 60), 360 + Math.sin(a) * (r1 + 60)]], { w: rnd(1, 2.5), c: '#cdd6f0', a: .8 }); }
-  drawConc(ctx, 640, 360, kf, { r0: R0 * .8, n: 80, c: '#ffffff', a: .5, w: 8 });
+  for (let i = 0; i < 140; i++) { const a = rnd(0, TAU), r1 = R0 * rnd(1.1, 1.8); ink(ctx, [[cx + Math.cos(a) * r1, cy + Math.sin(a) * r1], [cx + Math.cos(a) * (r1 + 70), cy + Math.sin(a) * (r1 + 70)]], { w: rnd(1, 3), c: '#cdd6f0', a: .85 }); }
+  drawChunks(ctx, cx, cy + 40, u * .9, 18, 161, 1.6);
 });
 // ======================= S17 — inside the light (harmony frame, slow motion) =======================
 shot(58, 63, 'harmony', (ctx, lt, k, t) => {
@@ -2248,9 +2291,9 @@ shot(68, 74.5, 'overhead', (ctx, lt, k, t) => {
   const pA = pose({ x: 0, y: -143, tw: 1, yaw: 0, hd: 0, a1: [-75, 15], a2: [80, 25], l1: [-8, 4], l2: [10, 6], ex: { eye: eA, mouth: mA, look: [0, -.3], brow: -.1 } });
   const pB = pose({ x: 0, y: -143, tw: 1, yaw: 0, hd: 0, a1: [-85, 20], a2: [70, 10], l1: [-10, 6], l2: [8, 4], ex: { eye: eB, mouth: 'closed', look: [0, -1], brow: -.2 } });
   seed('s19a', Math.floor(k / 3));
-  ctx.save(); ctx.translate(560, 420); ctx.rotate(-2.2); drawFigure(ctx, CH.A, pA, { x: 0, y: 0 + 275 * 1.25, s: 1.25, f: 1, lm: 'night', blood: [[[-.4, -.3], [-.38, 0], [-.42, .2]]], cut: true, wind: 0 }); ctx.restore();
+  ctx.save(); ctx.translate(590, 395); ctx.rotate(.8); drawFigure(ctx, CH.A, pA, { x: 0, y: 0 + 268 * 1.4, s: 1.4, f: 1, lm: 'night', blood: [[[-.4, -.3], [-.38, 0], [-.42, .2]]], cut: true, wind: 0 }); ctx.restore();
   seed('s19b', Math.floor(k / 3));
-  ctx.save(); ctx.translate(730, 330); ctx.rotate(.95); drawFigure(ctx, CH.B, pB, { x: 0, y: 0 + 275 * 1.25, s: 1.25, f: 1, lm: 'night', blood: [[[.05, .8], [.12, .95]]], wind: 0 }); ctx.restore();
+  ctx.save(); ctx.translate(705, 315); ctx.rotate(-2.34); drawFigure(ctx, CH.B, pB, { x: 0, y: 0 + 268 * 1.4, s: 1.4, f: 1, lm: 'night', blood: [[[.05, .8], [.12, .95]]], wind: 0 }); ctx.restore();
   ctx.restore();
   // rain seen from above: short streaks radiating from the centre, drops striking
   seed('rtop', k);
@@ -2262,9 +2305,9 @@ shot(74.5, 80, 'moon', (ctx, lt, k, t) => {
   const camX = lerp(240, 205, easeIO(lt / 5.5));
   bg(ctx, BG.moon, camX, 0);
   // moonlight shaft
-  ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = .12 + .1 * sstep(0, 3, lt);
+  ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = .02 + .02 * sstep(0, 3, lt);
   seed('shaft');
-  for (let i = 0; i < 40; i++) { const x = 1090 - camX + rnd(-30, 30); brush(ctx, x, 140, rnd(300, 480), Math.PI / 2 + .22 + rnd(-.08, .08), rnd(30, 90), '#9aa8d8', { nob: 1, bend: 0 }); }
+  for (let i = 0; i < 40; i++) { const x = 1090 - camX + rnd(-60, 60); brush(ctx, x, 140, rnd(380, 520), Math.PI / 2 + .3 + rnd(-.14, .14), rnd(60, 160), '#9aa8d8', { nob: 1, bend: 0 }); }
   ctx.restore();
   glow(ctx, 1090 - camX, 120, 160, '#dfe6ff', .35);
   drawLying(ctx, CH.A, 600 - camX, 602, .4, -Math.PI / 2, k, 'moon', { p: { ex: { eye: .2, mouth: 'smirk' } } });
@@ -2502,10 +2545,15 @@ function scoreAudio(ac, out, T0, from) {
 // ===================================================================
 const SCR = document.getElementById('scr'), SX = SCR.getContext('2d');
 const CMP = mkCanvas(W, H), CX = CMP.getContext('2d');
-let lastFi = -1;
-function renderFrame(t) {
+let lastFi = -1, lastKey = '';
+// shots that have something moving on ones (effects, shakes, impact strobes)
+const ONES = new Set(['puddle', 'clash', 'exchange', 'graze', 'punch', 'kick', 'fire', 'elec', 'charge', 'impact']);
+function renderFrame(t, force) {
   const fi = Math.min(Math.floor(t * FPS), DUR * FPS - 1), tq = fi / FPS;
   const S = shotAt(tq), lt = tq - S.t0, k = Math.floor(lt * 12);
+  const key = S.name + ':' + (ONES.has(S.name) ? fi : k) + (tq > 78.2 ? fi : '');
+  if (key === lastKey && !force) { filmFinish(CMP, SX, fi, { fade: tq > 78.2 ? clamp((tq - 78.2) / 1.6, 0, 1) : null }); lastFi = fi; return; }
+  lastKey = key;
   CX.setTransform(1, 0, 0, 1, 0, 0); CX.globalAlpha = 1; CX.globalCompositeOperation = 'source-over'; CX.filter = 'none';
   CX.fillStyle = '#000'; CX.fillRect(0, 0, W, H);
   S.draw(CX, lt, k, tq);
@@ -2514,7 +2562,7 @@ function renderFrame(t) {
   filmFinish(CMP, SX, fi, { fade });
   lastFi = fi;
 }
-window.__render = t => { renderFrame(t); return shotAt(t).name; };
+window.__render = t => { renderFrame(t, true); return shotAt(t).name; };
 
 const UI = document.getElementById('ui'), MSG = document.getElementById('msg');
 let ready = false, playing = false, t0 = 0, pausedAt = 0, actx = null, master = null;
