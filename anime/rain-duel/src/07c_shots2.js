@@ -177,18 +177,19 @@ shot(58, 63, 'harmony', (ctx, lt, k, t) => {
   ctx.save(); ctx.translate(640, 360); ctx.scale(z, z); ctx.translate(-640, -360);
   // painted split backdrop
   seed('hb', 0);
-  for (let i = 0; i < 1400; i++) { const x = rnd(-100, 1380), y = rnd(-100, 820); const left = x < 640 + vnoise(y / 60, 5) * 50; const kk = Math.abs(x - 640) / 700; ctx.fillStyle = 'x'; brush(ctx, x, y, rnd(40, 140), rnd(-.3, .3) + (left ? .5 : -.5), rnd(14, 34), jitc(mixc(left ? '#ffcf80' : '#c6d2ff', left ? '#5a1e14' : '#141a40', clamp(kk + rnd(-.1, .1), 0, 1)), 6)); }
+  for (let x = -100; x < 1380; x += 6) { const kk = Math.abs(x - 640) / 700; ctx.fillStyle = css(x < 640 ? mixc('#ffb860', '#3a120c', kk) : mixc('#b8c6ff', '#10153a', kk)); ctx.fillRect(x, -100, 7, 920); }
+  for (let i = 0; i < 900; i++) { const x = rnd(-100, 1380), y = rnd(-100, 820); const left = x < 640 + vnoise(y / 60, 5) * 50; const kk = Math.abs(x - 640) / 700; const a = Math.atan2(y - 380, x - 640); brush(ctx, x, y, rnd(60, 180), a + rnd(-.15, .15), rnd(16, 40), jitc(mixc(left ? '#ffcf80' : '#c6d2ff', left ? '#4a180f' : '#121838', clamp(kk + rnd(-.12, .12), 0, 1)), 5)); }
   glow(ctx, 640, 380, 300, '#ffffff', .6);
   applyPaper(ctx, W, H, .25);
   const wind = 3 + k4 * .25;
   seed('s17a', k4);
   drawBust(ctx, CH.A, { x: 400, y: 300, r: 150, f: 1, yaw: .93, lm: 'fire', ex: { brow: -1, eye: 1, mouth: 'shout', mo: .8 }, wind, L: [-.9, .2], rim: { d: [.95, .2], c: '#fff0c8', lc: '#ffb050', k: .1 }, paint: 1.5, blood: [[[-.95, -.3], [-.92, 0], [-.97, .2]]], cut: true });
   seed('s17b', k4);
-  drawBust(ctx, CH.B, { x: 880, y: 300, r: 150, f: -1, yaw: .93, lm: 'elec', ex: { brow: -1, eye: .9, mouth: 'grit' }, wind: wind + 1, L: [.9, .2], rim: { d: [-.95, .2], c: '#eef2ff', lc: '#8ea6ff', k: .1 }, paint: 1.5, blood: [[[.05, .8], [.12, .95], [.1, 1.12]]] });
+  drawBust(ctx, CH.B, { x: 880, y: 300, r: 150, f: -1, yaw: .93, lm: 'elec', ex: { brow: -1, eye: .9, mouth: 'grit' }, wind: wind + 1, L: [.9, .2], rim: { d: [-.95, .2], c: '#aab8f0', k: .07 }, paint: 1.5, blood: [[[.05, .8], [.12, .95], [.1, 1.12]]] });
   // fist and blade crossing low in frame
-  drawFireWind(ctx, [180, 760], [560, 560], k4, 1, 'back', 2.2);
-  drawFireWind(ctx, [180, 760], [560, 560], k4, 1, 'front', 2.2);
-  drawElectric(ctx, [1120, 700], [700, 560], k4, 1, 1.6);
+  glow(ctx, 470, 680, 280, '#ff9a40', .5);
+  drawFlameMass(ctx, [480, 720], 110, norm2([-.25, -1]), k4, 1, 2.2, 3);
+  drawElectric(ctx, [1120, 720], [760, 600], k4, 1, 1.6);
   ctx.restore();
   // slow drops hanging in the air
   seed('hang', 0);

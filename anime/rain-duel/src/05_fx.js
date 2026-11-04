@@ -43,17 +43,17 @@ function drawRain(ctx, k, o = {}) {
 // splashes on the ground plane: region {x0,x1,y0,y1}, size grows with y
 function drawSplashes(ctx, k, rg, n, sz = 1, col = '#b8c4e4') {
   seed('spl', k, rg.y0);
-  ctx.strokeStyle = css(col, .7); ctx.lineCap = 'round';
+  ctx.lineCap = 'round';
   for (let i = 0; i < n; i++) {
     const y = rnd(rg.y0, rg.y1), x = rnd(rg.x0, rg.x1), t = (y - rg.y0) / (rg.y1 - rg.y0);
-    const s = (1 + t * 5) * sz * rnd(.6, 1.2);
+    const s = (.8 + t * 3.2) * sz * rnd(.6, 1.1);
     const ph = R();
-    if (ph < .5) { // crown
-      ctx.lineWidth = Math.max(.6, s * .35);
-      for (let j = -2; j <= 2; j++) { ctx.beginPath(); ctx.moveTo(x + j * s * .5, y); ctx.quadraticCurveTo(x + j * s * .9, y - s * 1.2, x + j * s * 1.3, y - s * (1.3 - Math.abs(j) * .3)); ctx.stroke(); }
-    } else { // ring
-      ctx.lineWidth = Math.max(.5, s * .25);
-      ctx.beginPath(); ctx.ellipse(x, y, s * 2.4 * ph, s * .6 * ph, 0, 0, TAU); ctx.stroke();
+    if (ph < .28) { // small crown: a tiny burst of 3 drawn flecks
+      ctx.strokeStyle = css(col, .45); ctx.lineWidth = Math.max(.5, s * .22);
+      for (let j = -1; j <= 1; j++) { ctx.beginPath(); ctx.moveTo(x + j * s * .3, y); ctx.lineTo(x + j * s * .75, y - s * (1 - Math.abs(j) * .35)); ctx.stroke(); }
+    } else { // ring on the water
+      ctx.strokeStyle = css(col, .35 * (1.2 - ph)); ctx.lineWidth = Math.max(.5, s * .2);
+      ctx.beginPath(); ctx.ellipse(x, y, s * 2.6 * ph, s * .55 * ph, 0, 0, TAU); ctx.stroke();
     }
   }
 }
@@ -284,14 +284,15 @@ function drawElectric(ctx, p0, p1, k, I, sc = 1) {
   for (let i = 0; i < n; i++) {
     const t0 = rnd(-.05, .5), t1 = rnd(t0 + .3, 1.15);
     const pts = []; const m = 12;
-    for (let j = 0; j <= m; j++) { const t = lerp(t0, t1, j / m); const off = (j === 0 || j === m ? 0 : rnd(-1, 1)) * (8 + 16 * I) * sc; pts.push([p0[0] + u[0] * L * t + v[0] * off, p0[1] + u[1] * L * t + v[1] * off]); }
+    for (let j = 0; j <= m; j++) { const t = lerp(t0, t1, j / m); const off = (j === 0 || j === m ? 0 : rnd(-1, 1)) * (5 + 9 * I) * sc; pts.push([p0[0] + u[0] * L * t + v[0] * off, p0[1] + u[1] * L * t + v[1] * off]); }
     ink(ctx, pts, { dense: true, w: (6 + 8 * I) * sc, c: '#4a5ad0', a: .3, t0: .1, t1: .1 });
     ink(ctx, pts, { dense: true, w: (2.2 + 2 * I) * sc, c: '#b8c6ff', a: .9, t0: .1, t1: .1, sv: .5 });
   }
   ctx.restore();
   for (let i = 0; i < n; i++) {
     const t = rnd(0, 1); const p = [p0[0] + u[0] * L * t, p0[1] + u[1] * L * t]; const pts = [p];
-    let q = p; for (let j = 0; j < 4; j++) { q = [q[0] + rnd(-1, 1) * 18 * sc * (1 + I), q[1] + rnd(-1, 1) * 18 * sc * (1 + I)]; pts.push(q); }
+    const ba = Math.atan2(v[1], v[0]) + (R() < .5 ? 0 : Math.PI) + rnd(-.6, .6);
+    let q = p; for (let j = 0; j < 3; j++) { const aa = ba + rnd(-.7, .7); q = [q[0] + Math.cos(aa) * 20 * sc * (.6 + I), q[1] + Math.sin(aa) * 20 * sc * (.6 + I)]; pts.push(q); }
     ink(ctx, pts, { w: (1.6 + I * 1.5) * sc, c: '#f2f4ff', t0: .05, t1: .5, sv: .3 });
   }
 }

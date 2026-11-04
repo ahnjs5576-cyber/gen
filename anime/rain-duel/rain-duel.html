@@ -969,7 +969,7 @@ function drawHead(ctx, C, o) {
     ctx.save(); poly(ctx, cap); ctx.fillStyle = css(hr[0]); ctx.fill(); ctx.clip();
     ctx.beginPath(); ctx.rect(-4000, -4000, 9000, 9000); addPoly(ctx, cap, true, shOff(.14)); ctx.fillStyle = css(hr[1]); ctx.fill('evenodd');
     ink(ctx, cap.map(p => [p[0] + Ld[0] * .14 * r, p[1] + Ld[1] * .14 * r]), { dense: true, closed: true, w: lwi * .7, c: L.hl });
-    if (o.rim) { ctx.beginPath(); ctx.rect(-4000, -4000, 9000, 9000); addPoly(ctx, cap, true, [-o.rim.d[0] * .07 * r, -o.rim.d[1] * .07 * r]); ctx.fillStyle = css(o.rim.c); ctx.fill('evenodd'); }
+    if (o.rim) { ctx.beginPath(); ctx.rect(-4000, -4000, 9000, 9000); addPoly(ctx, cap, true, [-o.rim.d[0] * .035 * r, -o.rim.d[1] * .035 * r]); ctx.fillStyle = css(mixc(o.rim.c, hr[0], .45)); ctx.fill('evenodd'); }
     // strand lines
     if (det > 1) for (const s of capPts.strands || []) ink(ctx, Mp(s), { w: lwi * .7, c: C.id === 'A' ? lc1(C.hairLine, lm) : L.lc });
     ctx.restore();
@@ -1357,17 +1357,17 @@ function drawRain(ctx, k, o = {}) {
 // splashes on the ground plane: region {x0,x1,y0,y1}, size grows with y
 function drawSplashes(ctx, k, rg, n, sz = 1, col = '#b8c4e4') {
   seed('spl', k, rg.y0);
-  ctx.strokeStyle = css(col, .7); ctx.lineCap = 'round';
+  ctx.lineCap = 'round';
   for (let i = 0; i < n; i++) {
     const y = rnd(rg.y0, rg.y1), x = rnd(rg.x0, rg.x1), t = (y - rg.y0) / (rg.y1 - rg.y0);
-    const s = (1 + t * 5) * sz * rnd(.6, 1.2);
+    const s = (.8 + t * 3.2) * sz * rnd(.6, 1.1);
     const ph = R();
-    if (ph < .5) { // crown
-      ctx.lineWidth = Math.max(.6, s * .35);
-      for (let j = -2; j <= 2; j++) { ctx.beginPath(); ctx.moveTo(x + j * s * .5, y); ctx.quadraticCurveTo(x + j * s * .9, y - s * 1.2, x + j * s * 1.3, y - s * (1.3 - Math.abs(j) * .3)); ctx.stroke(); }
-    } else { // ring
-      ctx.lineWidth = Math.max(.5, s * .25);
-      ctx.beginPath(); ctx.ellipse(x, y, s * 2.4 * ph, s * .6 * ph, 0, 0, TAU); ctx.stroke();
+    if (ph < .28) { // small crown: a tiny burst of 3 drawn flecks
+      ctx.strokeStyle = css(col, .45); ctx.lineWidth = Math.max(.5, s * .22);
+      for (let j = -1; j <= 1; j++) { ctx.beginPath(); ctx.moveTo(x + j * s * .3, y); ctx.lineTo(x + j * s * .75, y - s * (1 - Math.abs(j) * .35)); ctx.stroke(); }
+    } else { // ring on the water
+      ctx.strokeStyle = css(col, .35 * (1.2 - ph)); ctx.lineWidth = Math.max(.5, s * .2);
+      ctx.beginPath(); ctx.ellipse(x, y, s * 2.6 * ph, s * .55 * ph, 0, 0, TAU); ctx.stroke();
     }
   }
 }
@@ -1598,14 +1598,15 @@ function drawElectric(ctx, p0, p1, k, I, sc = 1) {
   for (let i = 0; i < n; i++) {
     const t0 = rnd(-.05, .5), t1 = rnd(t0 + .3, 1.15);
     const pts = []; const m = 12;
-    for (let j = 0; j <= m; j++) { const t = lerp(t0, t1, j / m); const off = (j === 0 || j === m ? 0 : rnd(-1, 1)) * (8 + 16 * I) * sc; pts.push([p0[0] + u[0] * L * t + v[0] * off, p0[1] + u[1] * L * t + v[1] * off]); }
+    for (let j = 0; j <= m; j++) { const t = lerp(t0, t1, j / m); const off = (j === 0 || j === m ? 0 : rnd(-1, 1)) * (5 + 9 * I) * sc; pts.push([p0[0] + u[0] * L * t + v[0] * off, p0[1] + u[1] * L * t + v[1] * off]); }
     ink(ctx, pts, { dense: true, w: (6 + 8 * I) * sc, c: '#4a5ad0', a: .3, t0: .1, t1: .1 });
     ink(ctx, pts, { dense: true, w: (2.2 + 2 * I) * sc, c: '#b8c6ff', a: .9, t0: .1, t1: .1, sv: .5 });
   }
   ctx.restore();
   for (let i = 0; i < n; i++) {
     const t = rnd(0, 1); const p = [p0[0] + u[0] * L * t, p0[1] + u[1] * L * t]; const pts = [p];
-    let q = p; for (let j = 0; j < 4; j++) { q = [q[0] + rnd(-1, 1) * 18 * sc * (1 + I), q[1] + rnd(-1, 1) * 18 * sc * (1 + I)]; pts.push(q); }
+    const ba = Math.atan2(v[1], v[0]) + (R() < .5 ? 0 : Math.PI) + rnd(-.6, .6);
+    let q = p; for (let j = 0; j < 3; j++) { const aa = ba + rnd(-.7, .7); q = [q[0] + Math.cos(aa) * 20 * sc * (.6 + I), q[1] + Math.sin(aa) * 20 * sc * (.6 + I)]; pts.push(q); }
     ink(ctx, pts, { w: (1.6 + I * 1.5) * sc, c: '#f2f4ff', t0: .05, t1: .5, sv: .3 });
   }
 }
@@ -2234,18 +2235,19 @@ shot(58, 63, 'harmony', (ctx, lt, k, t) => {
   ctx.save(); ctx.translate(640, 360); ctx.scale(z, z); ctx.translate(-640, -360);
   // painted split backdrop
   seed('hb', 0);
-  for (let i = 0; i < 1400; i++) { const x = rnd(-100, 1380), y = rnd(-100, 820); const left = x < 640 + vnoise(y / 60, 5) * 50; const kk = Math.abs(x - 640) / 700; ctx.fillStyle = 'x'; brush(ctx, x, y, rnd(40, 140), rnd(-.3, .3) + (left ? .5 : -.5), rnd(14, 34), jitc(mixc(left ? '#ffcf80' : '#c6d2ff', left ? '#5a1e14' : '#141a40', clamp(kk + rnd(-.1, .1), 0, 1)), 6)); }
+  for (let x = -100; x < 1380; x += 6) { const kk = Math.abs(x - 640) / 700; ctx.fillStyle = css(x < 640 ? mixc('#ffb860', '#3a120c', kk) : mixc('#b8c6ff', '#10153a', kk)); ctx.fillRect(x, -100, 7, 920); }
+  for (let i = 0; i < 900; i++) { const x = rnd(-100, 1380), y = rnd(-100, 820); const left = x < 640 + vnoise(y / 60, 5) * 50; const kk = Math.abs(x - 640) / 700; const a = Math.atan2(y - 380, x - 640); brush(ctx, x, y, rnd(60, 180), a + rnd(-.15, .15), rnd(16, 40), jitc(mixc(left ? '#ffcf80' : '#c6d2ff', left ? '#4a180f' : '#121838', clamp(kk + rnd(-.12, .12), 0, 1)), 5)); }
   glow(ctx, 640, 380, 300, '#ffffff', .6);
   applyPaper(ctx, W, H, .25);
   const wind = 3 + k4 * .25;
   seed('s17a', k4);
   drawBust(ctx, CH.A, { x: 400, y: 300, r: 150, f: 1, yaw: .93, lm: 'fire', ex: { brow: -1, eye: 1, mouth: 'shout', mo: .8 }, wind, L: [-.9, .2], rim: { d: [.95, .2], c: '#fff0c8', lc: '#ffb050', k: .1 }, paint: 1.5, blood: [[[-.95, -.3], [-.92, 0], [-.97, .2]]], cut: true });
   seed('s17b', k4);
-  drawBust(ctx, CH.B, { x: 880, y: 300, r: 150, f: -1, yaw: .93, lm: 'elec', ex: { brow: -1, eye: .9, mouth: 'grit' }, wind: wind + 1, L: [.9, .2], rim: { d: [-.95, .2], c: '#eef2ff', lc: '#8ea6ff', k: .1 }, paint: 1.5, blood: [[[.05, .8], [.12, .95], [.1, 1.12]]] });
+  drawBust(ctx, CH.B, { x: 880, y: 300, r: 150, f: -1, yaw: .93, lm: 'elec', ex: { brow: -1, eye: .9, mouth: 'grit' }, wind: wind + 1, L: [.9, .2], rim: { d: [-.95, .2], c: '#aab8f0', k: .07 }, paint: 1.5, blood: [[[.05, .8], [.12, .95], [.1, 1.12]]] });
   // fist and blade crossing low in frame
-  drawFireWind(ctx, [180, 760], [560, 560], k4, 1, 'back', 2.2);
-  drawFireWind(ctx, [180, 760], [560, 560], k4, 1, 'front', 2.2);
-  drawElectric(ctx, [1120, 700], [700, 560], k4, 1, 1.6);
+  glow(ctx, 470, 680, 280, '#ff9a40', .5);
+  drawFlameMass(ctx, [480, 720], 110, norm2([-.25, -1]), k4, 1, 2.2, 3);
+  drawElectric(ctx, [1120, 720], [760, 600], k4, 1, 1.6);
   ctx.restore();
   // slow drops hanging in the air
   seed('hang', 0);

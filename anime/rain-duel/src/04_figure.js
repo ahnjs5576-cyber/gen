@@ -193,7 +193,7 @@ function drawHead(ctx, C, o) {
     ctx.save(); poly(ctx, cap); ctx.fillStyle = css(hr[0]); ctx.fill(); ctx.clip();
     ctx.beginPath(); ctx.rect(-4000, -4000, 9000, 9000); addPoly(ctx, cap, true, shOff(.14)); ctx.fillStyle = css(hr[1]); ctx.fill('evenodd');
     ink(ctx, cap.map(p => [p[0] + Ld[0] * .14 * r, p[1] + Ld[1] * .14 * r]), { dense: true, closed: true, w: lwi * .7, c: L.hl });
-    if (o.rim) { ctx.beginPath(); ctx.rect(-4000, -4000, 9000, 9000); addPoly(ctx, cap, true, [-o.rim.d[0] * .07 * r, -o.rim.d[1] * .07 * r]); ctx.fillStyle = css(o.rim.c); ctx.fill('evenodd'); }
+    if (o.rim) { ctx.beginPath(); ctx.rect(-4000, -4000, 9000, 9000); addPoly(ctx, cap, true, [-o.rim.d[0] * .035 * r, -o.rim.d[1] * .035 * r]); ctx.fillStyle = css(mixc(o.rim.c, hr[0], .45)); ctx.fill('evenodd'); }
     // strand lines
     if (det > 1) for (const s of capPts.strands || []) ink(ctx, Mp(s), { w: lwi * .7, c: C.id === 'A' ? lc1(C.hairLine, lm) : L.lc });
     ctx.restore();
