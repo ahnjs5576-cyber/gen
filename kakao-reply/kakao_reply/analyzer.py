@@ -41,7 +41,7 @@ SYSTEM_PROMPT = """\
    - 카톡답게 짧고 자연스럽게 쓴다.
 4. 답이 필요 없어 보이면 needs_reply 를 false 로 하되, 가벼운 반응 초안(예: 확인 인사)은 만든다.
 5. attachment 가 있는 메시지는 첨부물 자리표시다. 원본은 볼 수 없으니 내용을 본 것처럼 쓰지 않는다.
-6. '상대1', '본인', '[전화번호]' 처럼 가려진 표기는 그대로 사용한다.
+6. '상대1', '[본인]', '[전화번호]' 처럼 가려진 표기는 그대로 사용한다.
 """
 
 REPLY_SCHEMA = {
@@ -114,6 +114,10 @@ def _json_line(m: Message) -> str:
     return json.dumps(obj, ensure_ascii=False).replace("<", "\\u003c").replace(">", "\\u003e")
 
 
+def _escape(text: str) -> str:
+    return text.replace("<", "＜").replace(">", "＞")
+
+
 def _block(tag: str, messages: list[Message]) -> str:
     body = "\n".join(_json_line(m) for m in messages) if messages else "(없음)"
     return f"<{tag}>\n{body}\n</{tag}>"
@@ -123,16 +127,18 @@ def build_request(chat: Chat, me: str | None, last: int = 200, instruction: str 
     """API 요청 본문을 만든다. --dry-run 에서 무엇이 전송되는지 그대로 보여줄 때도 쓴다."""
     me_label = me or "(알 수 없음)"
     recent = chat.messages[-last:] if last > 0 else chat.messages
+    window = Chat(title=chat.title, saved_at=chat.saved_at, messages=recent)
     mine = [m for m in chat.messages if me and m.sender == me and not m.attachment][-TONE_SAMPLES:]
+    # 답 안 한 메시지는 --last 범위 안에서만 고른다 (범위 밖 대화가 새어 나가지 않게).
+    pending = pending_messages(window, me) if me else recent
     parts = [
-        f"대화방: {chat.title or '(제목 없음)'} / 참여자 {len(chat.participants)}명",
+        f"대화방: {_escape(chat.title or '(제목 없음)')} / 참여자 {len(chat.participants)}명",
         _block("chat", recent),
-        _block("pending", pending_messages(chat, me)),
+        _block("pending", pending),
         _block("my_messages", mine),
     ]
     if instruction:
-        safe = instruction.replace("<", "＜").replace(">", "＞")
-        parts.append(f"<user_request>\n{safe}\n</user_request>")
+        parts.append(f"<user_request>\n{_escape(instruction)}\n</user_request>")
     return {
         "model": MODEL,
         "max_tokens": 16000,

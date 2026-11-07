@@ -90,9 +90,12 @@ def _stale_warning(status) -> None:
 # ---------------------------------------------------------------- commands
 
 def cmd_me(args) -> None:
-    if args.name:
-        path = config.save_me(args.name.strip())
-        print(f"본인 이름을 '{args.name.strip()}'(으)로 저장했어요. ({path})")
+    if args.name is not None:
+        name = args.name.strip()
+        if not name:
+            _fail("이름이 비어 있어요. 내보낸 파일에 표시된 본인 이름을 적어 주세요.")
+        path = config.save_me(name)
+        print(f"본인 이름을 '{name}'(으)로 저장했어요. ({path})")
     else:
         print(f"저장된 본인 이름: {config.load_me() or '(없음)'}")
 
@@ -115,7 +118,12 @@ def cmd_inbox(args) -> None:
     if not chats:
         _fail(f"{d} 에 읽을 수 있는 내보내기 파일(.txt/.csv)이 없습니다.")
 
-    common = args.me or config.load_me() or guess_me_across(chats)
+    common = args.me or config.load_me()
+    if common and not any(common in c.participants for c in chats):
+        print(f"※ '{common}' 님이 보낸 메시지가 어느 방에도 없어요. 이름이 맞는지 확인하세요.", file=sys.stderr)
+    if not common and (guessed := guess_me_across(chats)):
+        common = guessed
+        print(f"※ 모든 방에 있는 '{guessed}' 님을 본인으로 추정했어요. 틀리면 `kakao-reply me <이름>` 으로 저장하세요.\n")
     rows = [room_status(c, common or guess_me(c)) for c in chats]
     rows.sort(key=lambda r: (r.last_time is None, -(r.last_time.timestamp() if r.last_time else 0)))
 
@@ -231,6 +239,7 @@ def cmd_suggest(args) -> None:
             p.sender, p.point = pseudo.restore(p.sender), pseudo.restore(p.point)
         for s in result.suggestions:
             s.intent, s.text = pseudo.restore(s.intent), pseudo.restore(s.text)
+            s.placeholders = [pseudo.restore(x) for x in s.placeholders]
 
     _print_analysis(result)
 

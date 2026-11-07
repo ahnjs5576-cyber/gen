@@ -36,10 +36,13 @@ _MOBILE_MSG = re.compile(r"^" + _MOBILE_TS + r",\s*(?P<sender>.+?)\s:\s(?P<text>
 # 타임스탬프는 있지만 ' : ' 가 없는 줄 = 입장/퇴장 같은 시스템 메시지
 _MOBILE_SYSTEM = re.compile(r"^" + _MOBILE_TS + r",\s*(?!.*\s:\s).+$")
 
-# PC 형식의 시스템 메시지는 타임스탬프 없이 한 줄로 나온다.
+# PC 형식의 시스템 메시지는 타임스탬프 없이 한 줄로 나온다. 일반 문장과 헷갈리지 않게 문장 전체가
+# 정해진 꼴일 때만 후보로 보고, 다음 줄이 새 메시지·날짜·파일 끝일 때만 실제로 버린다(parse_text 참고).
 _PC_SYSTEM = re.compile(
-    r"^(.+님(이|을|과).*(들어왔습니다|나갔습니다|초대했습니다|내보냈습니다|초대하였습니다)\.?"
-    r"|메시지가 삭제되었습니다\.?|.+님이 메시지를 가렸습니다\.?|채팅방 관리자가 .+)$"
+    r"^(?:\S{1,20}님이 (?:들어왔습니다|나갔습니다)"
+    r"|\S{1,20}님이 .{1,300}님을 (?:초대했습니다|초대하였습니다|내보냈습니다)"
+    r"|메시지가 삭제되었습니다"
+    r"|\S{1,20}님이 메시지를 가렸습니다)\.?$"
 )
 
 _TITLE = re.compile(r"^(?P<title>.+?)\s*님과 카카오톡 대화$")
@@ -111,7 +114,7 @@ def _mobile_time(m: re.Match) -> datetime:
 
 
 def _parse_saved_at(rest: str) -> datetime | None:
-    rest = re.sub(r"\s*\S+요일\s*", " ", rest.strip())  # '2026년 11월 6일 금요일 오후 10:12'
+    rest = re.sub(r"\s*(\S+요일|\([월화수목금토일]\))\s*", " ", rest.strip())  # '2026년 11월 6일 금요일 오후 10:12'
     rest = re.sub(r"\s+", " ", rest).strip()
     if m := _SAVED_ISO.match(rest):
         return datetime(int(m["y"]), int(m["mo"]), int(m["d"]), int(m["H"]), int(m["M"]))
@@ -132,6 +135,11 @@ def parse_text(content: str) -> Chat:
     current_day: date | None = None
     last: Message | None = None
 
+    held: list[str] = []  # 시스템 메시지처럼 보이지만 아직 확정하지 않은 줄
+
+    def boundary() -> None:
+        held.clear()  # 다음이 새 메시지/날짜/끝이면 보류한 줄은 진짜 시스템 메시지였다
+
     for raw in content.splitlines():
         line = raw.rstrip("\r\n").lstrip("\ufeff")
         stripped = line.strip()
@@ -145,11 +153,13 @@ def parse_text(content: str) -> Chat:
                 continue
 
         if m := (_PC_DATE.match(stripped) or _MOBILE_DATE.match(stripped)):
+            boundary()
             current_day = date(int(m["y"]), int(m["mo"]), int(m["d"]))
             last = None
             continue
 
         if m := _PC_MSG.match(line):
+            boundary()
             t = None
             if current_day is not None:
                 t = _to_time(current_day.year, current_day.month, current_day.day, m["ampm"], m["h"], m["mi"])
@@ -158,16 +168,25 @@ def parse_text(content: str) -> Chat:
             continue
 
         if m := _MOBILE_MSG.match(line):
+            boundary()
             last = Message(sender=m["sender"].strip(), text=m["text"], time=_mobile_time(m))
             chat.messages.append(last)
             continue
 
-        if _MOBILE_SYSTEM.match(line) or _PC_SYSTEM.match(stripped):
+        if _MOBILE_SYSTEM.match(line):
+            boundary()
             last = None
+            continue
+
+        if last is not None and _PC_SYSTEM.match(stripped):
+            held.append(line)
             continue
 
         # 여러 줄짜리 메시지의 이어지는 줄. 그 외(빈 줄, 알 수 없는 머리말)는 무시.
         if last is not None:
+            for h in held:  # 보류했던 줄 뒤에 내용이 이어지면 그건 본문이었다
+                last.text += "\n" + h
+            held.clear()
             last.text += "\n" + line
 
     for msg in chat.messages:
@@ -210,14 +229,13 @@ def read_text(p: Path) -> str:
         raise ExportReadError(f"{p}: 파일이 아니라 폴더입니다.") from None
     except PermissionError:
         raise ExportReadError(f"{p}: 읽을 권한이 없습니다.") from None
-    if data.startswith((b"\xff\xfe", b"\xfe\xff")):
-        return data.decode("utf-16")
-    for enc in ("utf-8-sig", "cp949"):
+    encodings = ("utf-16",) if data.startswith((b"\xff\xfe", b"\xfe\xff")) else ("utf-8-sig", "cp949")
+    for enc in encodings:
         try:
             return data.decode(enc)
         except UnicodeDecodeError:
             pass
-    raise ExportReadError(f"{p}: 글자 인코딩을 알 수 없습니다 (UTF-8/CP949/UTF-16 아님).")
+    raise ExportReadError(f"{p}: 글자 인코딩을 알 수 없거나 파일이 깨졌습니다 (UTF-8/CP949/UTF-16 아님).")
 
 
 def parse_file(path: str | Path) -> Chat:

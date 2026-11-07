@@ -64,13 +64,13 @@ class PseudonymizerTest(unittest.TestCase):
         out = p.apply(chat)
         self.assertEqual(out.title, "상대1")
         self.assertEqual(out.messages[1].text, "상대1야 내일 봐")
-        self.assertEqual(out.messages[1].sender, "본인")
+        self.assertEqual(out.messages[1].sender, "[본인]")
         self.assertEqual(p.restore("상대1님"), "김민수님")
 
     def test_my_name_in_text_keeps_meaning(self):
         chat = Chat(messages=[Message("민수", "철수야 뭐해"), Message("철수", "응")])
         out = Pseudonymizer(chat, "철수").apply(chat)
-        self.assertEqual(out.messages[0].text, "본인야 뭐해")  # '나야' 처럼 뜻이 바뀌지 않음
+        self.assertEqual(out.messages[0].text, "[본인]야 뭐해")  # '나야' 처럼 뜻이 바뀌지 않음
 
     def test_participants_outside_period_still_masked(self):
         full = Chat(title="민수", saved_at=datetime(2026, 11, 7, 12), messages=[
