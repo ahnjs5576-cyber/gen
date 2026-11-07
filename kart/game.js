@@ -14,8 +14,8 @@ const fmtTime = (t) => {
   return `${String(m).padStart(2, '0')}:${s.toFixed(3).padStart(6, '0')}`;
 };
 const store = {
-  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
-  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* 무시 */ } },
+  get(k, d) { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* 무시 */ } },
 };
 
 // ───────────────────────── 물리 상수 ─────────────────────────
@@ -151,7 +151,7 @@ const Snd = {
       src.connect(bf); bf.connect(dg); dg.connect(this.master); src.start();
       this.drift = { g: dg };
       this.noiseBuf = buf;
-    } catch { this.ctx = null; }
+    } catch (e) { this.ctx = null; }
   },
   toggle() { this.muted = !this.muted; store.set('kart.muted', this.muted); if (this.master) this.master.gain.setTargetAtTime(this.muted ? 0 : 0.6, this.ctx.currentTime, 0.05); return this.muted; },
   update(speed, boosting, drifting, running) {
