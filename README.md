@@ -31,6 +31,16 @@ python3 -m http.server 8000   # 그다음 http://localhost:8000 열기
 GitHub 저장소의 **Settings → Pages**에서 이 브랜치의 루트(`/`)를 배포하면 `https://<아이디>.github.io/<저장소>/` 주소가 생깁니다.
 휴대폰 브라우저에서 열고 "홈 화면에 추가"를 하면 앱처럼 쓸 수 있고, 한 번 연 뒤에는 오프라인에서도 동작합니다.
 
+## 리듬 비트 (미니게임)
+
+`rhythm/` 폴더에 4키 낙하형 리듬게임이 들어 있습니다. `rhythm/index.html`을 열거나
+위 서버를 띄운 뒤 `http://localhost:8000/rhythm/`로 접속하세요.
+
+- 키보드 <kbd>D</kbd> <kbd>F</kbd> <kbd>J</kbd> <kbd>K</kbd> 또는 화면 레인 터치, <kbd>Esc</kbd>로 일시정지
+- 곡 3개(네온 드라이브 · 봄날 산책 · 오버드라이브) × 난이도 3단계, 긴 노트(홀드) 포함
+- 음악은 Web Audio로 실시간 합성되고 채보는 멜로디에서 만들어져 외부 파일이 필요 없습니다
+- 설정에서 노트 속도와 판정 오프셋을 조절할 수 있고, 최고 기록은 localStorage에 남습니다
+
 ## 구조
 
 ```
@@ -42,6 +52,7 @@ sw.js                 오프라인 캐시
 scripts/validate.mjs  콘텐츠 형식 검사
 scripts/smoke.mjs     브라우저 스모크 테스트 (Playwright)
 CONTENT_GUIDE.md      레슨 작성 규칙
+rhythm/               리듬 비트 미니게임 (index.html, game.js, style.css)
 ```
 
 ## 레슨 추가·수정
