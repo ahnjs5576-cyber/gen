@@ -6,10 +6,12 @@ body {
   background: radial-gradient(1200px 600px at 50% 20%, #26304a, #0f131c 70%);
   color: #f2f4f8;
   font-family: 'IBM Plex Sans KR', system-ui, -apple-system, 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
-  display: flex; align-items: center; justify-content: center;
+  position: relative;
   overflow: hidden; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
 }
-#stage { position: relative; width: 960px; height: 540px; max-width: 100vw; }
+/* 무대는 화면 중앙에 두고 JS가 크기를 맞춘다. 세로로 든 휴대폰에서는 .rot 로 90도 돌려 가로 화면처럼 쓴다 */
+#stage { position: absolute; left: 50%; top: 50%; width: 960px; height: 540px; transform: translate(-50%, -50%); transform-origin: center; }
+#stage.rot { transform: translate(-50%, -50%) rotate(90deg); }
 #game {
   display: block; width: 100%; height: 100%; touch-action: none;
   background: #8fd3ff; border-radius: 10px;

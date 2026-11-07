@@ -423,10 +423,21 @@
   // 화면 크기 맞추기
   const stage = document.getElementById('stage');
   function resize() {
-    const s = Math.min(window.innerWidth / W, window.innerHeight / H, 1.2);
+    // 뷰어(iframe)마다 보고하는 값이 달라서 여러 값 중 가장 작은 쪽을 쓴다
+    const vv = window.visualViewport, de = document.documentElement;
+    const vw = Math.min(window.innerWidth || 1e9, de.clientWidth || 1e9, vv ? vv.width : 1e9);
+    const vh = Math.min(window.innerHeight || 1e9, de.clientHeight || 1e9, vv ? vv.height : 1e9);
+    const rot = vh > vw * 1.15 && vw < 760; // 세로로 든 휴대폰: 무대를 돌려 가로 화면처럼
+    const aw = rot ? vh : vw, ah = rot ? vw : vh;
+    const s = Math.min(aw / W, ah / H, 1.2);
+    stage.classList.toggle('rot', rot);
     stage.style.width = Math.floor(W * s) + 'px'; stage.style.height = Math.floor(H * s) + 'px';
   }
-  window.addEventListener('resize', resize); resize();
+  window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', () => setTimeout(resize, 150));
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
+  if (window.ResizeObserver) new ResizeObserver(resize).observe(document.documentElement);
+  resize(); setTimeout(resize, 300);
 
   // ---------- 업데이트 ----------
   function step() {
