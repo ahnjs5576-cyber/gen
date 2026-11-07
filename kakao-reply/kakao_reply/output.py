@@ -25,9 +25,15 @@ _COMMANDS = [
 
 def copy_to_clipboard(text: str) -> bool:
     for cmd in _COMMANDS:
-        if shutil.which(cmd[0]):
-            encoding = "utf-16le" if cmd[0] == "clip.exe" else "utf-8"
-            subprocess.run(cmd, input=text.encode(encoding), check=True)
+        if not shutil.which(cmd[0]):
+            continue
+        encoding = "utf-16le" if cmd[0] == "clip.exe" else "utf-8"
+        try:
+            subprocess.run(cmd, input=text.encode(encoding), check=True,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
             return True
-    print("클립보드 도구(pbcopy/wl-copy/xclip)를 찾지 못했습니다.", file=sys.stderr)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
+            continue  # 예: X11 환경의 wl-copy — 다음 도구를 시도
+    print("클립보드에 복사하지 못했습니다 (pbcopy/wl-copy/xclip 없음 또는 실패). 위 초안을 직접 복사하세요.",
+          file=sys.stderr)
     return False

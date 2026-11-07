@@ -42,8 +42,8 @@ class AnalyzerTest(unittest.TestCase):
         payload = {
             "summary": "토요일 점심 약속을 잡는 중",
             "needs_reply": True,
-            "pending_points": ["12시 강남역 괜찮은지"],
-            "suggestions": [{"tone": "가볍게", "text": "좋아 12시에 봐!"}],
+            "pending_points": [{"from": "민수", "point": "12시 강남역 괜찮은지"}],
+            "suggestions": [{"intent": "수락", "text": "좋아 12시에 봐!", "placeholders": []}],
         }
         client = FakeClient(_resp(payload))
         result = analyze(client, self.chat, "나")

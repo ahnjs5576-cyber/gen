@@ -19,6 +19,16 @@ def guess_me(chat: Chat) -> str | None:
     return "나" if "나" in chat.participants else None
 
 
+def guess_me_across(chats: list[Chat]) -> str | None:
+    """여러 방에 모두 등장하는 발신자가 딱 한 명이면 그 사람이 본인일 가능성이 높다."""
+    if len(chats) < 2:
+        return None
+    common = set(chats[0].participants)
+    for c in chats[1:]:
+        common &= set(c.participants)
+    return common.pop() if len(common) == 1 else None
+
+
 def pending_messages(chat: Chat, me: str | None) -> list[Message]:
     """내가 마지막으로 말한 뒤에 다른 사람이 보낸 메시지들."""
     if not me:

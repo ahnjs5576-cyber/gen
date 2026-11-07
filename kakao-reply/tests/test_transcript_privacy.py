@@ -45,7 +45,7 @@ class PrivacyTest(unittest.TestCase):
         p = Pseudonymizer(chat, "나")
         masked = p.apply(chat)
         senders = {m.sender for m in masked.messages}
-        self.assertEqual(senders, {"상대1", "나", "상대2"})
+        self.assertEqual(senders, {"상대1", "본인", "상대2"})
         self.assertNotIn("지은", "\n".join(m.line() for m in masked.messages))
         self.assertEqual(p.restore("상대2님 내일 오전 괜찮아요"), "현우님 내일 오전 괜찮아요")
 

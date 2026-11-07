@@ -28,12 +28,19 @@ _MOBILE_TS = r"(?:" + _ANDROID_TS + r"|" + _IOS_TS + r")"
 # ----- 2026년 11월 6일 금요일 -----
 _PC_DATE = re.compile(r"^-+\s*(?P<y>\d{4})년\s*(?P<mo>\d{1,2})월\s*(?P<d>\d{1,2})일.*-+$")
 # [민수] [오후 7:02] 내용
-_PC_MSG = re.compile(r"^\[(?P<sender>[^\]]+)\]\s*\[" + _AMPM + r"\]\s?(?P<text>.*)$")
+# 이름에 ']' 가 들어갈 수 있어(예: 철수[회사]) 바로 뒤에 시간이 오는 첫 지점까지를 이름으로 본다.
+_PC_MSG = re.compile(r"^\[(?P<sender>.+?)\]\s*\[" + _AMPM + r"\]\s?(?P<text>.*)$")
 # 2026년 11월 6일 금요일   (모바일 날짜 구분선)
 _MOBILE_DATE = re.compile(r"^(?P<y>\d{4})년\s*(?P<mo>\d{1,2})월\s*(?P<d>\d{1,2})일\s*\S+요일$")
 _MOBILE_MSG = re.compile(r"^" + _MOBILE_TS + r",\s*(?P<sender>.+?)\s:\s(?P<text>.*)$")
 # 타임스탬프는 있지만 ' : ' 가 없는 줄 = 입장/퇴장 같은 시스템 메시지
 _MOBILE_SYSTEM = re.compile(r"^" + _MOBILE_TS + r",\s*(?!.*\s:\s).+$")
+
+# PC 형식의 시스템 메시지는 타임스탬프 없이 한 줄로 나온다.
+_PC_SYSTEM = re.compile(
+    r"^(.+님(이|을|과).*(들어왔습니다|나갔습니다|초대했습니다|내보냈습니다|초대하였습니다)\.?"
+    r"|메시지가 삭제되었습니다\.?|.+님이 메시지를 가렸습니다\.?|채팅방 관리자가 .+)$"
+)
 
 _TITLE = re.compile(r"^(?P<title>.+?)\s*님과 카카오톡 대화$")
 _SAVED_AT = re.compile(r"^저장한 날짜\s*:\s*(?P<rest>.*)$")
@@ -104,7 +111,8 @@ def _mobile_time(m: re.Match) -> datetime:
 
 
 def _parse_saved_at(rest: str) -> datetime | None:
-    rest = rest.strip()
+    rest = re.sub(r"\s*\S+요일\s*", " ", rest.strip())  # '2026년 11월 6일 금요일 오후 10:12'
+    rest = re.sub(r"\s+", " ", rest).strip()
     if m := _SAVED_ISO.match(rest):
         return datetime(int(m["y"]), int(m["mo"]), int(m["d"]), int(m["H"]), int(m["M"]))
     if m := _SAVED_MOBILE.match(rest):
@@ -154,7 +162,7 @@ def parse_text(content: str) -> Chat:
             chat.messages.append(last)
             continue
 
-        if _MOBILE_SYSTEM.match(line):
+        if _MOBILE_SYSTEM.match(line) or _PC_SYSTEM.match(stripped):
             last = None
             continue
 
@@ -182,16 +190,40 @@ def parse_csv(content: str) -> Chat:
                     break
                 except ValueError:
                     pass
-        chat.messages.append(Message(sender=sender, text=row.get("Message") or "", time=t))
+        text = (row.get("Message") or "").replace("\r\n", "\n").replace("\r", "\n")
+        chat.messages.append(Message(sender=sender, text=text, time=t))
     chat.messages = _sort_by_time(chat.messages)
     return chat
+
+
+class ExportReadError(Exception):
+    """내보내기 파일을 열거나 해석할 수 없음 (사용자에게 그대로 보여 줄 메시지)."""
+
+
+def read_text(p: Path) -> str:
+    """UTF-8 이 기본이고, 예전 Windows 내보내기(CP949)·UTF-16 도 받아 준다."""
+    try:
+        data = p.read_bytes()
+    except FileNotFoundError:
+        raise ExportReadError(f"{p}: 파일이 없습니다.") from None
+    except IsADirectoryError:
+        raise ExportReadError(f"{p}: 파일이 아니라 폴더입니다.") from None
+    except PermissionError:
+        raise ExportReadError(f"{p}: 읽을 권한이 없습니다.") from None
+    if data.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return data.decode("utf-16")
+    for enc in ("utf-8-sig", "cp949"):
+        try:
+            return data.decode(enc)
+        except UnicodeDecodeError:
+            pass
+    raise ExportReadError(f"{p}: 글자 인코딩을 알 수 없습니다 (UTF-8/CP949/UTF-16 아님).")
 
 
 def parse_file(path: str | Path) -> Chat:
     """내보내기 파일을 읽기 전용으로 열어 파싱한다."""
     p = Path(path)
-    with p.open("r", encoding="utf-8-sig", newline="") as f:
-        content = f.read()
+    content = read_text(p)
     is_csv = p.suffix.lower() == ".csv" or content.lstrip().startswith("Date,User,Message")
     chat = parse_csv(content) if is_csv else parse_text(content)
     if chat.title is None:
