@@ -227,21 +227,45 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('keyup', (e) => { const act = KEYMAP[e.code]; if (act) keys.delete(act); });
 window.addEventListener('blur', () => keys.clear());
 
-// 터치 버튼
+// 터치 버튼 (iOS 사파리 호환: touch 이벤트 + preventDefault)
 const touchEl = document.getElementById('touch');
-const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+const isTouch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0 || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+const settings = {
+  camRotate: store.get('kart.camRotate', true),
+  autopilot: false,
+  autoThrottle: store.get('kart.autoThrottle', isTouch),
+};
 if (isTouch) {
+  const activeTouches = new Map(); // touch id -> act
+  const held = new Map(); // act -> count
+  const press = (act) => { held.set(act, (held.get(act) || 0) + 1); if (!keys.has(act)) pressed.add(act); keys.add(act); };
+  const release = (act) => { const n = (held.get(act) || 1) - 1; held.set(act, n); if (n <= 0) { held.set(act, 0); keys.delete(act); } };
   for (const b of touchEl.querySelectorAll('.tbtn')) {
     const act = b.dataset.act;
-    const down = (e) => { e.preventDefault(); b.classList.add('on'); if (!keys.has(act)) pressed.add(act); keys.add(act); Snd.init(); };
-    const up = (e) => { e.preventDefault(); b.classList.remove('on'); keys.delete(act); };
-    b.addEventListener('pointerdown', down);
-    b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up);
+    b.addEventListener('touchstart', (e) => {
+      e.preventDefault(); Snd.init(); b.classList.add('on');
+      for (const t of e.changedTouches) { if (!activeTouches.has(t.identifier)) { activeTouches.set(t.identifier, act); press(act); } }
+    }, { passive: false });
+    const end = (e) => {
+      e.preventDefault();
+      for (const t of e.changedTouches) { if (activeTouches.get(t.identifier) === act) { activeTouches.delete(t.identifier); release(act); } }
+      if (!(held.get(act) > 0)) b.classList.remove('on');
+    };
+    b.addEventListener('touchend', end, { passive: false });
+    b.addEventListener('touchcancel', end, { passive: false });
+    // 마우스/트랙패드/애플펜슬 보조
+    const pdown = (e) => { if (e.pointerType === 'touch') return; e.preventDefault(); Snd.init(); b.classList.add('on'); if (!keys.has(act)) pressed.add(act); keys.add(act); };
+    const pup = (e) => { if (e.pointerType === 'touch') return; b.classList.remove('on'); keys.delete(act); };
+    b.addEventListener('pointerdown', pdown); b.addEventListener('pointerup', pup); b.addEventListener('pointercancel', pup); b.addEventListener('pointerleave', pup);
     b.addEventListener('contextmenu', (e) => e.preventDefault());
+    b.addEventListener('click', (e) => e.preventDefault());
   }
+  // 게임 중 화면 스크롤·확대 방지
+  document.addEventListener('touchmove', (e) => { if (state !== 'menu' && state !== 'results') e.preventDefault(); }, { passive: false });
+  document.addEventListener('gesturestart', (e) => e.preventDefault());
+  canvas.addEventListener('touchstart', (e) => { if (state !== 'menu' && state !== 'results') e.preventDefault(); }, { passive: false });
 }
 
-const settings = { camRotate: store.get('kart.camRotate', true), autopilot: false };
 
 // ───────────────────────── 게임 상태 ─────────────────────────
 let state = 'menu'; // menu | countdown | race | finished
@@ -291,7 +315,7 @@ function startRace() {
   grassPattern = makeGrassPattern(def.theme);
   document.getElementById('menu').classList.add('hidden');
   document.getElementById('result').classList.add('hidden');
-  if (isTouch) touchEl.classList.remove('hidden');
+  if (isTouch) { touchEl.classList.remove('hidden'); touchEl.classList.toggle('auto', !!settings.autoThrottle); }
   state = 'countdown';
   lastCount = 4;
 }
@@ -320,7 +344,7 @@ function baseZoom() { return clamp(Math.min(W / 1000, H / 650), 0.5, 1.25); }
 function playerInput() {
   return {
     steer: (keys.has('right') ? 1 : 0) - (keys.has('left') ? 1 : 0),
-    throttle: keys.has('throttle') ? 1 : 0,
+    throttle: (keys.has('throttle') || (settings.autoThrottle && !keys.has('brake'))) ? 1 : 0,
     brake: keys.has('brake') ? 1 : 0,
     drift: keys.has('drift'),
     boost: pressed.has('boost'),
@@ -1040,6 +1064,16 @@ function renderMenu() {
     b.onclick = () => { selection.color = i; store.set('kart.color', i); renderMenu(); };
     cl.appendChild(b);
   });
+  const to = document.getElementById('touchOpts');
+  if (isTouch) {
+    to.classList.remove('hidden');
+    const al = document.getElementById('autoList'); al.innerHTML = '';
+    [[true, '자동 가속 (조향만)'], [false, '가속 버튼 직접']].forEach(([v, label]) => {
+      const b = document.createElement('button'); b.textContent = label; if (v === !!settings.autoThrottle) b.className = 'selected';
+      b.onclick = () => { settings.autoThrottle = v; store.set('kart.autoThrottle', v); renderMenu(); };
+      al.appendChild(b);
+    });
+  }
   const ll = document.getElementById('lapList'); ll.innerHTML = '';
   [1, 3, 5].forEach((n) => {
     const b = document.createElement('button'); b.textContent = `${n}랩`; if (n === selection.laps) b.className = 'selected';
@@ -1070,5 +1104,6 @@ window.__kart = {
   sim(seconds) { const n = Math.round(seconds * 60); for (let i = 0; i < n; i++) { update(1 / 60); pressed.clear(); } },
   snapshot() { return { state, raceTime, karts: karts.map((k) => ({ name: k.name, lap: k.lap, idx: k.idx, lat: Math.round(k.lat), speed: Math.round(k.speed), rank: k.rank, finished: k.finished, bestLap: k.bestLap })) }; },
   set autopilot(v) { settings.autopilot = v; },
+  keys() { return [...keys]; },
 };
 })();

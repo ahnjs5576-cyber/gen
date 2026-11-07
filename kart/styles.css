@@ -10,7 +10,8 @@
   font-family: system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
 }
 * { box-sizing: border-box; }
-html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--fg); -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--fg); -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; overscroll-behavior: none; }
+#touch, #touch * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 canvas#game { position: fixed; inset: 0; display: block; touch-action: none; }
 
 .overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; padding: 16px; overflow: auto; background: radial-gradient(ellipse at top, rgba(46,196,255,0.18), transparent 60%), rgba(6, 12, 24, 0.72); backdrop-filter: blur(6px); z-index: 10; }
@@ -79,3 +80,9 @@ table.results td.rank { font-weight: 900; font-size: 18px; width: 56px; }
   h1.logo { font-size: 36px; }
   .row { grid-template-columns: 1fr; }
 }
+
+/* 자동 가속 모드: 가속 버튼 숨기고 드리프트를 크게 */
+#touch.auto .tgroup.right { grid-template-areas: "item boost" "drift drift" "brake brake"; }
+#touch.auto .tbtn.gas { display: none; }
+#touch.auto .tbtn.drift { width: 100%; height: 92px; border-radius: 46px; font-size: 18px; }
+#touch.auto .tbtn[data-act="brake"] { width: 100%; }
