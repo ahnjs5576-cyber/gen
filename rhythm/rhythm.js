@@ -1,8 +1,11 @@
-/* 비트 리듬 — 노래 파일을 넣으면 비트를 분석해 노트를 자동으로 만들어 주는 4키 리듬 게임.
+/* 비트 리듬 — 노래 파일을 넣으면 멜로디(보컬)를 분석해 노트를 자동으로 만들어 주는 4키 리듬 게임.
  *
  * 흐름: 파일 → decodeAudioData → 분석(analyze) → 채보 생성(buildChart) → 플레이(게임 루프) → 결과
- *  - 분석: 모노 다운믹스 → Hann 창 + FFT(1024, hop 512) → 저/중/고 대역별 스펙트럼 플럭스 → 자기상관으로 BPM 추정
- *  - 채보: 플럭스 적응 임계값으로 피크(온셋) 선택 → 세기 순 그리디로 최소 간격 보장 → 대역에 따라 레인 배정 → 16분 격자에 살짝 스냅
+ *  - 분석: 모노 다운믹스 → Hann 창 + FFT(1024, hop 512) → 스펙트로그램
+ *      · 멜로디: 중앙값 필터로 하모닉/퍼커시브 분리(HPSS) → 보컬 대역 하모닉 플럭스 + 음정 변화 → 멜로디 온셋 함수, 프레임별 음정
+ *      · 드럼: 저/중/고 대역 스펙트럼 플럭스 → 자기상관으로 BPM 추정
+ *  - 채보: 온셋 함수의 적응 임계값 피크 → 세기 순 그리디로 최소 간격 보장 → 음정 높낮이(멜로디) 또는 대역(드럼)으로 레인 배정
+ *          → 길게 이어지는 음은 롱노트 → 16분 격자에 살짝 스냅
  *  - 타이밍: AudioContext.currentTime 기준. 노트 시각과 소리를 같은 시계로 맞춘다. */
 (function () {
   'use strict';
@@ -21,15 +24,17 @@
   const HIT_WINDOW = 0.135;
   const LEAD_IN = 2.0;          // 시작 후 첫 노트까지 여유(초)
   const DIFFS = {
-    easy: { label: '쉬움', gap: 0.27, alpha: 1.55, chord: 0 },
-    normal: { label: '보통', gap: 0.16, alpha: 1.25, chord: 0.04 },
-    hard: { label: '어려움', gap: 0.105, alpha: 1.05, chord: 0.14 },
+    easy: { label: '쉬움', gap: 0.27, alpha: 1.55, chord: 0, holdMin: 0.5 },
+    normal: { label: '보통', gap: 0.16, alpha: 1.25, chord: 0.04, holdMin: 0.4 },
+    hard: { label: '어려움', gap: 0.105, alpha: 1.05, chord: 0.14, holdMin: 0.3 },
   };
+  const MODES = { melody: '멜로디', beat: '드럼 비트' };
+  const HOLD_RELEASE = 0.15;    // 롱노트 끝에서 이 시간 안에 떼면 성공
   const APPROACH = [2.2, 1.9, 1.65, 1.4, 1.2, 1.0, 0.85, 0.72, 0.6, 0.5]; // 속도 1~10 → 노트가 화면을 지나는 시간(초)
 
   // ---------- 설정 저장 ----------
   const SKEY = 'beat-rhythm.v1';
-  const settings = Object.assign({ diff: 'normal', speed: 5, offset: 0, volume: 80, auto: false }, loadSettings());
+  const settings = Object.assign({ mode: 'melody', diff: 'normal', speed: 5, offset: 0, volume: 80, auto: false }, loadSettings());
   function loadSettings() {
     try { return JSON.parse(localStorage.getItem(SKEY) || '{}') || {}; } catch (e) { return {}; }
   }
@@ -87,7 +92,9 @@
     }
   }
 
-  // ---------- 분석: 대역별 스펙트럼 플럭스 + BPM ----------
+  // ---------- 분석: 스펙트로그램 → 드럼 플럭스 / 멜로디 온셋 / 음정 / BPM ----------
+  const yieldNow = () => new Promise((r) => setTimeout(r, 0));
+
   async function analyze(buffer, onProgress) {
     const sr = buffer.sampleRate;
     const N = 1024, H = 512;
@@ -107,16 +114,24 @@
     const bands = bandHz.map(([lo, hi]) => [Math.max(1, Math.floor(lo / binHz)), Math.min(N / 2 - 1, Math.ceil(hi / binHz))]);
     const flux = [new Float32Array(frames), new Float32Array(frames), new Float32Array(frames)];
     const total = new Float32Array(frames);
+    // 멜로디 분석용 저해상도 스펙트로그램(~5.2kHz까지)
+    const B = Math.min(N / 2, Math.ceil(5200 / binHz));
+    const spec = new Float32Array(frames * B);
     let prev = new Float32Array(N / 2), cur = new Float32Array(N / 2);
     const re = new Float32Array(N), im = new Float32Array(N);
     const weights = [1.0, 0.8, 0.6];
     let lastYield = performance.now();
+    const prog = (p) => { onProgress && onProgress(p); };
 
     for (let t = 0; t < frames; t++) {
       const off = t * H;
       for (let i = 0; i < N; i++) { re[i] = mono[off + i] * win[i]; im[i] = 0; }
       fft.transform(re, im);
-      for (let k = 0; k < N / 2; k++) cur[k] = Math.log1p(20 * Math.sqrt(re[k] * re[k] + im[k] * im[k]));
+      for (let k = 0; k < N / 2; k++) {
+        const m = Math.sqrt(re[k] * re[k] + im[k] * im[k]);
+        if (k < B) spec[t * B + k] = m;
+        cur[k] = Math.log1p(20 * m);
+      }
       let sum = 0;
       for (let b = 0; b < 3; b++) {
         let s = 0;
@@ -126,17 +141,16 @@
       }
       total[t] = sum;
       const tmp = prev; prev = cur; cur = tmp;
-      if (performance.now() - lastYield > 40) {
-        onProgress && onProgress(t / frames);
-        await new Promise((r) => setTimeout(r, 0));
-        lastYield = performance.now();
-      }
+      if (performance.now() - lastYield > 40) { prog(0.55 * t / frames); await yieldNow(); lastYield = performance.now(); }
     }
-    // 첫 프레임은 무음과의 차이라 과대평가됨
     total[0] = 0; flux.forEach((f) => { f[0] = 0; });
     const hop = H / sr;
     const frameOffset = N / 2 / sr;
     const tempo = estimateTempo(total, hop, frameOffset);
+    prog(0.6); await yieldNow();
+
+    const melody = await analyzeMelody(mono, spec, frames, B, binHz, hop, (p) => prog(0.6 + 0.4 * p));
+
     // 배경 연출용 정규화 에너지(살짝 스무딩)
     let max = 1e-9;
     for (let t = 0; t < frames; t++) if (total[t] > max) max = total[t];
@@ -145,8 +159,139 @@
       const a = total[Math.max(0, t - 1)], b = total[t], c = total[Math.min(frames - 1, t + 1)];
       energy[t] = (a + 2 * b + c) / 4 / max;
     }
-    onProgress && onProgress(1);
-    return { sr, hop, frameOffset, frames, flux, total, energy, tempo, duration: buffer.duration };
+    prog(1);
+    return { sr, hop, frameOffset, frames, flux, total, energy, tempo, melody, duration: buffer.duration };
+  }
+
+  // 하모닉/퍼커시브 분리 + 보컬 대역 온셋 + 음정 추정
+  async function analyzeMelody(mono, spec, frames, B, binHz, hop, onProgress) {
+    const TW = 17;                                        // 시간 방향 중앙값 창(≈0.2s)
+    const FW = Math.max(5, Math.round(700 / binHz) | 1);  // 주파수 방향 중앙값 창(≈700Hz)
+    const mask = new Float32Array(frames * B);            // 하모닉 비율(0~1)
+    const harm = new Float32Array(frames * B);
+    const tmpT = new Float32Array(TW), tmpF = new Float32Array(FW);
+    const median = (arr, n) => { const a = arr.subarray(0, n); a.sort(); return a[n >> 1]; };
+    const htw = TW >> 1, hfw = FW >> 1;
+    let lastYield = performance.now();
+    for (let t = 0; t < frames; t++) {
+      for (let k = 0; k < B; k++) {
+        let n = 0;
+        for (let u = t - htw; u <= t + htw; u++) if (u >= 0 && u < frames) tmpT[n++] = spec[u * B + k];
+        const h = median(tmpT, n);
+        n = 0;
+        for (let v = k - hfw; v <= k + hfw; v++) if (v >= 0 && v < B) tmpF[n++] = spec[t * B + v];
+        const p = median(tmpF, n);
+        const hh = h * h, pp = p * p;
+        const m = hh / (hh + pp + 1e-12);
+        mask[t * B + k] = m;
+        harm[t * B + k] = spec[t * B + k] * m;
+      }
+      if (performance.now() - lastYield > 40) { onProgress(0.5 * t / frames); await yieldNow(); lastYield = performance.now(); }
+    }
+
+    // 보컬 대역(150~4000Hz) 하모닉 플럭스
+    const lo = Math.max(1, Math.floor(150 / binHz)), hi = Math.min(B - 1, Math.ceil(4000 / binHz));
+    const hflux = new Float32Array(frames);
+    let hmax = 1e-9;
+    for (let t = 1; t < frames; t++) {
+      let s = 0;
+      for (let k = lo; k <= hi; k++) {
+        const d = Math.log1p(20 * harm[t * B + k]) - Math.log1p(20 * harm[(t - 1) * B + k]);
+        if (d > 0) s += d;
+      }
+      hflux[t] = s;
+      if (s > hmax) hmax = s;
+    }
+
+    // 음정: 고해상도 STFT(4096, hop 1024)에 하모닉 마스크를 씌우고 반음 격자(80~1000Hz)에서 배음 합산
+    const NF = 4096, HF = 1024;
+    const binF = binHz * 1024 / NF; // = sr/NF
+    const BF = Math.min(NF / 2, Math.ceil(4500 / binF));
+    const framesF = Math.max(1, Math.floor((mono.length - NF) / HF) + 1);
+    const fft = new FFT(NF);
+    const win = new Float32Array(NF);
+    for (let i = 0; i < NF; i++) win[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / (NF - 1));
+    const re = new Float32Array(NF), im = new Float32Array(NF);
+    const fine = new Float32Array(BF);
+    // A440 기준 반음 격자(MIDI 40=82Hz ~ 83=988Hz). 음이 칸 가운데에 오므로 비브라토로 칸을 넘나들지 않는다
+    const MIDI_LO = 40, steps = 43;
+    const cands = [];
+    for (let i = 0; i <= steps; i++) {
+      const f0 = 440 * Math.pow(2, (MIDI_LO + i - 69) / 12);
+      const parts = [];
+      for (let h = 1; h <= 8; h++) {
+        const c = h * f0 / binF;
+        const tol = Math.max(1, Math.round(0.03 * c));
+        const b0 = Math.round(c);
+        if (b0 - tol >= BF) break;
+        parts.push([Math.max(1, b0 - tol), Math.min(BF - 1, b0 + tol), 1 / h]);
+      }
+      cands.push(parts);
+    }
+    const pitchF = new Int16Array(framesF).fill(-1);
+    const salF = new Float32Array(framesF);
+    const coarseOf = (t2) => Math.max(0, Math.min(frames - 1, 2 * t2 + 3)); // 두 STFT의 프레임 중심을 맞춘 대응
+    const ratio = NF / 1024;
+    for (let t2 = 0; t2 < framesF; t2++) {
+      const off = t2 * HF;
+      for (let i = 0; i < NF; i++) { re[i] = mono[off + i] * win[i]; im[i] = 0; }
+      fft.transform(re, im);
+      const tc = coarseOf(t2) * B;
+      for (let k = 0; k < BF; k++) {
+        const kc = Math.min(B - 1, Math.floor(k / ratio));
+        fine[k] = Math.log1p(40 * Math.sqrt(re[k] * re[k] + im[k] * im[k]) * mask[tc + kc]);
+      }
+      let best = -1, bestV = 0;
+      for (let i = 0; i < cands.length; i++) {
+        let v = 0;
+        const parts = cands[i];
+        for (let j = 0; j < parts.length; j++) {
+          let m = 0;
+          for (let b = parts[j][0]; b <= parts[j][1]; b++) if (fine[b] > m) m = fine[b];
+          v += m * parts[j][2];
+        }
+        if (v > bestV) { bestV = v; best = i; }
+      }
+      pitchF[t2] = best;
+      salF[t2] = bestV;
+      if (performance.now() - lastYield > 40) { onProgress(0.5 + 0.5 * t2 / framesF); await yieldNow(); lastYield = performance.now(); }
+    }
+    // 고해상도 프레임 → 분석 프레임으로 펼치기
+    const pitchRaw = new Int16Array(frames).fill(-1);
+    const sal = new Float32Array(frames);
+    for (let t = 0; t < frames; t++) {
+      const t2 = Math.max(0, Math.min(framesF - 1, Math.round((t - 3) / 2)));
+      pitchRaw[t] = pitchF[t2];
+      sal[t] = salF[t2];
+    }
+    let smax = 1e-9;
+    for (let t = 0; t < frames; t++) if (sal[t] > smax) smax = sal[t];
+    const voiced = new Uint8Array(frames);
+    for (let t = 0; t < frames; t++) voiced[t] = sal[t] > 0.3 * smax ? 1 : 0;
+    // 음정 중앙값(3프레임) 스무딩
+    const pitch = new Int16Array(frames);
+    for (let t = 0; t < frames; t++) {
+      const a = pitchRaw[Math.max(0, t - 1)], b = pitchRaw[t], c = pitchRaw[Math.min(frames - 1, t + 1)];
+      pitch[t] = Math.max(Math.min(a, b), Math.min(Math.max(a, b), c));
+    }
+    // 음정 변화 이벤트(새 음정이 3프레임 이상 유지) + 그 직후 구간 표시
+    // 음 변화 이벤트: 지금 부르는 음과 다른 음정이 4프레임 이상 유지되면 새 음. 잠깐의 흔들림은 무시
+    const change = new Float32Array(frames);
+    const fresh = new Uint8Array(frames);
+    let curNote = -1;
+    for (let t = 0; t < frames - 3; t++) {
+      if (!voiced[t] || pitch[t] < 0) { if (!voiced[t]) curNote = -1; continue; }
+      if (pitch[t] === curNote) continue;
+      if (pitch[t + 1] !== pitch[t] || pitch[t + 2] !== pitch[t] || pitch[t + 3] !== pitch[t]) continue;
+      curNote = pitch[t];
+      change[t] = sal[t] / smax;
+      for (let u = Math.max(0, t - 5); u <= Math.min(frames - 1, t + 3); u++) fresh[u] = 1;
+    }
+    // 멜로디 온셋 함수 = 음정이 새로 시작되는 곳의 하모닉 플럭스 + 음정 변화. 같은 음 안의 반주 플럭스는 약하게만 반영
+    const env = new Float32Array(frames);
+    for (let t = 0; t < frames; t++) env[t] = (hflux[t] / hmax) * (fresh[t] ? 1 : 0.2) + 0.7 * change[t];
+    onProgress(1);
+    return { env, pitch, voiced, sal, smax };
   }
 
   function estimateTempo(env, hop, frameOffset) {
@@ -210,15 +355,17 @@
     };
   }
 
-  function buildChart(a, diffKey) {
+  function buildChart(a, diffKey, modeKey) {
     const d = DIFFS[diffKey] || DIFFS.normal;
-    const { total, flux, hop, frameOffset, frames, tempo } = a;
+    const mode = MODES[modeKey] ? modeKey : 'melody';
+    const { flux, hop, frameOffset, frames, tempo } = a;
+    const source = mode === 'melody' ? a.melody.env : a.total;
     // 정규화 + 가벼운 스무딩
     let max = 1e-9;
-    for (let t = 0; t < frames; t++) if (total[t] > max) max = total[t];
+    for (let t = 0; t < frames; t++) if (source[t] > max) max = source[t];
     const env = new Float32Array(frames);
     for (let t = 0; t < frames; t++) {
-      const p = total[Math.max(0, t - 1)], c = total[t], nx = total[Math.min(frames - 1, t + 1)];
+      const p = source[Math.max(0, t - 1)], c = source[t], nx = source[Math.min(frames - 1, t + 1)];
       env[t] = (p + 2 * c + nx) / 4 / max;
     }
     // 지역 평균(약 ±0.4초)과 전역 표준편차로 적응 임계값
@@ -258,10 +405,80 @@
       }
     }
 
-    // 레인 배정: 저음 우세 → 바깥 레인(0,3), 고음 우세 → 안쪽 레인(1,2), 중음 → 전체
+    const notes = [];
+    if (mode === 'melody') buildMelodyLanes(a, d, accepted, notes);
+    else buildBeatLanes(a, d, accepted, notes, flux, frames);
+
+    notes.sort((p, q) => p.time - q.time || p.lane - q.lane);
+    // 최대 밀도(2초 창 노트/초)
+    let peakNps = 0;
+    for (let i = 0, j = 0; i < notes.length; i++) {
+      while (notes[i].time - notes[j].time > 2) j++;
+      peakNps = Math.max(peakNps, (i - j + 1) / 2);
+    }
+    const holds = notes.filter((n) => n.end).length;
+    return { notes, peakNps, holds, mode };
+  }
+
+  // 멜로디 모드: 음정 높낮이로 레인(낮음 → 왼쪽, 높음 → 오른쪽), 길게 이어지는 음은 롱노트
+  function buildMelodyLanes(a, d, accepted, notes) {
+    const { hop, frames } = a;
+    const { pitch, voiced } = a.melody;
+    // 온셋 직후 몇 프레임의 음정 중앙값
+    const pitchAt = (t) => {
+      const vals = [];
+      for (let u = t; u < Math.min(frames, t + 6); u++) if (pitch[u] >= 0 && voiced[u]) vals.push(pitch[u]);
+      if (!vals.length) return -1;
+      vals.sort((x, y) => x - y);
+      return vals[vals.length >> 1];
+    };
+    const ps = accepted.map((c) => pitchAt(c.t));
+    const known = ps.filter((p) => p >= 0).sort((x, y) => x - y);
+    const qt = (f) => (known.length ? known[Math.min(known.length - 1, Math.floor(known.length * f))] : 0);
+    const cut = [qt(0.25), qt(0.5), qt(0.75)];
+    let prevLane = 1, lastPitch = -1;
+    for (let i = 0; i < accepted.length; i++) {
+      const c = accepted[i];
+      let p = ps[i];
+      let lane;
+      if (p < 0) {
+        // 음정을 못 잡으면 직전 레인 근처로
+        lane = Math.max(0, Math.min(3, prevLane + (i % 2 ? 1 : -1)));
+      } else {
+        lane = p <= cut[0] ? 0 : p <= cut[1] ? 1 : p <= cut[2] ? 2 : 3;
+        // 같은 음정이 반복되면 같은 레인, 한 반음만 달라도 레인이 같으면 그대로 둔다(멜로디 모양 유지)
+        if (lastPitch >= 0 && p !== lastPitch && lane === prevLane) {
+          // 분위수 경계 안에서 오르내림이 묻히면 방향대로 한 칸 이동(경계 밖으로는 안 감)
+          const dir = p > lastPitch ? 1 : -1;
+          const cand = lane + dir;
+          if (cand >= 0 && cand <= 3 && Math.abs(p - lastPitch) >= 3) lane = cand;
+        }
+      }
+      // 롱노트: 같은 음정(±1반음)이 유성으로 이어지는 길이
+      let endT = c.t;
+      if (p >= 0) {
+        const limitT = i + 1 < accepted.length ? accepted[i + 1].t - Math.round(0.1 / hop) : frames - 1;
+        let u = c.t, lastGood = c.t, gapRun = 0;
+        while (u < limitT && u < frames) {
+          const ok = voiced[u] && pitch[u] >= 0 && Math.abs(pitch[u] - p) <= 1;
+          if (ok) { lastGood = u; gapRun = 0; } else if (++gapRun > 3) break;
+          u++;
+        }
+        endT = lastGood;
+      }
+      const sustain = (endT - c.t) * hop;
+      const note = { time: c.time, lane };
+      if (sustain >= d.holdMin) note.end = c.time + sustain;
+      notes.push(note);
+      prevLane = lane;
+      if (p >= 0) lastPitch = p;
+    }
+  }
+
+  // 드럼 모드: 저음 우세 → 바깥 레인(0,3), 고음 우세 → 안쪽 레인(1,2), 중음 → 전체
+  function buildBeatLanes(a, d, accepted, notes, flux, frames) {
     const bandMax = flux.map((f) => { let m = 1e-9; for (let t = 0; t < frames; t++) if (f[t] > m) m = f[t]; return m; });
     const rng = mulberry32(Math.floor(a.duration * 1000) ^ accepted.length);
-    const notes = [];
     let prevLane = -1, prevTime = -10, runLen = 0;
     const strengths = accepted.map((c) => c.v).sort((p, q) => p - q);
     const chordThr = strengths.length ? strengths[Math.floor(strengths.length * (1 - d.chord))] : Infinity;
@@ -270,17 +487,16 @@
       const t = c.t;
       const b = [flux[0][t] / bandMax[0], flux[1][t] / bandMax[1], flux[2][t] / bandMax[2]];
       const dom = b[0] >= b[1] && b[0] >= b[2] ? 0 : (b[2] >= b[1] ? 2 : 1);
-      let pool = dom === 0 ? [0, 3] : dom === 2 ? [1, 2] : [0, 1, 2, 3];
+      const pool = dom === 0 ? [0, 3] : dom === 2 ? [1, 2] : [0, 1, 2, 3];
       const close = c.time - prevTime < 0.2;
       let choices = pool.filter((l) => !(close && l === prevLane) && !(runLen >= 2 && l === prevLane));
       if (!choices.length) choices = [0, 1, 2, 3].filter((l) => l !== prevLane);
       const lane = choices[Math.floor(rng() * choices.length)];
       notes.push({ time: c.time, lane });
-      // 강한 비트에 동시치기(난이도에 따라)
       if (d.chord > 0 && c.v >= chordThr) {
         const gapPrev = c.time - prevTime, gapNext = i + 1 < accepted.length ? accepted[i + 1].time - c.time : 1;
         if (gapPrev >= 0.18 && gapNext >= 0.18) {
-          const other = [0, 1, 2, 3].filter((l) => l !== lane && Math.abs(l - lane) !== 0);
+          const other = [0, 1, 2, 3].filter((l) => l !== lane);
           const partner = dom === 0 ? (lane === 0 ? 3 : 0) : dom === 2 ? (lane === 1 ? 2 : 1) : other[Math.floor(rng() * other.length)];
           notes.push({ time: c.time, lane: partner });
         }
@@ -289,14 +505,6 @@
       prevLane = lane;
       prevTime = c.time;
     }
-    notes.sort((p, q) => p.time - q.time || p.lane - q.lane);
-    // 최대 밀도(2초 창 노트/초)
-    let peakNps = 0;
-    for (let i = 0, j = 0; i < notes.length; i++) {
-      while (notes[i].time - notes[j].time > 2) j++;
-      peakNps = Math.max(peakNps, (i - j + 1) / 2);
-    }
-    return { notes, peakNps };
   }
 
   // ---------- 데모 곡 합성 ----------
@@ -340,16 +548,37 @@
       const g = oc.createGain(); env(g, t, 0.005, 0.35, len);
       o.connect(f).connect(g).connect(master); o.start(t); o.stop(t + len + 0.05);
     }
+    function voice(t, freq, len, glideFrom) {
+      // 보컬 느낌: 톱니파 + 두 개의 포먼트 + 비브라토 + 포르타멘토
+      const o = oc.createOscillator(); o.type = 'sawtooth';
+      if (glideFrom) { o.frequency.setValueAtTime(glideFrom, t); o.frequency.exponentialRampToValueAtTime(freq, t + 0.06); }
+      else o.frequency.setValueAtTime(freq, t);
+      const vib = oc.createOscillator(); vib.frequency.value = 5.5;
+      const vg = oc.createGain(); vg.gain.setValueAtTime(0, t); vg.gain.linearRampToValueAtTime(freq * 0.012, t + 0.25);
+      vib.connect(vg).connect(o.frequency); vib.start(t); vib.stop(t + len + 0.3);
+      const f1 = oc.createBiquadFilter(); f1.type = 'bandpass'; f1.frequency.value = 700; f1.Q.value = 3;
+      const f2 = oc.createBiquadFilter(); f2.type = 'bandpass'; f2.frequency.value = 1900; f2.Q.value = 4;
+      const g1 = oc.createGain(), g2 = oc.createGain(); g1.gain.value = 0.9; g2.gain.value = 0.5;
+      const g = oc.createGain();
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1.3, t + 0.03);
+      g.gain.setValueAtTime(1.3, t + Math.max(0.03, len - 0.08)); g.gain.linearRampToValueAtTime(0, t + len + 0.05);
+      o.connect(f1).connect(g1).connect(g); o.connect(f2).connect(g2).connect(g); g.connect(master);
+      o.start(t); o.stop(t + len + 0.3);
+    }
     function lead(t, freq, len) {
       const o = oc.createOscillator(); o.type = 'square'; o.frequency.value = freq;
       const f = oc.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 2200;
-      const g = oc.createGain(); env(g, t, 0.004, 0.12, len);
+      const g = oc.createGain(); env(g, t, 0.004, 0.05, len);
       const p = oc.createStereoPanner(); p.pan.value = Math.sin(t * 2) * 0.5;
       o.connect(f).connect(g).connect(p).connect(master); o.start(t); o.stop(t + len + 0.05);
     }
     const A1 = 55, C2 = 65.41, G1 = 49, F1 = 43.65;
     const bassLine = [[A1, A1, C2, G1], [A1, A1, F1, G1]];
     const arp = [220, 261.63, 329.63, 392, 329.63, 261.63, 440, 392];
+    // 보컬 멜로디(2마디 프레이즈, 박 단위 길이): A4 C5 E5 D5 … 길게 끄는 음과 짧은 음이 섞여 있다
+    const Hz = (n) => 440 * Math.pow(2, (n - 69) / 12);
+    const phraseA = [[69, 1], [72, 0.5], [74, 0.5], [76, 2], [74, 0.5], [72, 0.5], [69, 1], [67, 2]];
+    const phraseB = [[72, 1], [74, 1], [76, 1.5], [79, 0.5], [77, 1], [76, 1], [74, 0.5], [72, 0.5], [69, 1]];
     for (let bar = 0; bar < bars; bar++) {
       const breakdown = bar === 7 || bar === 15;
       for (let bt = 0; bt < 4; bt++) {
@@ -362,9 +591,20 @@
         const bn = bassLine[Math.floor(bar / 4) % 2][bt];
         bass(t, bn, beat * 0.45);
         if (bar % 2 === 1 && (bt === 1 || bt === 3)) bass(t + beat / 2, bn * 1.5, beat * 0.3);
-        if (bar >= 4) {
-          lead(t, arp[(bt * 2) % 8] * (bar >= 12 ? 2 : 1), beat * 0.4);
-          lead(t + beat / 2, arp[(bt * 2 + 1) % 8] * (bar >= 12 ? 2 : 1), beat * 0.4);
+        if (bar >= 4 && bar < 12) {
+          lead(t, arp[(bt * 2) % 8], beat * 0.4);
+          lead(t + beat / 2, arp[(bt * 2 + 1) % 8], beat * 0.4);
+        }
+      }
+      // 보컬 라인: 2마디마다 프레이즈를 번갈아 부른다(4마디째부터)
+      if (bar >= 4 && bar % 2 === 0) {
+        const phrase = (bar / 2) % 2 === 0 ? phraseA : phraseB;
+        let pos = 0.5 + bar * 4 * beat, prevHz = null;
+        for (const [n, lenB] of phrase) {
+          const hz = Hz(n);
+          voice(pos, hz, lenB * beat * 0.92, prevHz && Math.abs(n - (prevHz.n)) <= 2 ? prevHz.hz : null);
+          prevHz = { n, hz };
+          pos += lenB * beat;
         }
       }
     }
@@ -378,7 +618,7 @@
     drop: $('#drop'), file: $('#file'), demo: $('#demo'),
     progress: $('#progress'), progressLabel: $('#progress-label'), progressFill: $('#progress-fill'),
     song: $('#song'), title: $('#song-title'), mDur: $('#m-dur'), mBpm: $('#m-bpm'), mNotes: $('#m-notes'), mNps: $('#m-nps'),
-    diff: $('#diff'), speed: $('#speed'), speedVal: $('#speed-val'), offset: $('#offset'), volume: $('#volume'), auto: $('#auto'),
+    mode: $('#mode'), diff: $('#diff'), speed: $('#speed'), speedVal: $('#speed-val'), offset: $('#offset'), volume: $('#volume'), auto: $('#auto'),
     start: $('#start'), change: $('#change'),
     canvas: $('#game'), pause: $('#pause'), resume: $('#resume'), retryP: $('#retry-p'), quit: $('#quit'),
     rTitle: $('#r-title'), rRank: $('#r-rank'), rScore: $('#r-score'), rAcc: $('#r-acc'), rCombo: $('#r-combo'),
@@ -399,6 +639,7 @@
 
   function applySettingsToUI() {
     for (const b of els.diff.querySelectorAll('button')) b.classList.toggle('on', b.dataset.d === settings.diff);
+    for (const b of els.mode.querySelectorAll('button')) b.classList.toggle('on', b.dataset.m === settings.mode);
     els.speed.value = settings.speed;
     els.speedVal.textContent = `${settings.speed} · ${APPROACH[settings.speed - 1].toFixed(2)}s`;
     els.offset.value = settings.offset;
@@ -408,8 +649,8 @@
 
   function refreshChart() {
     if (!song) return;
-    chart = buildChart(song.analysis, settings.diff);
-    els.mNotes.textContent = String(chart.notes.length);
+    chart = buildChart(song.analysis, settings.diff, settings.mode);
+    els.mNotes.textContent = chart.holds ? `${chart.notes.length} (롱 ${chart.holds})` : String(chart.notes.length);
     els.mNps.textContent = `${chart.peakNps.toFixed(1)}/s`;
   }
 
@@ -465,6 +706,11 @@
     await loadBuffer('데모 곡 (128 BPM)', buf);
   });
 
+  els.mode.addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-m]');
+    if (!b) return;
+    settings.mode = b.dataset.m; saveSettings(); applySettingsToUI(); refreshChart();
+  });
   els.diff.addEventListener('click', (e) => {
     const b = e.target.closest('button[data-d]');
     if (!b) return;
@@ -501,7 +747,8 @@
     show(els.play);
     resize();
     const ctx = ac();
-    const notes = chart.notes.map((n) => ({ time: n.time + LEAD_IN, lane: n.lane, judged: null, hitAt: 0 }));
+    const notes = chart.notes.map((n) => ({ time: n.time + LEAD_IN, lane: n.lane, end: n.end ? n.end + LEAD_IN : 0, judged: null, tail: null, holding: false, hitAt: 0 }));
+    const totalJudgments = notes.length + notes.filter((n) => n.end).length;
     const lanes = Array.from({ length: LANES }, () => []);
     notes.forEach((n) => lanes[n.lane].push(n));
     const gain = ctx.createGain();
@@ -513,7 +760,7 @@
     const startAt = ctx.currentTime + 0.15 + LEAD_IN;   // 노트 시간 = 곡 시간 + LEAD_IN 이므로 곡은 LEAD_IN 뒤에 시작
     src.start(startAt);
     game = {
-      ctx, src, gain, notes, lanes, startAt: startAt - LEAD_IN,
+      ctx, src, gain, notes, lanes, totalJudgments, startAt: startAt - LEAD_IN, holdLane: new Array(LANES).fill(null),
       ptr: new Array(LANES).fill(0), drawFrom: 0,
       pressed: new Array(LANES).fill(0), flashes: new Array(LANES).fill(0),
       hits: [], lastJudge: null,
@@ -554,15 +801,36 @@
     for (const w of JUDGES) if (dt <= w.win) { j = w; break; }
     applyJudge(note, j, now);
   }
-  function applyJudge(note, j, now) {
-    note.judged = j.name;
-    note.hitAt = now;
+  function applyJudge(note, j, now, tail) {
+    if (tail) { note.tail = j.name; note.holding = false; if (game.holdLane[note.lane] === note) game.holdLane[note.lane] = null; }
+    else { note.judged = j.name; note.hitAt = now; }
     game.counts[j.name]++;
     game.weightSum += j.weight;
     if (j === MISS) game.combo = 0; else { game.combo++; game.maxCombo = Math.max(game.maxCombo, game.combo); }
-    game.score = Math.round(game.weightSum / game.notes.length * 1000000);
+    game.score = Math.round(game.weightSum / game.totalJudgments * 1000000);
     game.lastJudge = { j, at: performance.now() };
     if (j !== MISS) game.hits.push({ lane: note.lane, at: performance.now(), color: j.color });
+    // 롱노트 머리를 놓치면 꼬리도 함께 실패, 맞추면 누르기 시작
+    if (!tail && note.end) {
+      if (j === MISS) applyJudge(note, MISS, now, true);
+      else { note.holding = true; game.holdLane[note.lane] = note; }
+    }
+  }
+  function tailJudge(note, now) {
+    // 끝에서 HOLD_RELEASE 안에 떼거나 끝까지 누르고 있으면 성공
+    const dt = Math.abs(now - note.end);
+    let j = JUDGES[0];
+    if (dt > JUDGES[0].win) j = dt <= HOLD_RELEASE ? JUDGES[1] : MISS;
+    applyJudge(note, j, now, true);
+  }
+
+  function releaseLane(lane) {
+    if (!game || game.paused || game.done) return;
+    const n = game.holdLane[lane];
+    if (!n || !n.holding) return;
+    const now = songTime();
+    if (now >= n.end) applyJudge(n, JUDGES[0], now, true);
+    else tailJudge(n, now);
   }
 
   function hitLane(lane) {
@@ -594,8 +862,14 @@
         const n = arr[i];
         if (n && now >= n.time - 0.004) { game.flashes[l] = performance.now(); applyJudge(n, JUDGES[0], n.time); }
       }
+      // 끝까지 누른 롱노트는 자동으로 성공
+      const h = game.holdLane[l];
+      if (h && h.holding) {
+        game.flashes[l] = performance.now();
+        if (now >= h.end) applyJudge(h, JUDGES[0], now, true);
+      }
     }
-    while (game.drawFrom < game.notes.length && game.notes[game.drawFrom].time < now - 0.3) game.drawFrom++;
+    while (game.drawFrom < game.notes.length && (game.notes[game.drawFrom].end || game.notes[game.drawFrom].time) < now - 0.3) game.drawFrom++;
     if (now >= game.endTime || (game.drawFrom >= game.notes.length && now > game.notes[game.notes.length - 1]?.time + 1.5 && now > game.endTime - 0.6)) finish();
   }
 
@@ -629,12 +903,12 @@
   function showResult(g) {
     show(els.result);
     const rank = g.notes.length ? rankOf(g.score) : 'D';
-    els.rTitle.textContent = `${song.name} · ${DIFFS[settings.diff].label}${settings.auto ? ' · 자동 연주' : ''}`;
+    els.rTitle.textContent = `${song.name} · ${MODES[settings.mode]} · ${DIFFS[settings.diff].label}${settings.auto ? ' · 자동 연주' : ''}`;
     els.rRank.textContent = rank;
     els.rRank.dataset.rank = rank;
     els.rScore.textContent = g.score.toLocaleString('ko-KR');
-    els.rAcc.textContent = `${(g.weightSum / Math.max(1, g.notes.length) * 100).toFixed(2)}%`;
-    els.rCombo.textContent = `${g.maxCombo}${g.maxCombo === g.notes.length && g.notes.length ? ' (FULL COMBO)' : ''}`;
+    els.rAcc.textContent = `${(g.weightSum / Math.max(1, g.totalJudgments) * 100).toFixed(2)}%`;
+    els.rCombo.textContent = `${g.maxCombo}${g.maxCombo === g.totalJudgments && g.totalJudgments ? ' (FULL COMBO)' : ''}`;
     els.rPerfect.textContent = g.counts.PERFECT;
     els.rGreat.textContent = g.counts.GREAT;
     els.rGood.textContent = g.counts.GOOD;
@@ -729,8 +1003,28 @@
     g2d.fillStyle = 'rgba(93,224,230,0.35)';
     g2d.fillRect(x0, judgeY + 1.5, areaW, 6);
 
-    // 노트
+    // 노트(롱노트는 몸통을 먼저)
     const noteH = Math.max(14, Math.min(22, laneW * 0.22));
+    for (let i = game.drawFrom; i < game.notes.length; i++) {
+      const n = game.notes[i];
+      const dt = n.time - now;
+      if (dt > approach + 0.1) break;
+      if (!n.end) continue;
+      if (n.tail && n.tail !== 'MISS') continue;
+      const yEnd = judgeY - (n.end - now) * pps;
+      let yHead = judgeY - dt * pps;
+      if (n.holding) yHead = judgeY;
+      if (yEnd > H) continue;
+      const x = x0 + n.lane * laneW + laneW * 0.28;
+      const failed = n.tail === 'MISS' || n.judged === 'MISS';
+      g2d.globalAlpha = failed ? 0.18 : n.holding ? 0.85 : 0.45;
+      g2d.fillStyle = LANE_COLORS[n.lane];
+      if (n.holding) { g2d.shadowColor = LANE_COLORS[n.lane]; g2d.shadowBlur = 16; }
+      roundRect(x, Math.max(-20, yEnd), laneW * 0.44, Math.min(yHead, H) - Math.max(-20, yEnd), 6);
+      g2d.fill();
+      g2d.shadowBlur = 0;
+      g2d.globalAlpha = 1;
+    }
     for (let i = game.drawFrom; i < game.notes.length; i++) {
       const n = game.notes[i];
       const dt = n.time - now;
@@ -769,7 +1063,7 @@
     const capY = judgeY + 14, capH = Math.min(52, H - capY - safe - 6);
     for (let l = 0; l < LANES; l++) {
       const x = x0 + l * laneW + 6;
-      const active = pnow - game.flashes[l] < 120;
+      const active = pnow - game.flashes[l] < 120 || (game.holdLane[l] && game.holdLane[l].holding);
       g2d.fillStyle = active ? hexA(LANE_COLORS[l], 0.9) : 'rgba(255,255,255,0.06)';
       roundRect(x, capY, laneW - 12, capH, 8);
       g2d.fill();
@@ -810,7 +1104,7 @@
     g2d.textAlign = 'left';
     g2d.fillText(`${(game.weightSum / Math.max(1, game.notes.length) * 100).toFixed(2)}%`, 12, 18 + safe);
     g2d.textAlign = 'right';
-    g2d.fillText(DIFFS[settings.diff].label + (settings.auto ? ' · AUTO' : ''), W - 12, 18 + safe);
+    g2d.fillText(`${MODES[settings.mode]} · ${DIFFS[settings.diff].label}${settings.auto ? ' · AUTO' : ''}`, W - 12, 18 + safe);
     // 진행 바
     const prog = Math.max(0, Math.min(1, (now - LEAD_IN) / song.buffer.duration));
     g2d.fillStyle = 'rgba(255,255,255,0.12)';
@@ -825,7 +1119,7 @@
       g2d.fillText(String(Math.ceil(LEAD_IN - now)), W / 2, H * 0.4);
       g2d.font = `500 14px "IBM Plex Sans KR", sans-serif`;
       g2d.fillStyle = 'rgba(255,255,255,0.6)';
-      g2d.fillText('D · F · J · K 로 판정선에서 쳐요', W / 2, H * 0.4 + 44);
+      g2d.fillText(settings.mode === 'melody' ? '멜로디를 따라 D · F · J · K · 긴 음은 누르고 있기' : 'D · F · J · K 로 판정선에서 쳐요', W / 2, H * 0.4 + 44);
     }
   }
   function hexA(hex, a) {
@@ -841,6 +1135,12 @@
     const lane = KEYS.indexOf(e.code);
     if (lane >= 0) { e.preventDefault(); hitLane(lane); }
   });
+  document.addEventListener('keyup', (e) => {
+    if (!game) return;
+    const lane = KEYS.indexOf(e.code);
+    if (lane >= 0) releaseLane(lane);
+  });
+  const pointerLane = new Map();
   els.canvas.addEventListener('pointerdown', (e) => {
     if (!game || game.paused) return;
     e.preventDefault();
@@ -848,8 +1148,18 @@
     const areaW = Math.min(W - 16, 460);
     const x0 = (W - areaW) / 2;
     const lane = Math.max(0, Math.min(LANES - 1, Math.floor((e.clientX - x0) / (areaW / LANES))));
+    pointerLane.set(e.pointerId, lane);
+    try { els.canvas.setPointerCapture(e.pointerId); } catch (err) { /* 무시 */ }
     hitLane(lane);
   });
+  const pointerUp = (e) => {
+    const lane = pointerLane.get(e.pointerId);
+    if (lane === undefined) return;
+    pointerLane.delete(e.pointerId);
+    releaseLane(lane);
+  };
+  els.canvas.addEventListener('pointerup', pointerUp);
+  els.canvas.addEventListener('pointercancel', pointerUp);
   document.addEventListener('visibilitychange', () => { if (document.hidden && game && !game.done) togglePause(true); });
 
   // 디버그/테스트용 훅

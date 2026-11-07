@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>비트 리듬</title>
-<meta name="description" content="노래 파일을 넣으면 비트를 분석해 노트를 자동으로 만들어 주는 4키 리듬 게임">
+<meta name="description" content="노래 파일을 넣으면 멜로디와 보컬을 분석해 노트를 자동으로 만들어 주는 4키 리듬 게임">
 <meta name="theme-color" content="#0b0e14">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,7 +18,7 @@
 <section id="screen-setup" class="screen setup">
   <header class="hero">
     <h1>비트 리듬 <span class="mono">4K</span></h1>
-    <p>노래를 넣으면 비트를 분석해서 노트를 자동으로 만들어 줍니다. 어떤 곡이든 바로 플레이할 수 있어요.</p>
+    <p>노래를 넣으면 보컬과 메인 멜로디를 분석해서 노트를 자동으로 만들어 줍니다. 어떤 곡이든 바로 플레이할 수 있어요.</p>
   </header>
 
   <div class="card drop" id="drop">
@@ -51,6 +51,14 @@
     </dl>
 
     <div class="opt">
+      <div class="opt-label">노트 기준</div>
+      <div class="seg" id="mode" role="radiogroup" aria-label="노트 기준">
+        <button type="button" data-m="melody" class="on">멜로디 · 보컬</button>
+        <button type="button" data-m="beat">드럼 비트</button>
+      </div>
+      <p class="hint" style="margin-top:6px">멜로디 모드는 드럼을 걷어내고 노래의 음 시작과 음정 변화에서 노트를 만듭니다. 음이 높을수록 오른쪽 레인, 길게 끄는 음은 롱노트입니다.</p>
+    </div>
+    <div class="opt">
       <div class="opt-label">난이도</div>
       <div class="seg" id="diff" role="radiogroup" aria-label="난이도">
         <button type="button" data-d="easy">쉬움</button>
@@ -79,7 +87,7 @@
 
     <div class="keys" aria-label="조작 키">
       <span>D</span><span>F</span><span>J</span><span>K</span>
-      <em>또는 화면의 레인을 터치 · Esc 일시정지</em>
+      <em>또는 화면의 레인을 터치 · 롱노트는 누르고 있기 · Esc 일시정지</em>
     </div>
 
     <button class="btn primary big" id="start" type="button">플레이</button>
