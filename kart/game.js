@@ -204,7 +204,13 @@ function resize() {
   W = window.innerWidth; H = window.innerHeight;
   canvas.width = Math.floor(W * DPR); canvas.height = Math.floor(H * DPR);
 }
-window.addEventListener('resize', resize); resize();
+let touchPad = 0; // 터치 버튼이 차지하는 아래쪽 높이 (HUD를 그 위로 올린다)
+function measureTouch() {
+  touchPad = 0;
+  if (!isTouch || touchEl.classList.contains('hidden')) return;
+  for (const g of touchEl.querySelectorAll('.tgroup')) { const r = g.getBoundingClientRect(); touchPad = Math.max(touchPad, H - r.top + 6); }
+}
+window.addEventListener('resize', () => { resize(); setTimeout(measureTouch, 50); }); resize();
 
 const keys = new Set();
 const pressed = new Set(); // 이번 프레임에 눌린 키(엣지)
@@ -316,6 +322,7 @@ function startRace() {
   document.getElementById('menu').classList.add('hidden');
   document.getElementById('result').classList.add('hidden');
   if (isTouch) { touchEl.classList.remove('hidden'); touchEl.classList.toggle('auto', !!settings.autoThrottle); }
+  measureTouch();
   state = 'countdown';
   lastCount = 4;
 }
@@ -338,7 +345,12 @@ function makeGrassPattern(theme) {
   return ctx.createPattern(c, 'repeat');
 }
 
-function baseZoom() { return clamp(Math.min(W / 1000, H / 650), 0.5, 1.25); }
+function baseZoom() {
+  // 세로 화면(폰)은 더 멀리서 보여줘 트랙이 충분히 보이게 한다
+  const portrait = H > W;
+  const z = portrait ? Math.min(W / 760, H / 1100) : Math.min(W / 1000, H / 650);
+  return clamp(z, 0.36, 1.25);
+}
 
 // ───────────────────────── 입력 생성 ─────────────────────────
 function playerInput() {
@@ -937,7 +949,7 @@ function drawHUD() {
   drawMinimap(W - pad - (small ? 120 : 170), pad + (small ? 54 : 74), small ? 120 : 170, small ? 84 : 120);
 
   // 속도 (왼쪽 아래)
-  const by = H - pad - (isTouch ? 110 : 0);
+  const by = H - pad - touchPad;
   ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
   const kmh = Math.round(Math.abs(k.speed) * 0.3);
   ctx.font = `900 ${small ? 36 : 54}px system-ui`;
@@ -947,7 +959,7 @@ function drawHUD() {
 
   // 부스터 게이지 (가운데 아래)
   const gw = small ? 180 : 280, gh = small ? 14 : 18;
-  const gx = W / 2 - gw / 2, gy = H - pad - gh - (isTouch ? 110 : 0);
+  const gx = W / 2 - gw / 2, gy = H - pad - gh - touchPad;
   ctx.fillStyle = 'rgba(0,0,0,0.45)'; roundRect(gx - 3, gy - 3, gw + 6, gh + 6, gh / 2 + 3); ctx.fill();
   if (k.gauge > 0) {
     const g = ctx.createLinearGradient(gx, 0, gx + gw, 0); g.addColorStop(0, '#2ec4ff'); g.addColorStop(0.6, '#ffd23f'); g.addColorStop(1, '#ff8a2b');
@@ -1025,7 +1037,7 @@ function render() {
   if (!track) { ctx.fillStyle = '#0f1a2e'; ctx.fillRect(0, 0, W, H); return; }
   ctx.fillStyle = track.def.theme.grass; ctx.fillRect(0, 0, W, H);
   ctx.save();
-  ctx.translate(W / 2, H * (isTouch ? 0.55 : 0.62));
+  ctx.translate(W / 2, H > W ? (H - touchPad) * 0.6 : H * (isTouch ? 0.55 : 0.62));
   ctx.scale(camera.zoom, camera.zoom);
   ctx.rotate(-camera.angle - Math.PI / 2);
   ctx.translate(-camera.x, -camera.y);
@@ -1105,5 +1117,6 @@ window.__kart = {
   snapshot() { return { state, raceTime, karts: karts.map((k) => ({ name: k.name, lap: k.lap, idx: k.idx, lat: Math.round(k.lat), speed: Math.round(k.speed), rank: k.rank, finished: k.finished, bestLap: k.bestLap })) }; },
   set autopilot(v) { settings.autopilot = v; },
   keys() { return [...keys]; },
+  dbg() { return { W, H, touchPad, zoom: camera.zoom, isTouch, px: player.x, py: player.y, cx: camera.x, cy: camera.y, ang: player.angle, cang: camera.angle }; },
 };
 })();
