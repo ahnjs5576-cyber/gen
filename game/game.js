@@ -394,19 +394,31 @@
   const touchEl = document.getElementById('touch');
   const isTouch = window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
   if (isTouch) touchEl.hidden = false;
+  // 포인터 이벤트가 없는 구형 iPad/Safari는 터치 이벤트로 대신 받는다
+  const hasPointer = 'PointerEvent' in window;
+  const onDown = (el, fn) => {
+    if (hasPointer) el.addEventListener('pointerdown', fn);
+    else { el.addEventListener('touchstart', fn, { passive: false }); el.addEventListener('mousedown', fn); }
+  };
+  const onUp = (el, fn) => {
+    if (hasPointer) ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => el.addEventListener(t, fn));
+    else ['touchend', 'touchcancel', 'mouseup', 'mouseleave'].forEach(t => el.addEventListener(t, fn, { passive: false }));
+  };
   touchEl.querySelectorAll('button').forEach(b => {
     const k = b.dataset.k;
-    const down = e => { e.preventDefault(); b.classList.add('on'); press(k); if (mode === 'title') pressed.any = true; };
-    const up = e => { e.preventDefault(); b.classList.remove('on'); release(k); };
-    b.addEventListener('pointerdown', down); b.addEventListener('pointerup', up);
-    b.addEventListener('pointercancel', up); b.addEventListener('pointerleave', up);
+    const down = e => { if (e.cancelable) e.preventDefault(); b.classList.add('on'); press(k); if (mode === 'title') pressed.any = true; };
+    const up = e => { if (e.cancelable) e.preventDefault(); b.classList.remove('on'); release(k); };
+    onDown(b, down); onUp(b, up);
     b.addEventListener('contextmenu', e => e.preventDefault());
   });
-  canvas.addEventListener('pointerdown', () => {
+  onDown(canvas, e => {
+    if (e.cancelable && e.type === 'touchstart') e.preventDefault();
     if (mode === 'title') pressed.any = true;
     else if (mode === 'dead') pressed.attack = true;
     sfx('swing');
   });
+  // 터치 기기 여부를 실제 터치가 들어왔을 때도 다시 판단한다 (iPad의 데스크톱 모드 등)
+  window.addEventListener('touchstart', () => { touchEl.hidden = false; }, { once: true, passive: true });
 
   // 화면 크기 맞추기
   const stage = document.getElementById('stage');
