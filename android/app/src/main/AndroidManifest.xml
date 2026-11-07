@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      POST_NOTIFICATIONS: only so the app can show its own status notification.
+      We intentionally request NO internet permission by default — the offline
+      template drafter needs none. Add <uses-permission INTERNET/> yourself only
+      if you wire in a remote LLM, so the "no data leaves the device" default is
+      explicit and auditable.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:name=".App"
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.KatalkAssist">
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+          The core of the "read" side. Android hands this service other apps'
+          notifications ONLY after the user turns it on in
+          Settings > Notifications > Device & app notifications.
+          BIND_NOTIFICATION_LISTENER_SERVICE is granted by the system, not us.
+        -->
+        <service
+            android:name=".service.KatalkNotificationListener"
+            android:exported="false"
+            android:label="@string/listener_label"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>
