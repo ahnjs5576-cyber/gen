@@ -2,7 +2,7 @@ import unittest
 from datetime import datetime
 from pathlib import Path
 
-from kakao_reply.analyzer import pending_messages
+from kakao_reply.transcript import pending_messages
 from kakao_reply.parser import parse_file
 
 FIX = Path(__file__).parent / "fixtures"
@@ -53,3 +53,25 @@ class ParserTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ParserExtrasTest(unittest.TestCase):
+    def test_saved_at_formats(self):
+        self.assertEqual(parse_file(FIX / "pc_export.txt").saved_at, datetime(2026, 11, 6, 22, 10))
+        self.assertEqual(parse_file(FIX / "android_export.txt").saved_at, datetime(2026, 11, 6, 22, 12))
+        self.assertEqual(parse_file(FIX / "ios_export.txt").saved_at, datetime(2026, 11, 6, 22, 15))
+
+    def test_attachments_are_tagged(self):
+        from kakao_reply.parser import Message
+
+        self.assertEqual(Message("a", "사진").attachment, "사진")
+        self.assertEqual(Message("a", "사진 3장").attachment, "사진")
+        self.assertEqual(Message("a", "파일: 견적서.pdf").attachment, "파일")
+        self.assertIsNone(Message("a", "사진 보내줘").attachment)
+        self.assertIn("<파일: 견적서.pdf>", Message("a", "파일: 견적서.pdf").line())
+
+    def test_csv_sorted_by_time(self):
+        from kakao_reply.parser import parse_csv
+
+        chat = parse_csv("Date,User,Message\n2026-11-06 10:00:00,B,둘째\n2026-11-06 09:00:00,A,첫째\n")
+        self.assertEqual([m.text for m in chat.messages], ["첫째", "둘째"])

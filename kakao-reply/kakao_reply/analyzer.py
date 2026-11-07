@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
-from .parser import Chat, Message
+from .parser import Chat
 
 MODEL = "claude-opus-5-5"
 
@@ -25,6 +25,9 @@ SYSTEM_PROMPT = """\
    - 사용자가 평소 이 방에서 쓰는 말투(반말/존댓말, 이모티콘, 길이)를 따라 한다.
    - 사용자가 모르는 사실(일정, 약속, 개인정보)을 지어내지 말고, 필요하면 [시간] 같은 빈칸으로 남긴다.
    - 카톡답게 짧고 자연스럽게 쓴다.
+4. <사진>, <파일: …> 처럼 꺾쇠로 표시된 것은 첨부물 자리표시다. 원본은 볼 수 없으니
+   내용을 본 것처럼 쓰지 말고, 필요하면 "사진 확인해볼게" 식으로 답한다.
+5. '상대1', '[전화번호]' 처럼 가려진 표기가 있으면 그대로 사용한다.
 """
 
 REPLY_SCHEMA = {
@@ -67,23 +70,6 @@ class Analysis:
 
 class RefusalError(RuntimeError):
     pass
-
-
-def guess_me(chat: Chat) -> str | None:
-    """내보내기 파일에서 본인 이름이 '나'로 표시되는 경우를 추정."""
-    return "나" if "나" in chat.participants else None
-
-
-def pending_messages(chat: Chat, me: str | None) -> list[Message]:
-    """내가 마지막으로 말한 뒤에 다른 사람이 보낸 메시지들."""
-    if not me:
-        return []
-    out: list[Message] = []
-    for m in reversed(chat.messages):
-        if m.sender == me:
-            break
-        out.append(m)
-    return list(reversed(out))
 
 
 def build_transcript(chat: Chat, last: int) -> str:
