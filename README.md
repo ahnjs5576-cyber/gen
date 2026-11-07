@@ -31,6 +31,16 @@ python3 -m http.server 8000   # 그다음 http://localhost:8000 열기
 GitHub 저장소의 **Settings → Pages**에서 이 브랜치의 루트(`/`)를 배포하면 `https://<아이디>.github.io/<저장소>/` 주소가 생깁니다.
 휴대폰 브라우저에서 열고 "홈 화면에 추가"를 하면 앱처럼 쓸 수 있고, 한 번 연 뒤에는 오프라인에서도 동작합니다.
 
+## 비트 리듬 (`rhythm/`)
+
+같은 저장소에 들어 있는 별도의 미니 게임입니다. 노래 파일(mp3, wav, ogg, m4a, flac)을 넣으면 브라우저 안에서 비트를 분석해 4키(D F J K) 리듬 게임 노트를 자동으로 만듭니다. 파일은 어디로도 전송되지 않습니다.
+
+- 열기: `rhythm/index.html` (위 정적 서버 기준 `http://localhost:8000/rhythm/`)
+- 분석: Web Audio로 디코딩 → 대역별 스펙트럼 플럭스로 온셋 검출 → 자기상관으로 BPM 추정 → 16분 격자에 스냅
+- 옵션: 난이도 3단계(쉬움·보통·어려움), 노트 속도, 오디오 지연 보정, 음량, 자동 연주 미리보기
+- 판정: PERFECT ±45ms · GREAT ±90ms · GOOD ±135ms, 100만 점 만점, 결과 화면에서 평균 타이밍 편차로 보정값 안내
+- 파일이 없으면 "데모 곡으로 해보기"로 합성 곡(128 BPM)을 바로 플레이할 수 있습니다.
+
 ## 구조
 
 ```
@@ -42,6 +52,7 @@ sw.js                 오프라인 캐시
 scripts/validate.mjs  콘텐츠 형식 검사
 scripts/smoke.mjs     브라우저 스모크 테스트 (Playwright)
 CONTENT_GUIDE.md      레슨 작성 규칙
+rhythm/               비트 리듬 게임 (index.html, rhythm.js, rhythm.css)
 ```
 
 ## 레슨 추가·수정
