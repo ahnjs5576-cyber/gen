@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#1b2a44">
+<title>젠 카트 러시</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- 타이틀 / 메뉴 -->
+<section id="menu" class="overlay">
+  <div class="panel">
+    <h1 class="logo"><span>젠 카트</span> 러시</h1>
+    <p class="tagline">드리프트로 게이지를 채우고, 부스터로 추월하세요!</p>
+
+    <h2>트랙</h2>
+    <div id="trackList" class="cards"></div>
+
+    <div class="row">
+      <div>
+        <h2>카트 색</h2>
+        <div id="colorList" class="swatches"></div>
+      </div>
+      <div>
+        <h2>랩 수</h2>
+        <div id="lapList" class="pills"></div>
+      </div>
+    </div>
+
+    <button id="startBtn" class="primary">레이스 시작</button>
+
+    <details class="help">
+      <summary>조작법</summary>
+      <table>
+        <tr><th>방향키 / WASD</th><td>조향 · 가속 · 브레이크(후진)</td></tr>
+        <tr><th>Shift</th><td>드리프트 (코너에서 꾹 누르기) → 부스터 게이지 충전</td></tr>
+        <tr><th>Ctrl 또는 X</th><td>부스터 발동 (게이지가 가득 찼을 때)</td></tr>
+        <tr><th>Space 또는 Z</th><td>아이템 사용</td></tr>
+        <tr><th>C / M / R / Esc</th><td>카메라 회전 전환 / 소리 / 다시 시작 / 메뉴</td></tr>
+      </table>
+      <p class="muted">휴대폰에서는 화면 아래 버튼으로 조작합니다. 가로 모드를 권장해요.</p>
+    </details>
+  </div>
+</section>
+
+<!-- 결과 -->
+<section id="result" class="overlay hidden">
+  <div class="panel">
+    <h1 id="resultTitle">레이스 종료</h1>
+    <p id="resultSub" class="tagline"></p>
+    <table class="results">
+      <thead><tr><th>순위</th><th>이름</th><th>기록</th><th>베스트 랩</th></tr></thead>
+      <tbody id="resultBody"></tbody>
+    </table>
+    <div class="actions">
+      <button id="retryBtn" class="primary">다시 달리기</button>
+      <button id="menuBtn">트랙 고르기</button>
+    </div>
+  </div>
+</section>
+
+<!-- 터치 조작 -->
+<div id="touch" class="hidden" aria-hidden="true">
+  <div class="tgroup left">
+    <button class="tbtn" data-act="left">◀</button>
+    <button class="tbtn" data-act="right">▶</button>
+  </div>
+  <div class="tgroup right">
+    <button class="tbtn small" data-act="item">아이템</button>
+    <button class="tbtn small boost" data-act="boost">부스터</button>
+    <button class="tbtn drift" data-act="drift">드리프트</button>
+    <button class="tbtn gas" data-act="throttle">가속</button>
+    <button class="tbtn small" data-act="brake">브레이크</button>
+  </div>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
