@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>메이플 어드벤처</title>
+<meta name="description" content="메이플스토리 느낌의 2D 횡스크롤 사냥 게임. 달팽이부터 머쉬맘까지 사냥하고 레벨을 올려 보세요.">
+<meta name="theme-color" content="#1b1f2a">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@500;700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="stage">
+  <canvas id="game" width="960" height="540" aria-label="메이플 어드벤처 게임 화면"></canvas>
+
+  <div id="dialog" hidden>
+    <div class="dlg" role="dialog" aria-live="polite">
+      <div class="dlg-name" id="dlg-name"></div>
+      <div class="dlg-text" id="dlg-text"></div>
+      <div class="dlg-opts" id="dlg-opts"></div>
+    </div>
+  </div>
+
+  <div id="touch" hidden>
+    <div class="pad">
+      <button type="button" data-k="up" class="k-up" aria-label="위">▲</button>
+      <button type="button" data-k="left" class="k-left" aria-label="왼쪽">◀</button>
+      <button type="button" data-k="right" class="k-right" aria-label="오른쪽">▶</button>
+      <button type="button" data-k="down" class="k-down" aria-label="아래">▼</button>
+    </div>
+    <div class="acts">
+      <button type="button" data-k="pot1" class="pot hp">HP</button>
+      <button type="button" data-k="pot2" class="pot mp">MP</button>
+      <button type="button" data-k="skill2" class="sk">SB</button>
+      <button type="button" data-k="skill1" class="sk">PS</button>
+      <button type="button" data-k="attack" class="big">공격</button>
+      <button type="button" data-k="jump" class="big">점프</button>
+    </div>
+  </div>
+</div>
+<script src="game.js"></script>
+</body>
+</html>
