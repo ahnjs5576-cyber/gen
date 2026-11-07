@@ -203,6 +203,8 @@ function resize() {
   DPR = Math.min(window.devicePixelRatio || 1, 2);
   W = window.innerWidth; H = window.innerHeight;
   canvas.width = Math.floor(W * DPR); canvas.height = Math.floor(H * DPR);
+  // CSS 크기를 화면 크기로 고정 (안 하면 고밀도 화면에서 캔버스가 DPR배로 커져 화면 밖으로 넘친다)
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
 }
 let touchPad = 0; // 터치 버튼이 차지하는 아래쪽 높이 (HUD를 그 위로 올린다)
 function measureTouch() {
@@ -1102,6 +1104,7 @@ document.getElementById('menuBtn').addEventListener('click', showMenu);
 let last = performance.now();
 function frame(now) {
   let dt = (now - last) / 1000; last = now;
+  if (window.innerWidth !== W || window.innerHeight !== H) { resize(); measureTouch(); }
   if (dt > 0.05) dt = 0.05;
   if (state !== 'menu') update(dt);
   render();
