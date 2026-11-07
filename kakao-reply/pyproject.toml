@@ -1,0 +1,16 @@
+[project]
+name = "kakao-reply"
+version = "0.1.0"
+description = "카카오톡 대화 내보내기 파일을 읽고 답장 초안을 만들어 주는 로컬 도구"
+requires-python = ">=3.10"
+dependencies = ["anthropic", "keyring"]
+
+[project.scripts]
+kakao-reply = "kakao_reply.cli:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["kakao_reply"]
