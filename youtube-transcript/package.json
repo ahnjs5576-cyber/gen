@@ -1,0 +1,14 @@
+{
+  "name": "youtube-transcript-viewer",
+  "version": "1.0.0",
+  "description": "유튜브 영상 주소를 넣으면 전체 자막을 보여주는 웹 서비스",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

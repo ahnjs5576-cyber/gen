@@ -52,3 +52,7 @@ CONTENT_GUIDE.md      레슨 작성 규칙
 node scripts/validate.mjs   # 콘텐츠 형식 검사
 node scripts/smoke.mjs      # 실제 브라우저로 주요 흐름 확인
 ```
+
+## 함께 들어 있는 다른 앱
+
+- [`youtube-transcript/`](youtube-transcript/README.md) — 유튜브 영상 주소를 넣으면 전체 자막을 보여주는 서비스 (`node server.mjs`로 실행, 서버 필요)
