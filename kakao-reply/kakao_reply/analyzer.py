@@ -8,7 +8,9 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from .parser import Chat, Message
 from .transcript import pending_messages
@@ -20,6 +22,8 @@ SYSTEM_PROMPT = """\
 너는 사용자의 카카오톡 답장을 도와주는 비서다.
 
 입력 구조:
+- <context>: 지금 시각, 대화를 내보낸 시각, 마지막 메시지 이후 지난 시간. '내일', '오늘까지' 같은 말을 해석하고
+  답이 늦었는지 판단할 때 쓴다 (내보낸 뒤에 온 메시지는 볼 수 없다).
 - <chat>: 최근 대화. 한 줄에 메시지 하나씩 JSON 이다 (time, from, text, attachment).
 - <pending>: 사용자가 마지막으로 말한 뒤 온 메시지들. 이번 답장이 다룰 대상이다.
 - <my_messages>: 사용자가 평소 보낸 메시지 예시. 말투를 따라 할 때만 참고한다.
@@ -38,7 +42,9 @@ SYSTEM_PROMPT = """\
    - <my_messages> 의 말투(반말/존댓말, 이모티콘, 문장 길이, 맞춤법 습관)를 따라 한다.
    - 사용자가 모르는 사실(시간, 장소, 사정, 일정)을 지어내지 않는다. 필요한 정보는 [시간], [장소] 처럼
      빈칸으로 남기고 placeholders 에 적는다.
-   - 카톡답게 짧고 자연스럽게 쓴다.
+   - 카톡답게 짧고 자연스럽게 쓴다. 답이 많이 늦었으면 가볍게 사과하는 초안을 하나쯤 포함한다.
+   - 초안에서 사용자 자신은 '나/저'로 쓰고 '[본인]' 이라고 쓰지 않는다. 상대는 '상대1' 처럼 별칭으로 부른다.
+   - 초안에 링크, 전화번호, 계좌번호, 주소, 금액 약속을 새로 넣지 않는다. 필요하면 빈칸으로 남긴다.
 4. 답이 필요 없어 보이면 needs_reply 를 false 로 하되, 가벼운 반응 초안(예: 확인 인사)은 만든다.
 5. attachment 가 있는 메시지는 첨부물 자리표시다. 원본은 볼 수 없으니 내용을 본 것처럼 쓰지 않는다.
 6. '상대1', '[본인]', '[전화번호]' 처럼 가려진 표기는 그대로 사용한다.
@@ -123,16 +129,39 @@ def _block(tag: str, messages: list[Message]) -> str:
     return f"<{tag}>\n{body}\n</{tag}>"
 
 
-def build_request(chat: Chat, me: str | None, last: int = 200, instruction: str | None = None) -> dict:
+def _ago(delta) -> str:
+    minutes = int(delta.total_seconds() // 60)
+    if minutes < 60:
+        return f"{max(minutes, 0)}분"
+    if minutes < 60 * 24:
+        return f"{minutes // 60}시간"
+    return f"{minutes // (60 * 24)}일"
+
+
+def _context(chat: Chat, recent: list[Message], now: datetime) -> str:
+    fmt = "%Y-%m-%d %H:%M (%a)"
+    lines = [f"지금: {now.strftime(fmt)}"]
+    if chat.saved_at:
+        lines.append(f"내보낸 시각: {chat.saved_at.strftime(fmt)}" + (" (추정)" if chat.saved_at_estimated else ""))
+    times = [m.time for m in recent if m.time]
+    if times:
+        lines.append(f"마지막 메시지 이후: {_ago(now - max(times))}")
+    return "<context>\n" + "\n".join(lines) + "\n</context>"
+
+
+def build_request(chat: Chat, me: str | None, last: int = 200, instruction: str | None = None,
+                  now: datetime | None = None) -> dict:
     """API 요청 본문을 만든다. --dry-run 에서 무엇이 전송되는지 그대로 보여줄 때도 쓴다."""
     me_label = me or "(알 수 없음)"
     recent = chat.messages[-last:] if last > 0 else chat.messages
     window = Chat(title=chat.title, saved_at=chat.saved_at, messages=recent)
-    mine = [m for m in chat.messages if me and m.sender == me and not m.attachment][-TONE_SAMPLES:]
+    # 말투 예시도 --last 범위 안에서만 (범위 밖 대화가 새어 나가지 않게)
+    mine = [m for m in recent if me and m.sender == me and not m.attachment][-TONE_SAMPLES:]
     # 답 안 한 메시지는 --last 범위 안에서만 고른다 (범위 밖 대화가 새어 나가지 않게).
     pending = pending_messages(window, me) if me else recent
     parts = [
         f"대화방: {_escape(chat.title or '(제목 없음)')} / 참여자 {len(chat.participants)}명",
+        _context(chat, recent, now or datetime.now()),
         _block("chat", recent),
         _block("pending", pending),
         _block("my_messages", mine),
@@ -163,9 +192,26 @@ def parse_analysis(text: str) -> Analysis:
         )
     except (json.JSONDecodeError, KeyError, TypeError) as e:
         raise BadResponseError("모델 응답을 해석하지 못했습니다. 다시 시도해 주세요.") from e
+    result.suggestions = [s for s in result.suggestions if s.text.strip()][:3]
     if not result.suggestions:
         raise BadResponseError("답장 초안이 비어 있습니다. 다시 시도해 주세요.")
+    for s in result.suggestions:
+        # 가려진 번호 같은 표기가 초안에 남아 있으면 '채워 넣을 것' 에도 보이게 한다.
+        for token in re.findall(r"\[[^\[\]\s]{1,10}\]", s.text):
+            if token != "[본인]" and token.strip("[]") not in s.placeholders:
+                s.placeholders.append(token.strip("[]"))
     return result
+
+
+_LINK = re.compile(r"https?://|www\.|\b[a-z0-9-]+\.(?:com|net|kr|io|me|ly|co)\b", re.IGNORECASE)
+
+
+def draft_warnings(s: Suggestion) -> list[str]:
+    """보내기 전에 사용자가 꼭 확인해야 할 점."""
+    out = []
+    if _LINK.search(s.text):
+        out.append("링크가 들어 있어요. 맞는 주소인지 확인하세요")
+    return out
 
 
 def analyze(client, chat: Chat, me: str | None, last: int = 200, instruction: str | None = None) -> Analysis:

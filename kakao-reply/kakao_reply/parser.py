@@ -39,10 +39,10 @@ _MOBILE_SYSTEM = re.compile(r"^" + _MOBILE_TS + r",\s*(?!.*\s:\s).+$")
 # PC 형식의 시스템 메시지는 타임스탬프 없이 한 줄로 나온다. 일반 문장과 헷갈리지 않게 문장 전체가
 # 정해진 꼴일 때만 후보로 보고, 다음 줄이 새 메시지·날짜·파일 끝일 때만 실제로 버린다(parse_text 참고).
 _PC_SYSTEM = re.compile(
-    r"^(?:\S{1,20}님이 (?:들어왔습니다|나갔습니다)"
-    r"|\S{1,20}님이 .{1,300}님을 (?:초대했습니다|초대하였습니다|내보냈습니다)"
+    r"^(?:.{1,20}?님이 (?:들어왔습니다|나갔습니다)"
+    r"|.{1,20}?님이 .{1,300}님을 (?:초대했습니다|초대하였습니다|내보냈습니다)"
     r"|메시지가 삭제되었습니다"
-    r"|\S{1,20}님이 메시지를 가렸습니다)\.?$"
+    r"|.{1,20}?님이 메시지를 가렸습니다)\.?$"
 )
 
 _TITLE = re.compile(r"^(?P<title>.+?)\s*님과 카카오톡 대화$")
@@ -53,7 +53,13 @@ _SAVED_MOBILE = re.compile(r"^" + _MOBILE_TS)
 # 내보내기 파일에서 첨부물은 본문 대신 이런 자리표시로만 남는다 (원본/링크 없음).
 _ATTACHMENTS = [
     (re.compile(r"^사진(\s*\d+장)?$"), "사진"),
-    (re.compile(r"^동영상$"), "동영상"),
+    (re.compile(r"^동영상(\s*\d+개)?$"), "동영상"),
+    (re.compile(r"^샵검색\s*:"), "샵검색"),
+    (re.compile(r"^(지도|위치)(\s*:.*)?$"), "위치"),
+    (re.compile(r"^연락처(\s*:.*)?$"), "연락처"),
+    (re.compile(r"^(송금|이체|카카오페이|정산)"), "송금"),
+    (re.compile(r"^(보이스톡|페이스톡|음성통화|영상통화)"), "통화"),
+    (re.compile(r"^(투표|일정|공지)\s*:?"), "투표/일정"),
     (re.compile(r"^(이모티콘|\(이모티콘\).*)$"), "이모티콘"),
     (re.compile(r"^음성메시지"), "음성메시지"),
     (re.compile(r"^파일\s*:\s*.+"), "파일"),
@@ -86,6 +92,7 @@ class Message:
 class Chat:
     title: str | None = None
     saved_at: datetime | None = None
+    saved_at_estimated: bool = False  # 파일에 기록이 없어 파일 수정 시각으로 추정했는지
     messages: list[Message] = field(default_factory=list)
 
     @property
@@ -151,6 +158,15 @@ def parse_text(content: str) -> Chat:
             if s := _SAVED_AT.match(stripped):
                 chat.saved_at = _parse_saved_at(s["rest"])
                 continue
+
+        if last is not None and held and not stripped:
+            held.append(line)  # 보류 중에 나온 빈 줄도 함께 보류
+            continue
+
+        if last is not None and _MOBILE_DATE.match(stripped):
+            # 모바일 날짜 구분선은 본문에도 나올 수 있는 꼴이라 보류했다가, 다음에 새 메시지가 오면 구분선으로 본다.
+            held.append(line)
+            continue
 
         if m := (_PC_DATE.match(stripped) or _MOBILE_DATE.match(stripped)):
             boundary()
@@ -244,9 +260,25 @@ def parse_file(path: str | Path) -> Chat:
     content = read_text(p)
     is_csv = p.suffix.lower() == ".csv" or content.lstrip().startswith("Date,User,Message")
     chat = parse_csv(content) if is_csv else parse_text(content)
+    name_title, name_saved = _from_filename(p.stem)
     if chat.title is None:
-        chat.title = p.stem
+        chat.title = name_title or p.stem
+    if chat.title:
+        chat.title = re.sub(r"\s+\d+$", "", chat.title)  # 단체방 제목 뒤 인원수 ('가족 4')
+    if chat.saved_at is None and name_saved is not None:
+        chat.saved_at = name_saved
     if chat.saved_at is None:
-        # CSV 등 머리말이 없는 형식은 파일 수정 시각을 내보낸 시각으로 본다.
+        # 머리말도 파일 이름에도 기록이 없으면 파일 수정 시각으로 추정한다 (복사하면 바뀔 수 있음).
         chat.saved_at = datetime.fromtimestamp(p.stat().st_mtime).replace(microsecond=0)
+        chat.saved_at_estimated = True
     return chat
+
+
+# Mac CSV: KakaoTalk_Chat_민수_2026-11-06-22-10-03.csv
+_FILENAME = re.compile(r"^KakaoTalk_Chat_(?P<title>.+?)_(?P<y>\d{4})-(?P<mo>\d{2})-(?P<d>\d{2})-(?P<H>\d{2})-(?P<M>\d{2})-\d{2}$")
+
+
+def _from_filename(stem: str) -> tuple[str | None, datetime | None]:
+    if m := _FILENAME.match(stem):
+        return m["title"], datetime(int(m["y"]), int(m["mo"]), int(m["d"]), int(m["H"]), int(m["M"]))
+    return None, None

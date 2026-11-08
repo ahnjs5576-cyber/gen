@@ -48,7 +48,7 @@ def filter_period(chat: Chat, days: int | None, now: datetime | None = None) -> 
     base = now or chat.saved_at or datetime.now()
     cutoff = base - timedelta(days=days)
     kept = [m for m in chat.messages if m.time is None or m.time >= cutoff]
-    return Chat(title=chat.title, saved_at=chat.saved_at, messages=kept)
+    return Chat(title=chat.title, saved_at=chat.saved_at, saved_at_estimated=chat.saved_at_estimated, messages=kept)
 
 
 @dataclass
@@ -60,6 +60,7 @@ class RoomStatus:
     last_is_mine: bool | None  # me 를 모르면 None
     pending: list[Message]
     saved_at: datetime | None
+    saved_at_estimated: bool
     stale: bool  # 내보낸 지 오래돼 최신 대화가 빠졌을 수 있음
 
     @property
@@ -78,18 +79,21 @@ def room_status(chat: Chat, me: str | None, now: datetime | None = None) -> Room
         last_is_mine=(last.sender == me) if (last and me) else None,
         pending=pending_messages(chat, me),
         saved_at=chat.saved_at,
+        saved_at_estimated=chat.saved_at_estimated,
         stale=bool(chat.saved_at and now - chat.saved_at > STALE_AFTER),
     )
 
 
-def describe_age(saved_at: datetime | None, now: datetime | None = None) -> str:
+def describe_age(saved_at: datetime | None, now: datetime | None = None, estimated: bool = False) -> str:
     if not saved_at:
         return "내보낸 시각 알 수 없음"
     delta = (now or datetime.now()) - saved_at
     if delta < timedelta(minutes=1):
-        return "방금 내보냄"
-    if delta < timedelta(hours=1):
-        return f"{int(delta.total_seconds() // 60)}분 전 내보냄"
-    if delta < timedelta(days=1):
-        return f"{int(delta.total_seconds() // 3600)}시간 전 내보냄"
-    return f"{delta.days}일 전 내보냄"
+        text = "방금 내보냄"
+    elif delta < timedelta(hours=1):
+        text = f"{int(delta.total_seconds() // 60)}분 전 내보냄"
+    elif delta < timedelta(days=1):
+        text = f"{int(delta.total_seconds() // 3600)}시간 전 내보냄"
+    else:
+        text = f"{delta.days}일 전 내보냄"
+    return text + (" (파일 시각 기준 추정)" if estimated else "")

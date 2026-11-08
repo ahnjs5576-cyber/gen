@@ -73,7 +73,7 @@ class NameBoundaryTest(unittest.TestCase):
 class MaskingRound2Test(unittest.TestCase):
     def test_more_formats(self):
         self.assertEqual(mask_identifiers("+821098765432로"), "[전화번호]로")
-        self.assertEqual(mask_identifiers("카뱅 3333012345678"), "카뱅 [계좌번호]")
+        self.assertEqual(mask_identifiers("카뱅 3333012345678"), "카뱅 [계좌/카드번호]")
         self.assertEqual(mask_identifiers("메일은abc@gmail.com"), "메일은[이메일]")
         self.assertEqual(mask_identifiers("26-11-06 회의"), "26-11-06 회의")
         self.assertEqual(mask_identifiers("10-20-30분"), "10-20-30분")

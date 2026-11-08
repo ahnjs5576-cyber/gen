@@ -22,7 +22,7 @@ import unicodedata
 from pathlib import Path
 
 from . import config, output, secrets
-from .analyzer import Analysis, analyze, build_request
+from .analyzer import Analysis, analyze, build_request, draft_warnings
 from .parser import Chat, ExportReadError, parse_file
 from .privacy import Pseudonymizer, log_summary
 from .transcript import describe_age, filter_period, guess_me, guess_me_across, room_status
@@ -82,9 +82,22 @@ def _fmt_time(t) -> str:
     return t.strftime("%m-%d %H:%M") if t else "--"
 
 
+def _age(st) -> str:
+    return describe_age(st.saved_at, estimated=st.saved_at_estimated)
+
+
 def _stale_warning(status) -> None:
     if status.stale:
-        print(f"⚠ {describe_age(status.saved_at)} — 그 뒤에 온 대화는 빠져 있어요. 최신 내용이 필요하면 다시 내보내세요.")
+        print(f"⚠ {_age(status)} — 그 뒤에 온 대화는 빠져 있어요. 최신 내용이 필요하면 다시 내보내세요.")
+
+
+SHOW_LIMIT = 20
+
+
+class _Parser(argparse.ArgumentParser):
+    def error(self, message):  # argparse 기본 오류는 영어라 한국어 안내를 덧붙인다
+        self.print_usage(sys.stderr)
+        self.exit(2, f"입력 오류: {message}\n도움말: {self.prog} -h\n")
 
 
 # ---------------------------------------------------------------- commands
@@ -124,19 +137,22 @@ def cmd_inbox(args) -> None:
     if not common and (guessed := guess_me_across(chats)):
         common = guessed
         print(f"※ 모든 방에 있는 '{guessed}' 님을 본인으로 추정했어요. 틀리면 `kakao-reply me <이름>` 으로 저장하세요.\n")
-    rows = [room_status(c, common or guess_me(c)) for c in chats]
-    rows.sort(key=lambda r: (r.last_time is None, -(r.last_time.timestamp() if r.last_time else 0)))
+    pairs = [(room_status(c, common or guess_me(c)), c) for c in chats]
+    pairs.sort(key=lambda rc: (rc[0].last_time is None, -(rc[0].last_time.timestamp() if rc[0].last_time else 0)))
+    rows = [r for r, _ in pairs]
 
     print(f"{_pad('방', 18)} {_pad('마지막', 12)} {_pad('마지막 발신', 12)} {_pad('답할 것', 8)} 비고")
-    for r in rows:
+    for r, c in pairs:
         who = "?" if r.last_is_mine is None else ("나" if r.last_is_mine else r.last_sender)
         notes = []
+        if common and common not in c.participants:
+            notes.append("본인 메시지 없음")
         if r.last_is_mine is False:
             notes.append("답장 필요")
         if r.pending_attachments:
             notes.append(f"첨부 {len(r.pending_attachments)}")
         if r.stale:
-            notes.append(describe_age(r.saved_at))
+            notes.append(_age(r))
         print(f"{_pad(r.title, 18)} {_pad(_fmt_time(r.last_time), 12)} {_pad(who, 12)} "
               f"{_pad(str(len(r.pending)), 8)} {', '.join(notes)}")
     if any(r.last_is_mine is None for r in rows):
@@ -148,7 +164,7 @@ def cmd_show(args) -> None:
     me = _resolve_me(full, args.me)
     chat = _filtered(full, args.days)
     st = room_status(chat, me)
-    print(f"대화방: {st.title}  ({describe_age(st.saved_at)})")
+    print(f"대화방: {st.title}  ({_age(st)})")
     print(f"참여자: {', '.join(full.participants)}")
     print(f"메시지: {st.message_count}개, 마지막 {_fmt_time(st.last_time)} {st.last_sender}")
     _stale_warning(st)
@@ -159,7 +175,10 @@ def cmd_show(args) -> None:
         print("\n마지막 메시지가 내 메시지예요. 답 기다리는 중.")
         return
     print(f"\n내 마지막 메시지 이후 온 메시지: {len(st.pending)}개")
-    for m in st.pending:
+    shown = st.pending[-SHOW_LIMIT:]
+    if len(st.pending) > len(shown):
+        print(f"  … 앞의 {len(st.pending) - len(shown)}개 생략 (최근 {SHOW_LIMIT}개만 표시)")
+    for m in shown:
         print("  " + m.line().replace("\n", "\n    "))
     if st.pending_attachments:
         print("\n※ 첨부물 원본은 내보내기 파일에 들어 있지 않아 여기서 받을 수 없어요. 카카오톡 앱에서 확인하세요.")
@@ -177,6 +196,8 @@ def _print_analysis(result: Analysis) -> None:
         print(f"  {i}. [{s.intent}] {s.text}")
         if s.placeholders:
             print(f"     ↳ 채워 넣을 것: {', '.join(s.placeholders)}")
+        for w in draft_warnings(s):
+            print(f"     ⚠ {w}")
 
 
 def _pick_copy(args, result: Analysis) -> int | None:
@@ -199,7 +220,11 @@ def cmd_suggest(args) -> None:
     full = _parse(args.file)
     me = _require_me(full, _resolve_me(full, args.me))
     chat = _filtered(full, args.days)
-    _stale_warning(room_status(chat, me))
+    status = room_status(chat, me)
+    _stale_warning(status)
+    if args.last > 0:  # 보낼 범위만 남긴다 (가명 처리도 이 범위만 하면 된다)
+        chat = Chat(title=chat.title, saved_at=chat.saved_at, saved_at_estimated=chat.saved_at_estimated,
+                    messages=chat.messages[-args.last:])
 
     # 가명표는 기간 필터 전 전체 대화로 만들어야 기간 밖 참여자 이름도 가려진다.
     pseudo = None if args.no_pseudonymize else Pseudonymizer(full, me)
@@ -211,13 +236,13 @@ def cmd_suggest(args) -> None:
 
     if args.dry_run:
         print("# 아래 내용이 Claude API 로 전송됩니다 (실제 전송 안 함)\n")
-        print(json.dumps(build_request(send_chat, send_me, args.last, ask), ensure_ascii=False, indent=2))
+        print(json.dumps(build_request(send_chat, send_me, 0, ask), ensure_ascii=False, indent=2))
         return
 
     import anthropic
 
     try:
-        result = analyze(secrets.make_client(), send_chat, send_me, args.last, ask)
+        result = analyze(secrets.make_client(), send_chat, send_me, 0, ask)
     except anthropic.AuthenticationError:
         _fail("API 키가 잘못됐습니다. `kakao-reply key set` 으로 다시 등록하세요.")
     except anthropic.RateLimitError:
@@ -242,6 +267,9 @@ def cmd_suggest(args) -> None:
             s.placeholders = [pseudo.restore(x) for x in s.placeholders]
 
     _print_analysis(result)
+    if status.pending_attachments:
+        kinds = ", ".join(sorted({m.attachment for m in status.pending_attachments}))
+        print(f"\n※ 받은 {kinds} 원본은 내보내기 파일에 없어 내용을 반영하지 못했어요. 앱에서 확인 후 보내세요.")
 
     choice = _pick_copy(args, result)
     if choice and output.copy_to_clipboard(result.suggestions[choice - 1].text):
@@ -263,9 +291,9 @@ def cmd_key(args) -> None:
 
 
 def main(argv: list[str] | None = None) -> None:
-    p = argparse.ArgumentParser(prog="kakao-reply", description="카톡 대화 내보내기 파일로 답장 초안 만들기")
+    p = _Parser(prog="kakao-reply", description="카톡 대화 내보내기 파일로 답장 초안 만들기")
     p.add_argument("-v", "--verbose", action="store_true", help="진행 로그 출력 (이름·내용은 남기지 않음)")
-    sub = p.add_subparsers(dest="cmd", required=True)
+    sub = p.add_subparsers(dest="cmd", required=True, parser_class=_Parser)
 
     mp = sub.add_parser("me", help="본인 이름 저장/확인 (내보낸 파일에 표시된 이름)")
     mp.add_argument("name", nargs="?")

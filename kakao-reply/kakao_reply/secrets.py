@@ -33,7 +33,11 @@ def set_api_key(value: str) -> None:
     kr = _keyring()
     if kr is None:
         raise RuntimeError("키체인 저장에는 keyring 패키지가 필요합니다: pip install keyring")
-    kr.set_password(SERVICE, ACCOUNT, value)
+    try:
+        kr.set_password(SERVICE, ACCOUNT, value)
+    except Exception as e:  # keyring 백엔드 오류는 영어라 한국어로 감싼다
+        raise RuntimeError(f"키체인에 저장하지 못했습니다 ({type(e).__name__}). "
+                           "ANTHROPIC_API_KEY 환경변수를 대신 쓸 수 있습니다.") from None
 
 
 def delete_api_key() -> bool:
