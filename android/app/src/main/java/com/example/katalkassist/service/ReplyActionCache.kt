@@ -2,6 +2,8 @@ package com.example.katalkassist.service
 
 import android.app.Notification
 import android.app.PendingIntent
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Holds the most recent direct-reply handle per room.
@@ -22,9 +24,14 @@ object ReplyActionCache {
 
     private val handles = HashMap<String, Handle>()
 
+    /** Bumped whenever the handle set changes, so UI can recompute send-availability. */
+    private val _changes = MutableStateFlow(0)
+    val changes: StateFlow<Int> = _changes
+
     @Synchronized
     fun put(roomKey: String, handle: Handle) {
         handles[roomKey] = handle
+        _changes.value++
     }
 
     @Synchronized
@@ -32,7 +39,7 @@ object ReplyActionCache {
 
     @Synchronized
     fun remove(roomKey: String) {
-        handles.remove(roomKey)
+        if (handles.remove(roomKey) != null) _changes.value++
     }
 
     /** Extract a usable reply handle from an action, or null if it isn't one. */

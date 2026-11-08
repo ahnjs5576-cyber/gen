@@ -10,6 +10,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,6 +19,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -59,10 +62,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
-@Composable
-private fun isSystemInDarkTheme(): Boolean =
-    androidx.compose.foundation.isSystemInDarkTheme()
 
 @Composable
 fun AppRoot(vm: MainViewModel) {
@@ -170,6 +169,7 @@ fun ThreadScreen(vm: MainViewModel, room: MessageEntity, onBack: () -> Unit) {
     val thread by vm.thread.collectAsStateWithLifecycle()
     val suggestions by vm.suggestions.collectAsStateWithLifecycle()
     val loading by vm.loadingSuggestions.collectAsStateWithLifecycle()
+    val handleVersion by vm.replyHandleVersion.collectAsStateWithLifecycle()
     var snackbar by remember { mutableStateOf<String?>(null) }
     val snackState = remember { SnackbarHostState() }
 
@@ -185,6 +185,11 @@ fun ThreadScreen(vm: MainViewModel, room: MessageEntity, onBack: () -> Unit) {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로")
                     }
+                },
+                actions = {
+                    IconButton(onClick = { vm.clearRoom(room.roomKey); onBack() }) {
+                        Icon(Icons.Filled.Delete, contentDescription = "이 방 기록 삭제")
+                    }
                 }
             )
         },
@@ -197,13 +202,20 @@ fun ThreadScreen(vm: MainViewModel, room: MessageEntity, onBack: () -> Unit) {
 
             HorizontalDivider()
             Row(
-                Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
+                Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 4.dp, bottom = 0.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text("답장 제안", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
                 if (loading) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                IconButton(onClick = { vm.reSuggest() }, enabled = !loading) {
+                    Icon(Icons.Filled.Refresh, contentDescription = "다시 제안")
+                }
             }
-            val canSend = vm.canSend(room.roomKey)
+            // Observe handleVersion so send-availability updates when a handle expires;
+            // honor manual-send-only (copy only, send inside KakaoTalk yourself).
+            val canSend = remember(handleVersion, room.roomKey) {
+                vm.canSend(room.roomKey)
+            } && !vm.prefs.manualSendOnly
             suggestions.forEach { s ->
                 SuggestionRow(
                     suggestion = s.text,
@@ -220,8 +232,12 @@ fun ThreadScreen(vm: MainViewModel, room: MessageEntity, onBack: () -> Unit) {
                 )
             }
             if (!canSend) {
+                val why = if (vm.prefs.manualSendOnly)
+                    "직접 전송이 꺼져 있어요(설정에서 켤 수 있어요). '복사'로 보내주세요."
+                else
+                    "이 방은 지금 직접 답장이 불가능해요(알림이 닫혔거나 만료됨). '복사'로 보내주세요."
                 Text(
-                    "이 방은 지금 직접 답장이 불가능해요(알림이 닫혔거나 만료됨). '복사'로 보내주세요.",
+                    why,
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.outline,
                     modifier = Modifier.padding(16.dp)
@@ -290,6 +306,8 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     var model by remember { mutableStateOf(p.modelId) }
     var pseudonymize by remember { mutableStateOf(p.pseudonymize) }
     var retention by remember { mutableStateOf(p.retentionHours.toString()) }
+    var manualSend by remember { mutableStateOf(p.manualSendOnly) }
+    var allowedRoomsText by remember { mutableStateOf(p.allowedRooms.joinToString(", ")) }
     var myName by remember { mutableStateOf(p.myDisplayName) }
     var snack by remember { mutableStateOf<String?>(null) }
     val snackState = remember { SnackbarHostState() }
@@ -357,6 +375,24 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 label = { Text("메시지 보존 시간 (0 = 저장 안 함)") },
                 singleLine = true, modifier = Modifier.fillMaxWidth()
             )
+            OutlinedTextField(
+                value = allowedRoomsText, onValueChange = { allowedRoomsText = it },
+                label = { Text("캡처할 방 이름 (쉼표로 구분, 비우면 전체)") },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            HorizontalDivider()
+            Text("전송", style = MaterialTheme.typography.titleMedium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Switch(checked = manualSend, onCheckedChange = { manualSend = it })
+                Spacer(Modifier.width(8.dp))
+                Text("직접 전송 끄기 (켜면 '복사'만 — 카톡에서 직접 전송)")
+            }
+            Text(
+                "직접 전송을 끄면 대화방이 '읽음'으로 바뀌는 일을 피할 수 있어 더 안전합니다.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.outline
+            )
 
             HorizontalDivider()
             Text("대화 내보내기 가져오기", style = MaterialTheme.typography.titleMedium)
@@ -382,7 +418,10 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     vm.saveSettings(
                         apiKey = apiKey.ifBlank { null },
                         useLlm = useLlm, model = model, pseudonymize = pseudonymize,
-                        retentionHours = retention.toIntOrNull() ?: 24, myName = myName
+                        retentionHours = retention.toIntOrNull() ?: 24, myName = myName,
+                        manualSendOnly = manualSend,
+                        allowedRooms = allowedRoomsText.split(",")
+                            .map { it.trim() }.filter { it.isNotEmpty() }.toSet()
                     )
                     apiKey = ""
                     snack = "저장했어요"

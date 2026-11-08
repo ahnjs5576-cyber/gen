@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
-      Compose draws the UI, so this platform theme only governs the window
-      background and system bars. DayNight picks light/dark automatically.
+      Compose draws the UI and handles light/dark itself (dynamicOrDefault),
+      so this platform theme only governs the pre-draw window background and
+      system bars. Base is Theme.DeviceDefault.*.NoActionBar (API 21+, safe at
+      minSdk 28) — NOT the DayNight variant, which is API 29+ and would throw
+      Resources$NotFoundException on an API-28 device. @color/window_bg has a
+      values-night/ variant so the brief pre-draw flash matches the system theme.
     -->
-    <style name="Theme.KatalkAssist" parent="@android:style/Theme.DeviceDefault.DayNight">
-        <item name="android:windowNoTitle">true</item>
-        <item name="android:windowActionBar">false</item>
+    <style name="Theme.KatalkAssist" parent="@android:style/Theme.DeviceDefault.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_bg</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
     </style>
 </resources>

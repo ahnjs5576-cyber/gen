@@ -14,6 +14,7 @@ import com.example.katalkassist.util.Redact
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
@@ -121,6 +122,11 @@ class KatalkNotificationListener : NotificationListenerService() {
 
     override fun onListenerConnected() {
         Redact.d { "listener connected" }
+    }
+
+    override fun onDestroy() {
+        scope.cancel()
+        super.onDestroy()
     }
 
     companion object {

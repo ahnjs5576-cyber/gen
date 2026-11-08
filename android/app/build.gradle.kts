@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
     id("com.google.devtools.ksp")
 }
 
@@ -36,9 +37,8 @@ android {
     buildFeatures {
         compose = true
     }
-    composeOptions {
-        kotlinCompilerExtensionVersion = "1.5.14"
-    }
+    // No composeOptions/kotlinCompilerExtensionVersion needed: the Compose
+    // compiler is supplied by the kotlin.plugin.compose plugin on Kotlin 2.0+.
 }
 
 dependencies {

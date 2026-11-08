@@ -37,7 +37,10 @@ class ImportManager(
             val isMine = myName.isNotBlank() && msg.sender == myName
             repo.add(
                 MessageEntity(
-                    roomKey = "import:${result.roomName}",
+                    // Key by room name (no "import:" prefix) so imported history
+                    // merges into the SAME room as live notifications when the
+                    // conversation title matches — past context then feeds the drafter.
+                    roomKey = result.roomName,
                     roomName = result.roomName,
                     sender = if (isMine) "나" else msg.sender,
                     text = msg.text,

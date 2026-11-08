@@ -31,13 +31,16 @@ class RemoteReplyDrafter(private val prefs: Prefs) : ReplyDrafter {
         .build()
 
     override suspend fun draft(thread: List<MessageEntity>): List<ReplySuggestion> {
-        val key = prefs.llmApiKey?.takeIf { it.isNotBlank() } ?: return emptyList()
         if (thread.isEmpty()) return emptyList()
 
-        val conversation = formatConversation(thread, prefs.pseudonymize)
-        val body = buildRequest(prefs.modelId, conversation)
-
         return withContext(Dispatchers.IO) {
+            // Read the encrypted key + build the body on IO — EncryptedSharedPreferences
+            // does Keystore + disk work that must not run on the main thread.
+            val key = prefs.llmApiKey?.takeIf { it.isNotBlank() }
+                ?: return@withContext emptyList()
+            val conversation = formatConversation(thread, prefs.pseudonymize)
+            val body = buildRequest(prefs.modelId, conversation)
+
             val request = Request.Builder()
                 .url("https://api.anthropic.com/v1/messages")
                 .header("x-api-key", key)

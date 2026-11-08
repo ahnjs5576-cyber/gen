@@ -54,6 +54,8 @@ ui/*                                   ← Jetpack Compose 화면 (목록/대화
 | 내보내기 import | 그 방의 과거 전체(또는 긴) 히스토리 | 수동(사용자가 파일 선택) | 공식 '대화 내보내기' .txt 파싱 |
 
 둘 다 루팅·복호화 없이, 안드로이드/카카오톡이 **정당하게 내주는 데이터**만 씁니다.
+두 소스는 **방 이름을 같은 `roomKey`로** 저장하므로, 내보내기로 가져온 과거 대화가 같은 이름의
+실시간 방에 합쳐져 답장 생성의 맥락으로 함께 쓰입니다.
 
 ## LLM 답장 생성 (Claude)
 
@@ -74,8 +76,11 @@ ui/*                                   ← Jetpack Compose 화면 (목록/대화
   나가지 않습니다.
 - **보존기간 제한** — `Prefs.retentionHours`(기본 24h). `0`이면 저장 자체를 하지 않는
   휘발 모드.
-- **방 화이트리스트** — `Prefs.allowedRooms`에 담긴 방만 캡처(비어 있으면 전체).
-- **전송 분리** — `manualSendOnly` 기본 켜짐 권장. 초안만 만들고 전송은 사용자가.
+- **방 화이트리스트** — 설정에서 캡처할 방 이름을 지정(비우면 전체). `Prefs.allowedRooms`로
+  저장되고 알림 리스너가 이 목록으로 거릅니다.
+- **전송 분리(기본 ON)** — `manualSendOnly`가 켜져 있으면 '전송' 버튼을 숨기고 '복사'만
+  제공합니다. 초안은 앱이 만들고, 전송은 카톡에서 직접 — 대화방이 '읽음'으로 바뀌는 부작용을
+  피합니다. 설정에서 끄면 알림 직접답장으로 앱에서 바로 보냅니다.
 - **로그 가림** — `Redact`가 이름/본문을 로그에 남기지 않음.
 - **키는 Keystore** — API 키는 `EncryptedSharedPreferences`에만.
 
@@ -92,14 +97,16 @@ ui/*                                   ← Jetpack Compose 화면 (목록/대화
 ## 빌드
 
 Android Studio(Giraffe+)에서 `android/` 폴더를 열면 됩니다.
-Gradle Wrapper jar는 저장소에 포함하지 않았으니, 최초 1회:
+Gradle Wrapper(`gradlew` + `gradle/wrapper/gradle-wrapper.jar`)가 포함돼 있어 바로 빌드됩니다:
 
 ```bash
 cd android
-gradle wrapper        # 로컬에 gradle이 있으면
-# 또는 Android Studio가 자동 생성
 ./gradlew assembleDebug
 ```
+
+> ⚠️ 이 저장소는 Android SDK가 없는 환경에서 작성돼 **실제 컴파일 검증은 하지 못했습니다.**
+> 순수 로직인 내보내기 파서는 별도 테스트로 검증했고, 나머지는 정적 리뷰로 점검했습니다.
+> 첫 빌드에서 의존성/버전 조정이 필요할 수 있습니다.
 
 `minSdk 28 (Android 9.0)`, `targetSdk 34`.
 

@@ -9,9 +9,11 @@ import com.example.katalkassist.importer.ImportManager
 import com.example.katalkassist.reply.RemoteReplyDrafter
 import com.example.katalkassist.reply.ReplySuggestion
 import com.example.katalkassist.reply.TemplateReplyDrafter
+import com.example.katalkassist.service.ReplyActionCache
 import com.example.katalkassist.service.ReplySender
 import com.example.katalkassist.util.Prefs
 import com.example.katalkassist.util.Redact
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +21,7 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -44,26 +47,37 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     val suggestions = MutableStateFlow<List<ReplySuggestion>>(emptyList())
 
+    /** Bumps when a direct-reply handle appears/expires, so the UI recomputes "can send". */
+    val replyHandleVersion: StateFlow<Int> = ReplyActionCache.changes
+
     fun selectRoom(roomKey: String?) {
         selectedRoom.value = roomKey
         suggestions.value = emptyList()
         if (roomKey != null) refreshSuggestions(roomKey)
     }
 
+    /** Re-generate suggestions for the open room (e.g. after new messages arrive). */
+    fun reSuggest() {
+        selectedRoom.value?.let { refreshSuggestions(it) }
+    }
+
     private fun refreshSuggestions(roomKey: String) {
         viewModelScope.launch {
             loadingSuggestions.value = true
             try {
-                val recent = repo.recent(roomKey, limit = 20).reversed() // oldest first
-                suggestions.value = if (prefs.llmReady()) {
-                    // LLM first; fall back to the offline template on any failure.
-                    runCatching { remote.draft(recent) }
-                        .onFailure { Redact.w("remote drafter failed, using template") }
-                        .getOrNull()
-                        ?.takeIf { it.isNotEmpty() }
-                        ?: template.draft(recent)
-                } else {
-                    template.draft(recent)
+                // All drafting + the encrypted-pref read runs off the main thread.
+                suggestions.value = withContext(Dispatchers.IO) {
+                    val recent = repo.recent(roomKey, limit = 20).reversed() // oldest first
+                    if (prefs.llmReady()) {
+                        // LLM first; fall back to the offline template on any failure.
+                        runCatching { remote.draft(recent) }
+                            .onFailure { Redact.w("remote drafter failed, using template") }
+                            .getOrNull()
+                            ?.takeIf { it.isNotEmpty() }
+                            ?: template.draft(recent)
+                    } else {
+                        template.draft(recent)
+                    }
                 }
             } finally {
                 loadingSuggestions.value = false
@@ -82,14 +96,20 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun saveSettings(
         apiKey: String?, useLlm: Boolean, model: String,
-        pseudonymize: Boolean, retentionHours: Int, myName: String
+        pseudonymize: Boolean, retentionHours: Int, myName: String,
+        manualSendOnly: Boolean, allowedRooms: Set<String>
     ) {
-        if (apiKey != null) prefs.llmApiKey = apiKey.trim().ifBlank { null }
-        prefs.useLlm = useLlm
-        prefs.modelId = model
-        prefs.pseudonymize = pseudonymize
-        prefs.retentionHours = retentionHours
-        prefs.myDisplayName = myName.trim()
+        // Off the main thread: writing llmApiKey touches EncryptedSharedPreferences.
+        viewModelScope.launch(Dispatchers.IO) {
+            if (apiKey != null) prefs.llmApiKey = apiKey.trim().ifBlank { null }
+            prefs.useLlm = useLlm
+            prefs.modelId = model
+            prefs.pseudonymize = pseudonymize
+            prefs.retentionHours = retentionHours
+            prefs.myDisplayName = myName.trim()
+            prefs.manualSendOnly = manualSendOnly
+            prefs.allowedRooms = allowedRooms
+        }
     }
 
     /** True if a working direct-reply handle exists for the selected room. */
