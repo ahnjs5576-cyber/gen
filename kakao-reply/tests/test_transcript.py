@@ -60,8 +60,11 @@ class GuessMeTest(unittest.TestCase):
     def test_common_sender(self):
         a = Chat(messages=[Message("철수", "a"), Message("민수", "b")])
         b = Chat(messages=[Message("철수", "a"), Message("지은", "b")])
-        self.assertEqual(guess_me_across([a, b]), "철수")
-        self.assertIsNone(guess_me_across([a]))
+        c = Chat(messages=[Message("철수", "a"), Message("현우", "b")])
+        self.assertEqual(guess_me_across([a, b, c]), "철수")
+        self.assertIsNone(guess_me_across([a, b]))  # 방 2개로는 추정하지 않는다
+        alone = Chat(messages=[Message("철수", "a")])
+        self.assertIsNone(guess_me_across([a, b, alone]))  # 혼자 말한 방이 있으면 추정하지 않는다
 
 
 class TranscriptRound7Test(unittest.TestCase):

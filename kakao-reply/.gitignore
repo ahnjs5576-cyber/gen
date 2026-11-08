@@ -3,3 +3,4 @@ __pycache__/
 .venv/
 # 실제 대화 내보내기 파일은 커밋하지 않기
 exports/
+build/

@@ -72,14 +72,16 @@ def _require_me(chat: Chat, me: str | None) -> str:
     return me
 
 
-def _filtered(chat: Chat, days: int | None) -> Chat:
+def _filtered(chat: Chat, days: int | None, from_last: bool = False) -> Chat:
     if chat.skipped:
         print(f"※ 형식이 깨져 읽지 못한 줄이 {chat.skipped}개 있어요.", file=sys.stderr)
     if chat.undated:
         note = " (--days 를 쓰면 빠집니다)" if days else ""
         print(f"※ 시간을 읽지 못한 메시지가 {chat.undated}개 있어요{note}.", file=sys.stderr)
-    out = filter_period(chat, days)
+    out = filter_period(chat, days, from_last=from_last)
     if not out.messages:
+        if from_last:
+            _fail("보낼 메시지가 없어요. 메시지 시간을 읽지 못했을 수 있어요 (위 안내 참고). --days 로 범위를 지정해 보세요.")
         _fail(f"최근 {days}일 안에 메시지가 없어요. --days 를 늘리거나 빼고 다시 실행하세요.")
     log.info("loaded %s", log_summary(out))  # 이름·내용은 로그에 남기지 않는다
     return out
@@ -128,10 +130,9 @@ def _positive(value: str) -> int:
 
 
 def _days(value: str) -> int:
-    n = _positive(value)
-    if n > 36500:
+    if re.fullmatch(r"[0-9]+", value) and int(value) > 36500:
         raise argparse.ArgumentTypeError(f"너무 길어요 (최대 36500일): {value}")
-    return n
+    return _positive(value)
 
 
 def _non_negative(value: str) -> int:
@@ -210,7 +211,7 @@ def cmd_inbox(args) -> None:
         who = "나" if r.last_is_mine else (r.last_sender or "?")
         notes = []
         if r.last_is_mine is not None and not r.me_seen:
-            notes.append("본인 메시지 없음")
+            notes.append("본인 메시지 없음 · 답장 필요?")
         elif r.last_is_mine is False:
             notes.append("답장 필요")
         if r.pending_attachments:
@@ -307,12 +308,8 @@ def cmd_suggest(args) -> None:
     full = _parse(args.file)
     label, other_names = _resolve_me(full, args.me)
     me = _require_me(full, label)
-    if args.days is None:
-        # 기본 범위: 마지막 메시지 기준 최근 DEFAULT_DAYS 일 (조용한 방에서 몇 달 치가 통째로 나가지 않게)
-        chat = filter_period(full, DEFAULT_DAYS, from_last=True)
-        log.info("loaded %s", log_summary(chat))
-    else:
-        chat = _filtered(full, args.days)
+    # 기본 범위: 마지막 메시지 기준 최근 DEFAULT_DAYS 일 (조용한 방에서 몇 달 치가 통째로 나가지 않게)
+    chat = _filtered(full, args.days or DEFAULT_DAYS, from_last=args.days is None)
     status = room_status(chat, me)
     _stale_warning(status)
     if args.last > 0:  # 보낼 범위만 남긴다 (가명 처리도 이 범위만 하면 된다)
@@ -370,6 +367,7 @@ def cmd_suggest(args) -> None:
         result.summary = pseudo.restore(result.summary)
         for p in result.pending_points:
             p.sender, p.point = pseudo.restore(p.sender), pseudo.restore(p.point)
+        result.suspicious = pseudo.restore(result.suspicious)
         for s in result.suggestions:
             s.intent, s.text = pseudo.restore(s.intent), pseudo.restore(s.text)
             s.placeholders = [pseudo.restore(x) for x in s.placeholders]
@@ -406,7 +404,7 @@ def cmd_key(args) -> None:
             secrets.set_api_key(value)
         except RuntimeError as e:
             _fail(str(e))
-        print("키체인에 저장했습니다.")
+        print("운영체제의 안전한 저장소(맥 키체인 / 윈도우 자격 증명 관리자)에 저장했습니다.")
     else:
         print("삭제했습니다." if secrets.delete_api_key() else "저장된 키가 없습니다.")
 

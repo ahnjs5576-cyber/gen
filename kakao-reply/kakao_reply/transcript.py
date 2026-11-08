@@ -20,8 +20,8 @@ def guess_me(chat: Chat) -> str | None:
 
 
 def guess_me_across(chats: list[Chat]) -> str | None:
-    """여러 방에 모두 등장하는 발신자가 딱 한 명이면 그 사람이 본인일 가능성이 높다."""
-    if len(chats) < 2:
+    """여러 방(3개 이상)에 모두 등장하는 발신자가 딱 한 명이고, 어느 방에서도 혼자 말한 게 아니면 본인일 가능성이 높다."""
+    if len(chats) < 3 or any(len(c.participants) < 2 for c in chats):
         return None
     common = set(chats[0].participants)
     for c in chats[1:]:
@@ -79,13 +79,15 @@ class RoomStatus:
 def room_status(chat: Chat, me: str | None, now: datetime | None = None) -> RoomStatus:
     now = now or datetime.now()
     last = chat.messages[-1] if chat.messages else None
+    pending = pending_messages(chat, me)
     return RoomStatus(
         title=chat.title or "(제목 없음)",
         message_count=len(chat.messages),
         last_time=chat.last_time,
         last_sender=last.sender if last else None,
-        last_is_mine=(last.sender == me) if (last and me) else None,
-        pending=pending_messages(chat, me),
+        # 마지막이 내 사진·이모티콘뿐이고 그 앞에 답할 게 남아 있으면 '내 메시지' 로 보지 않는다
+        last_is_mine=(last.sender == me and not (last.attachment and pending)) if (last and me) else None,
+        pending=pending,
         saved_at=chat.saved_at,
         saved_at_estimated=chat.saved_at_estimated,
         stale=bool(chat.saved_at and now - chat.saved_at > STALE_AFTER),

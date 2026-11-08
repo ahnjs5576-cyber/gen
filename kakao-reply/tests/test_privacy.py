@@ -587,5 +587,53 @@ class IdentifierRound8Test(unittest.TestCase):
         self.assertEqual(p.text("철수야 김민수야"), "[본인]아 상대1아")
 
 
+class Round9PrivacyTest(unittest.TestCase):
+    def test_one_to_one_titles_with_extra_word(self):
+        from kakao_reply.privacy import title_person_core
+        for title, core in (("대학동기 김민수", "김민수"), ("삼성 김민수", "김민수"), ("김민수 삼성", "김민수"),
+                            ("헬스장 민수", "민수"), ("부동산 김민수", "김민수"), ("내사랑 민수", "민수")):
+            self.assertEqual(title_person_core(title), core, title)
+        for title in ("주말 등산", "영어 스터디"):
+            self.assertIsNone(title_person_core(title), title)
+        p = _p(["Minsu", "나"], me="나", title="대학동기 김민수")
+        self.assertNotIn("민수", p.text("민수가 쏜다 김민수 생일이니까"))
+
+    def test_parent_nicknames_with_eomeonim(self):
+        p = _p(["지호어머님", "예린 어머님", "도윤어머니", "서준파파", "민준학부모", "나"], me="나")
+        out = p.text("어머 지호 괜찮아요? 어머님 감사합니다 예린이 도윤이 서준이 민준이")
+        for child in ("지호", "예린", "도윤", "서준", "민준"):
+            self.assertNotIn(child, out)
+        self.assertIn("어머 ", out)
+        self.assertIn("어머님 감사합니다", out)
+        self.assertEqual(p.sender_map["지호어머님"], "상대1(○○어머님)")
+        self.assertEqual(p.restore("상대1님"), "지호어머님")
+
+    def test_long_particles_after_third_party_and_common_names(self):
+        p = _p(["김민수", "이하늘", "정지원", "철수"], me="철수")
+        for raw in ("영희씨만", "영희님까지", "영희씨처럼", "영희님께서도", "김영희 과장님께서", "박하은 선생님께서",
+                    "김영희 과장한테", "하늘씨한테도", "지원님께서는", "지원씨만"):
+            self.assertNotRegex(p.text(raw), "영희|하은|하늘|지원", raw)
+        for kept in ("관장님이 오늘 수업 없대", "큰형님", "도우미님", "글솜씨", "날씨"):
+            self.assertEqual(p.text(kept), kept)
+
+    def test_name_with_digits_not_merged_into_alias(self):
+        p = _p(["🐶민수94", "나"], me="나")
+        self.assertEqual(p.text("민수94 민수 민수가"), "상대1 상대1 상대1이")
+
+    def test_spaced_syllable_nicknames_and_birthdate(self):
+        self.assertIn("김민수", name_forms("김 민 수"))
+        self.assertIn("민수", name_forms("민-수"))
+        self.assertEqual(mask_identifiers("생년월일 900302"), "생년월일 [생년월일]")
+
+    def test_restore_particles_round9(self):
+        p = _p(["김민수", "박지은", "서준맘", "나"], me="나")
+        self.assertEqual(p.restore("상대2한테"), "박지은한테")
+        self.assertEqual(p.restore("상대2야말로"), "박지은이야말로")
+        self.assertEqual(p.restore("상대1이죠"), "김민수죠")
+        self.assertEqual(p.restore("[본인]로서"), "나로서")
+        self.assertEqual(p.restore("상대3아"), "서준맘아")  # 아이 이름(서준)으로 부르지 않는다
+        self.assertEqual(p.text("윤서가 [이름]가"), "윤서가 [이름]이")
+
+
 if __name__ == "__main__":
     unittest.main()

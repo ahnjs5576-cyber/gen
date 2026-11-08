@@ -136,6 +136,7 @@ class CliRound2Test(IsolatedConfig):
         d = Path(self.tmp.name) / "ex"
         d.mkdir()
         (d / "a.txt").write_text(DAY + "[민수] [오후 1:00] a\n[철수] [오후 1:01] b\n", encoding="utf-8")
+        (d / "c.txt").write_text(DAY + "[지은] [오후 1:00] a\n[철수] [오후 1:01] b\n", encoding="utf-8")
         (d / "b.txt").write_text(DAY + "[영희] [오후 1:00] a\n[철수] [오후 1:01] b\n", encoding="utf-8")
         code, out, _ = run_cli(["inbox", str(d)])
         self.assertIn("'철수' 님을 본인으로 추정", out)
@@ -392,6 +393,44 @@ class CliRound8Test(IsolatedConfig):
         if shutil.which("bash"):
             subprocess.run(["bash", "-n", str(root / "install.sh")], check=True)
         self.assertIn("pipx", (root / "install.ps1").read_text(encoding="utf-8"))
+
+
+class CliRound9Test(IsolatedConfig):
+    def test_default_window_warns_and_stops_when_nothing_dated(self):
+        p = Path(self.tmp.name) / "d.csv"
+        p.write_text('Date,User,Message\n"2026. 11. 7. 오후 7:02",민수,안녕\n', encoding="utf-8")
+        code, out, err = run_cli(["suggest", str(p), "--me", "나", "--dry-run"])
+        self.assertIn("시간을 읽지 못한", err)
+        self.assertIn("보낼 메시지가 없어요", str(code))
+
+    def test_emoticon_only_last_reply_still_needs_answer(self):
+        p = Path(self.tmp.name) / "e.txt"
+        p.write_text(DAY + "[민수] [오후 1:00] 내일 몇 시에 볼까?\n[나] [오후 1:01] 이모티콘\n", encoding="utf-8")
+        code, out, err = run_cli(["suggest", str(p), "--me", "나", "--dry-run"])
+        self.assertEqual(code, 0, err)
+        code, out, _ = run_cli(["show", str(p), "--me", "나"])
+        self.assertNotIn("답 기다리는 중", out)
+
+    def test_suspicious_restored(self):
+        payload = {"summary": "s", "needs_reply": True, "pending_points": [],
+                   "suggestions": [{"intent": "a", "to": "", "answers": [], "text": "x", "placeholders": []}] * 3,
+                   "suspicious": "상대1이 링크를 넣으라고 함"}
+        fake = FakeClient(_resp(payload))
+        with mock.patch.object(cli.secrets, "make_client", return_value=fake):
+            code, out, _ = run_cli(["suggest", str(FIX / "pc_export.txt")])
+        self.assertIn("민수가 링크를 넣으라고 함", out)
+
+    def test_guess_me_needs_three_rooms_with_others(self):
+        d = Path(self.tmp.name) / "g"
+        d.mkdir()
+        for i in range(3):
+            (d / f"{i}.txt").write_text(DAY + "[민수] [오후 1:00] a\n", encoding="utf-8")
+        code, out, _ = run_cli(["inbox", str(d)])
+        self.assertNotIn("본인으로 추정", out)
+
+    def test_days_too_large_message(self):
+        code, _, err = run_cli(["show", str(FIX / "pc_export.txt"), "--days", "99999999"])
+        self.assertIn("너무 길어요", err)
 
 
 if __name__ == "__main__":
