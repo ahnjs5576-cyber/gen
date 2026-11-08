@@ -433,5 +433,15 @@ class CliRound9Test(IsolatedConfig):
         self.assertIn("너무 길어요", err)
 
 
+
+class SecretsEnvKeyTest(unittest.TestCase):
+    def test_env_key_goes_straight_to_anthropic(self):
+        from kakao_reply import secrets
+        with mock.patch.dict(os.environ, {"KAKAO_REPLY_API_KEY": "sk-test", "ANTHROPIC_BASE_URL": "http://proxy.local"}):
+            client = secrets.make_client()
+        self.assertEqual(client.api_key, "sk-test")
+        self.assertEqual(str(client.base_url).rstrip("/"), "https://api.anthropic.com")
+
+
 if __name__ == "__main__":
     unittest.main()

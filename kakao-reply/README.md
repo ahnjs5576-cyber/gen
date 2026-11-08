@@ -60,7 +60,7 @@
    kakao-reply me 철수     # 내보낸 파일에 찍히는 본인 이름
    ```
 
-API 키는 `kakao-reply key set` 으로 저장하는 것을 권장합니다. `ANTHROPIC_API_KEY` 환경변수도 동작하지만 `.zshrc` 같은 평문 파일에 남기 쉽습니다.
+API 키는 `kakao-reply key set` 으로 저장하는 것을 권장합니다. 키체인이 없는 곳(클라우드 개발 환경 등)에서는 `KAKAO_REPLY_API_KEY` 환경변수에 넣으면 됩니다 — 이 키는 다른 프로그램의 `ANTHROPIC_BASE_URL` 설정과 상관없이 api.anthropic.com 으로 직접 보냅니다. `ANTHROPIC_API_KEY` 환경변수도 동작하지만 `.zshrc` 같은 평문 파일에 남기 쉽습니다.
 
 ## 대화 내보내기 방법
 
