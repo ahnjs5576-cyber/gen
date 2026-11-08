@@ -1,1 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="112" fill="#2348c9"/><path d="M0 0" fill="none"/><text x="256" y="300" text-anchor="middle" font-family="ui-monospace,Menlo,monospace" font-size="168" font-weight="700" fill="#ffffff">CS</text><rect x="136" y="352" width="240" height="24" rx="12" fill="#ffffff" opacity=".55"/><rect x="136" y="352" width="96" height="24" rx="12" fill="#ffffff"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" rx="14" fill="#2b2a33"/>
+  <path d="M32 14a5 5 0 0 0-5 5h4a1.4 1.4 0 1 1 1.4 1.4c-1.2 0-2.4.9-2.4 2.3v2.6L12.6 37.8A4.2 4.2 0 0 0 15 45.5h34a4.2 4.2 0 0 0 2.4-7.7L34 25.3v-1.6A5 5 0 0 0 32 14Z" fill="none" stroke="#f3ead8" stroke-width="3.2" stroke-linejoin="round"/>
+  <circle cx="24" cy="51" r="3" fill="#d9772f"/>
+  <circle cx="32" cy="51" r="3" fill="#2b5fa8"/>
+  <circle cx="40" cy="51" r="3" fill="#dcc6a6"/>
+</svg>

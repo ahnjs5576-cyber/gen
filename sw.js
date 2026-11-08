@@ -1,27 +1,21 @@
-// 오프라인 캐시: 앱 셸과 콘텐츠를 미리 받아 두고, 네트워크가 되면 최신본으로 갱신한다.
-const CACHE = 'haru-cs-v1';
-const ASSETS = [
-  './', 'index.html', 'styles.css', 'app.js', 'icon.svg', 'manifest.webmanifest',
-  'content/algorithm.js', 'content/os.js', 'content/database.js',
-  'content/architecture.js', 'content/ml.js', 'content/dl.js',
-];
+/* 옷짝 오프라인 캐시. 앱 셸은 미리 받아 두고, 나머지는 네트워크 우선으로 가져온다.
+ * SDK 번들은 AI 분석을 처음 쓸 때 받아서 캐시에 넣는다. */
+const VERSION = 'otjjak-v1';
+const SHELL = ['./', './index.html', './styles.css', './engine.js', './ai.js', './app.js', './icon.svg', './manifest.webmanifest'];
+
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== VERSION).map(k => caches.delete(k)))).then(() => self.clients.claim()));
 });
 self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
+  const url = new URL(e.request.url);
+  if (e.request.method !== 'GET' || url.origin !== self.location.origin) return; // API 호출은 건드리지 않는다
   e.respondWith(
-    fetch(e.request)
-      .then(res => {
-        if (res.ok && new URL(e.request.url).origin === location.origin) {
-          const copy = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, copy));
-        }
-        return res;
-      })
-      .catch(() => caches.match(e.request).then(r => r || caches.match('index.html')))
+    fetch(e.request).then(res => {
+      if (res.ok) { const copy = res.clone(); caches.open(VERSION).then(c => c.put(e.request, copy)); }
+      return res;
+    }).catch(() => caches.match(e.request).then(hit => hit || caches.match('./index.html')))
   );
 });
