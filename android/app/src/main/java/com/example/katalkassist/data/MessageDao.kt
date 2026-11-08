@@ -11,12 +11,22 @@ interface MessageDao {
     @Insert
     suspend fun insert(message: MessageEntity): Long
 
-    /** Most recent message per room, newest first — drives the room list. */
+    /**
+     * Most recent message per room, newest first — drives the room list.
+     * The representative row is the latest by TIME (receivedAt), tie-broken by id.
+     * (Not MAX(id): imported rows are inserted later but carry old timestamps, so
+     * id-order != time-order once a room mixes live + imported messages.)
+     */
     @Query(
         """
-        SELECT * FROM messages
-        WHERE id IN (SELECT MAX(id) FROM messages GROUP BY roomKey)
-        ORDER BY receivedAt DESC
+        SELECT * FROM messages m
+        WHERE m.id = (
+            SELECT id FROM messages
+            WHERE roomKey = m.roomKey
+            ORDER BY receivedAt DESC, id DESC
+            LIMIT 1
+        )
+        ORDER BY m.receivedAt DESC
         """
     )
     fun roomSummaries(): Flow<List<MessageEntity>>

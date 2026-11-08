@@ -22,6 +22,9 @@ object ReplyActionCache {
         val capturedAt: Long = System.currentTimeMillis()
     )
 
+    /** How long a captured reply handle is assumed usable. */
+    private const val TTL_MS = 15 * 60 * 1000L
+
     private val handles = HashMap<String, Handle>()
 
     /** Bumped whenever the handle set changes, so UI can recompute send-availability. */
@@ -34,8 +37,22 @@ object ReplyActionCache {
         _changes.value++
     }
 
+    /**
+     * Returns a usable handle, or null if none / expired. A reply handle goes
+     * stale once KakaoTalk updates or dismisses the notification; we can't observe
+     * that, so evict handles older than [TTL_MS] to avoid offering "전송" on a dead
+     * handle (the send would fail and fall back to copy anyway).
+     */
     @Synchronized
-    fun get(roomKey: String): Handle? = handles[roomKey]
+    fun get(roomKey: String): Handle? {
+        val h = handles[roomKey] ?: return null
+        if (System.currentTimeMillis() - h.capturedAt > TTL_MS) {
+            handles.remove(roomKey)
+            _changes.value++
+            return null
+        }
+        return h
+    }
 
     @Synchronized
     fun remove(roomKey: String) {
