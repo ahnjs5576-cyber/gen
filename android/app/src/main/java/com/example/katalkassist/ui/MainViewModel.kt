@@ -87,6 +87,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun importExport(uri: android.net.Uri, onDone: (String) -> Unit) {
         viewModelScope.launch {
+            // Ephemeral mode means "don't persist to disk" — importing would violate
+            // that (imported rows are exempt from prune, so they'd persist forever).
+            if (prefs.retentionHours == 0) {
+                onDone("휘발 모드에서는 가져오기가 저장되지 않아요. 설정에서 보존 시간을 1시간 이상으로 바꿔주세요.")
+                return@launch
+            }
             val msg = runCatching { importer.importFrom(uri) }
                 .map { "‘${it.roomName}’에서 ${it.imported}개 메시지를 가져왔어요" }
                 .getOrElse { "가져오기 실패: ${it.message}" }
@@ -118,7 +124,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     /** Returns true if dispatched; false → caller should copy & send manually. */
     fun send(context: android.content.Context, roomKey: String, text: String): Boolean {
         val ok = ReplySender.send(context, roomKey, text)
-        if (ok) {
+        if (ok && prefs.retentionHours > 0) {   // honor ephemeral mode: don't persist
             viewModelScope.launch {
                 repo.add(
                     MessageEntity(

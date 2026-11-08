@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit
  * LLM-backed drafter — calls the Claude Messages API directly.
  *
  * Privacy: when [Prefs.pseudonymize] is on (default), real sender names are
- * replaced with stable labels (상대 / 상대A·B) before anything is sent. The key
+ * replaced with stable labels (상대, 상대2, 상대3 …) before anything is sent. The key
  * is read from EncryptedSharedPreferences and sent only to api.anthropic.com.
  *
  * Note: this calls Claude from the device with the user's own key. That's fine

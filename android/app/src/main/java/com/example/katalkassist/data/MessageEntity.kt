@@ -43,5 +43,13 @@ data class MessageEntity(
      * True when this row represents OUR last sent reply (so the UI can compute
      * "is the last message mine?"). Populated when we send via RemoteInput.
      */
-    val isMine: Boolean = false
+    val isMine: Boolean = false,
+
+    /**
+     * True for rows brought in from an official export import. Imported rows carry
+     * HISTORICAL timestamps, so they must be exempt from the time-based retention
+     * prune (which keys off receivedAt) — otherwise the first live message would
+     * wipe the imported history the import was meant to provide.
+     */
+    val imported: Boolean = false
 )

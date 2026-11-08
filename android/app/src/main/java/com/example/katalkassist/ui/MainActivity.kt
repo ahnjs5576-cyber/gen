@@ -407,7 +407,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
             ) { Text("카카오톡 내보내기 .txt 가져오기") }
             Text(
                 "카카오톡 채팅방 → 메뉴 → 대화 내보내기 → 텍스트로 저장한 파일을 선택하세요. " +
-                    "과거 대화 전체 맥락을 답장 생성에 사용합니다.",
+                    "가져온 과거 대화가 같은 방에 합쳐져 답장 생성의 맥락(최근 메시지 위주)으로 쓰입니다.",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.outline
             )

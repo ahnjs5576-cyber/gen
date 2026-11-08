@@ -52,8 +52,8 @@ class Prefs(context: Context) {
         set(v) = plain.edit().putBoolean(KEY_USE_LLM, v).apply()
 
     /**
-     * Replace real names with stable labels (상대, 상대A/B) before sending context
-     * to the LLM. Default ON — minimize identifying data leaving the device.
+     * Replace real names with stable labels (상대, 상대2, 상대3 …) before sending
+     * context to the LLM. Default ON — minimize identifying data leaving the device.
      */
     var pseudonymize: Boolean
         get() = plain.getBoolean(KEY_PSEUDO, true)

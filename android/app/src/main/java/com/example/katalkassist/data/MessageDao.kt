@@ -28,8 +28,12 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE roomKey = :roomKey ORDER BY receivedAt DESC LIMIT :limit")
     suspend fun recent(roomKey: String, limit: Int): List<MessageEntity>
 
-    /** Delete anything older than [cutoff] — enforces the retention window. */
-    @Query("DELETE FROM messages WHERE receivedAt < :cutoff")
+    /**
+     * Delete live-captured rows older than [cutoff] — enforces the retention window.
+     * Imported rows are exempt (they carry historical timestamps and are kept until
+     * the user clears them explicitly).
+     */
+    @Query("DELETE FROM messages WHERE receivedAt < :cutoff AND imported = 0")
     suspend fun prune(cutoff: Long)
 
     @Query("DELETE FROM messages")

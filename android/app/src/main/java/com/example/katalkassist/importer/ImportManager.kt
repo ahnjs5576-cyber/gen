@@ -46,7 +46,8 @@ class ImportManager(
                     text = msg.text,
                     receivedAt = msg.epochMillis,
                     canReply = false,   // imported history can't be replied to directly
-                    isMine = isMine
+                    isMine = isMine,
+                    imported = true     // exempt from the time-based retention prune
                 )
             )
         }
