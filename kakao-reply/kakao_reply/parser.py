@@ -74,6 +74,9 @@ _ATTACHMENTS = [
 ]
 
 
+MEDIA_KINDS = {"사진", "동영상", "파일", "음성메시지"}  # 원본이 따로 있는 첨부물
+
+
 @dataclass
 class Message:
     sender: str
@@ -168,12 +171,15 @@ def parse_text(content: str) -> Chat:
     def start(msg: Message | None) -> None:
         nonlocal last, body
         if last is not None and held and fmt == "mobile":
-            # 보류한 모바일 날짜 줄은 다음 메시지의 날짜와 같을 때만 구분선이다. 다르거나 파일 끝이면 본문에 쓴 날짜다.
-            for h in held:
-                if (dm := _MOBILE_DATE.match(h.strip())) and (
-                        msg is None or msg.time is None or
-                        (int(dm["y"]), int(dm["mo"]), int(dm["d"])) != (msg.time.year, msg.time.month, msg.time.day)):
-                    body.append(h)
+            # 보류한 줄이 '날짜 줄 하나'뿐일 때만 본문일 수 있다: 다음 메시지 날짜와 다르거나 파일 끝이면 본문에 쓴 날짜.
+            # 날짜 줄과 시스템 줄이 섞여 있으면(시스템 메시지만 있던 날) 모두 구분선/시스템 줄이다.
+            dates = [h for h in held if _MOBILE_DATE.match(h.strip())]
+            others = [h for h in held if h.strip() and not _MOBILE_DATE.match(h.strip())]
+            if len(dates) == 1 and not others:
+                dm = _MOBILE_DATE.match(dates[0].strip())
+                if msg is None or msg.time is None or \
+                        (int(dm["y"]), int(dm["mo"]), int(dm["d"])) != (msg.time.year, msg.time.month, msg.time.day):
+                    body.append(dates[0])
         if last is not None:
             last.text = "\n".join(body).rstrip("\n")
         held.clear()
@@ -250,7 +256,9 @@ def parse_csv(content: str) -> Chat:
         raise ExportReadError("CSV 첫 줄이 카카오톡 형식(Date,User,Message)이 아닙니다. 카카오톡에서 내보낸 CSV 인지 확인하세요.")
     for row in rows:
         sender = (row.get("User") or "").strip()
-        if not sender or "\n" in sender or len(sender) > 60:
+        if not sender:
+            continue  # 발신자가 빈 줄은 시스템 줄로 보고 조용히 건너뛴다
+        if "\n" in sender or len(sender) > 60:
             chat.skipped += 1  # 따옴표가 깨진 줄 등: 발신자로 볼 수 없는 값
             continue
         t = None
@@ -309,8 +317,10 @@ def parse_file(path: str | Path) -> Chat:
     name_title, name_saved = _from_filename(p.stem)
     if chat.title is None:
         chat.title = name_title or p.stem
-    if chat.title and (mc := re.search(r"\s+(\d{1,4})$", chat.title)):
-        chat.member_count = int(mc.group(1))  # 단체방 제목 뒤 인원수 ('가족 4')
+    if chat.title and (mc := re.search(r"\s+(\d{1,4})$", chat.title)) and 3 <= int(mc.group(1)) <= 1000:
+        # 단체방 제목 뒤 인원수 ('가족 4'). '송년회 2026' 같은 연도는 제외. 사람 이름 뒤 숫자('김민수 94')인지는
+        # privacy.effective_member_count 가 제목 모양을 보고 다시 판단한다.
+        chat.member_count = int(mc.group(1))
         chat.title = chat.title[: mc.start()]
     if chat.saved_at is None and name_saved is not None:
         chat.saved_at = name_saved

@@ -25,7 +25,7 @@ from pathlib import Path
 from . import config, output, secrets
 from .analyzer import Analysis, analyze, build_request, draft_warnings
 from .parser import Chat, ExportReadError, parse_file
-from .privacy import Pseudonymizer, log_summary
+from .privacy import Pseudonymizer, effective_member_count, log_summary
 from .transcript import describe_age, filter_period, guess_me, guess_me_across, room_status
 
 log = logging.getLogger("kakao_reply")
@@ -85,6 +85,10 @@ def _filtered(chat: Chat, days: int | None) -> Chat:
     return out
 
 
+def _width(text: str) -> int:
+    return sum(2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1 for ch in text)
+
+
 def _pad(text: str, width: int) -> str:
     """한글처럼 화면에서 두 칸을 차지하는 글자를 고려해 왼쪽 정렬."""
     def w(ch: str) -> int:
@@ -117,13 +121,20 @@ SHOW_LIMIT = 20
 
 
 def _positive(value: str) -> int:
-    if not re.fullmatch(r"[0-9]+", value) or int(value) < 1:
+    if not re.fullmatch(r"[0-9]{1,6}", value) or int(value) < 1:
         raise argparse.ArgumentTypeError(f"1 이상의 숫자여야 해요: {value}")
     return int(value)
 
 
+def _days(value: str) -> int:
+    n = _positive(value)
+    if n > 36500:
+        raise argparse.ArgumentTypeError(f"너무 길어요 (최대 36500일): {value}")
+    return n
+
+
 def _non_negative(value: str) -> int:
-    if not re.fullmatch(r"[0-9]+", value):
+    if not re.fullmatch(r"[0-9]{1,7}", value):
         raise argparse.ArgumentTypeError(f"0 이상의 숫자여야 해요: {value}")
     return int(value)
 
@@ -181,7 +192,9 @@ def cmd_inbox(args) -> None:
         _fail(f"{d} 에 읽을 수 있는 내보내기 파일(.txt/.csv)이 없습니다.")
 
     common = args.me or config.load_me()
-    if common and not any(common in c.participants for c in chats):
+    # 직접 준 --me 가 어디에도 없으면 오타일 수 있다. 저장해 둔 이름이 파일의 '나' 로 이어지는 건 정상이라 경고하지 않는다.
+    if (args.me and not any(args.me in c.participants for c in chats)) or \
+            (common and not any(_me_label(c, common) in c.participants for c in chats)):
         print(f"※ '{common}' 님이 보낸 메시지가 어느 방에도 없어요. 이름이 맞는지 확인하세요.", file=sys.stderr)
     if not common and (guessed := guess_me_across(chats)):
         common = guessed
@@ -190,22 +203,25 @@ def cmd_inbox(args) -> None:
     pairs.sort(key=lambda rc: (rc[0].last_time is None, -(rc[0].last_time.timestamp() if rc[0].last_time else 0)))
     rows = [r for r, _ in pairs]
 
-    print(f"{_pad('방', 18)} {_pad('마지막', 12)} {_pad('마지막 발신', 12)} {_pad('답할 것', 8)} {_pad('파일', 24)} 비고")
+    fw = max(_width(n) for n in files.values()) + 1  # 파일 이름은 자르지 않는다 (suggest 에 그대로 붙여 넣게)
+    print(f"{_pad('방', 18)} {_pad('마지막', 12)} {_pad('마지막 발신', 12)} {_pad('답할 것', 8)} {_pad('파일', fw)} 비고")
     for r, c in pairs:
         who = "?" if r.last_is_mine is None else ("나" if r.last_is_mine else r.last_sender)
         notes = []
-        if common and _me_label(c, common) not in c.participants:
+        if r.last_is_mine is not None and not r.me_seen:
             notes.append("본인 메시지 없음")
-        if r.last_is_mine is False:
+        elif r.last_is_mine is False:
             notes.append("답장 필요")
         if r.pending_attachments:
             notes.append(f"첨부 {len(r.pending_attachments)}")
         if r.stale:
             notes.append(_age(r))
+        count = "?" if r.last_is_mine is None or not r.me_seen else str(len(r.pending))
         print(f"{_pad(r.title, 18)} {_pad(_fmt_time(r.last_time), 12)} {_pad(who, 12)} "
-              f"{_pad('?' if r.last_is_mine is None else str(len(r.pending)), 8)} {_pad(files[id(c)], 24)} {', '.join(notes)}")
+              f"{_pad(count, 8)} {_pad(files[id(c)], fw)} {', '.join(notes)}")
     if any(r.last_is_mine is None for r in rows):
         print("\n'?' 는 본인 이름을 몰라서예요. `kakao-reply me <이름>` 으로 한 번 저장하세요.")
+    print(f"\n답장 초안: kakao-reply suggest \"{d / files[id(pairs[0][1])]}\"  (맨 위 방 예시)")
 
 
 def cmd_show(args) -> None:
@@ -298,7 +314,7 @@ def cmd_suggest(args) -> None:
     else:
         send_chat, send_me, ask = chat, me, args.ask
 
-    room_size = max(full.member_count or 0, len(set(full.participants) | {me}))
+    room_size = max(effective_member_count(full) or 0, len(set(full.participants) | {me}))
     if status.last_is_mine and not args.ask and not args.dry_run:
         _fail("마지막 메시지가 내 메시지예요. 이어서 보낼 말이 필요하면 --ask 로 원하는 내용을 적어 주세요.\n"
               '  예: kakao-reply suggest 파일 --ask "답이 없어서 한 번 더 물어보고 싶어"')
@@ -348,6 +364,11 @@ def cmd_suggest(args) -> None:
     if status.pending_attachments:
         kinds = ", ".join(sorted({m.attachment for m in status.pending_attachments}))
         print(f"\n※ 받은 {kinds} 원본은 내보내기 파일에 없어 내용을 반영하지 못했어요. 앱에서 확인 후 보내세요.")
+    if result.suspicious:
+        print(f"\n⚠ 대화 속에 지시처럼 보이는 문장이 있었어요 (따르지 않았어요): {result.suspicious}")
+    intents = [s.intent for s in result.suggestions]
+    if len(result.suggestions) < 3 or len(set(intents)) < len(intents):
+        print("\n※ 초안이 3개보다 적거나 방향이 겹쳐요. 다른 방향이 필요하면 --ask 로 원하는 내용을 적어 다시 실행하세요.")
 
     choice = _pick_copy(args, result)
     if choice and output.copy_to_clipboard(result.suggestions[choice - 1].text):
@@ -394,7 +415,7 @@ def main(argv: list[str] | None = None) -> None:
         sp = sub.add_parser(name, help=help_)
         sp.add_argument("file", metavar="파일", help="카카오톡 대화 내보내기 파일 (.txt 또는 .csv)")
         sp.add_argument("--me", help="본인 이름 (기본: `kakao-reply me` 로 저장한 이름)")
-        sp.add_argument("--days", type=_positive, help="최근 N일 대화만 사용 (1 이상)")
+        sp.add_argument("--days", type=_days, help="최근 N일 대화만 사용 (1 이상)")
         sp.set_defaults(func=fn)
         if name == "suggest":
             sp.add_argument("--last", type=_non_negative, default=200, help="최근 N개 메시지만 보냄 (기본 200, 0=전체)")

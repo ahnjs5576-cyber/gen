@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from .parser import Chat, Message
+from .parser import MEDIA_KINDS, Chat, Message
 
 STALE_AFTER = timedelta(hours=1)
 
@@ -64,9 +64,12 @@ class RoomStatus:
     saved_at_estimated: bool
     stale: bool  # 내보낸 지 오래돼 최신 대화가 빠졌을 수 있음
 
+    me_seen: bool = True  # 이 방에서 내 메시지를 찾았는지 (못 찾으면 '답할 것' 개수는 의미가 없음)
+
     @property
     def pending_attachments(self) -> list[Message]:
-        return [m for m in self.pending if m.attachment]
+        """원본이 따로 있는 첨부물(사진·동영상·파일·음성)만. 삭제·송금·통화 표시는 첨부가 아니다."""
+        return [m for m in self.pending if m.attachment in MEDIA_KINDS]
 
 
 def room_status(chat: Chat, me: str | None, now: datetime | None = None) -> RoomStatus:
@@ -82,6 +85,7 @@ def room_status(chat: Chat, me: str | None, now: datetime | None = None) -> Room
         saved_at=chat.saved_at,
         saved_at_estimated=chat.saved_at_estimated,
         stale=bool(chat.saved_at and now - chat.saved_at > STALE_AFTER),
+        me_seen=bool(me and me in chat.participants),
     )
 
 
@@ -89,6 +93,8 @@ def describe_age(saved_at: datetime | None, now: datetime | None = None, estimat
     if not saved_at:
         return "내보낸 시각 알 수 없음"
     delta = (now or datetime.now()) - saved_at
+    if delta < -timedelta(minutes=5):
+        return "내보낸 시각이 지금보다 늦게 찍혀 있음 (컴퓨터 시계 확인 필요)"
     if delta < timedelta(minutes=1):
         text = "방금 내보냄"
     elif delta < timedelta(hours=1):
