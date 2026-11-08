@@ -43,12 +43,11 @@ SYSTEM_PROMPT = """\
    - 사용자가 모르는 사실(시간, 장소, 사정, 일정)을 지어내지 않는다. 필요한 정보는 [시간], [장소] 처럼
      빈칸으로 남기고 placeholders 에 적는다.
    - 카톡답게 짧고 자연스럽게 쓴다. 답이 많이 늦었으면 가볍게 사과하는 초안을 하나쯤 포함한다.
-   - 초안에서 사용자 자신은 '나/저'로 쓰고 '[본인]' 이라고 쓰지 않는다. 상대는 '상대1' 처럼 별칭으로 부른다.
+   - 초안에서 사용자 자신은 '나/저'로 쓴다.{alias_rule}
    - 초안에 링크, 전화번호, 계좌번호, 주소, 금액 약속을 새로 넣지 않는다. 필요하면 빈칸으로 남긴다.
 4. 답이 필요 없어 보이면 needs_reply 를 false 로 하되, 가벼운 반응 초안(예: 확인 인사)은 만든다.
 5. attachment 가 있는 메시지는 첨부물 자리표시다. 원본은 볼 수 없으니 내용을 본 것처럼 쓰지 않는다.
-6. '상대1', '[본인]', '[전화번호]' 처럼 가려진 표기는 그대로 사용한다.
-"""
+{masked_rule}"""
 
 REPLY_SCHEMA = {
     "type": "object",
@@ -149,8 +148,12 @@ def _context(chat: Chat, recent: list[Message], now: datetime) -> str:
     return "<context>\n" + "\n".join(lines) + "\n</context>"
 
 
+ALIAS_RULE = " '[본인]' 이라고 쓰지 않는다. 상대는 '상대1' 처럼 대화에 쓰인 별칭으로 부른다."
+MASKED_RULE = "6. '상대1', '[본인]', '[전화번호]' 처럼 가려진 표기는 그대로 사용한다.\n"
+
+
 def build_request(chat: Chat, me: str | None, last: int = 200, instruction: str | None = None,
-                  now: datetime | None = None) -> dict:
+                  now: datetime | None = None, pseudonymized: bool = True) -> dict:
     """API 요청 본문을 만든다. --dry-run 에서 무엇이 전송되는지 그대로 보여줄 때도 쓴다."""
     me_label = me or "(알 수 없음)"
     recent = chat.messages[-last:] if last > 0 else chat.messages
@@ -171,7 +174,8 @@ def build_request(chat: Chat, me: str | None, last: int = 200, instruction: str 
     return {
         "model": MODEL,
         "max_tokens": 16000,
-        "system": SYSTEM_PROMPT.format(me=me_label),
+        "system": SYSTEM_PROMPT.format(me=me_label, alias_rule=ALIAS_RULE if pseudonymized else "",
+                                       masked_rule=MASKED_RULE if pseudonymized else ""),
         "messages": [{"role": "user", "content": "\n\n".join(parts)}],
         "output_config": {
             "effort": "medium",
@@ -214,13 +218,14 @@ def draft_warnings(s: Suggestion) -> list[str]:
     return out
 
 
-def analyze(client, chat: Chat, me: str | None, last: int = 200, instruction: str | None = None) -> Analysis:
+def analyze(client, chat: Chat, me: str | None, last: int = 200, instruction: str | None = None,
+            pseudonymized: bool = True) -> Analysis:
     """Claude 로 요약과 답장 초안을 생성한다.
 
     ``client`` 는 ``anthropic.Anthropic()`` 인스턴스(테스트에서는 가짜 객체).
     거절 시 다른 Claude 모델로 자동 재시도하도록 server-side fallback 을 켠다.
     """
-    request = build_request(chat, me, last, instruction)
+    request = build_request(chat, me, last, instruction, pseudonymized=pseudonymized)
     response = client.beta.messages.create(
         **request,
         betas=["server-side-fallback-2026-07-01"],

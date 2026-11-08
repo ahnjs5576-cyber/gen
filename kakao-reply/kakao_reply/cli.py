@@ -17,6 +17,7 @@ import argparse
 import getpass
 import json
 import logging
+import re
 import sys
 import unicodedata
 from pathlib import Path
@@ -44,12 +45,22 @@ def _parse(path) -> Chat:
     return chat
 
 
-def _resolve_me(chat: Chat, me_arg: str | None) -> str | None:
-    me = me_arg or config.load_me() or guess_me(chat)
-    if me and me not in chat.participants:
-        print(f"※ '{me}' 님이 이 방에서 보낸 메시지가 없어요. 이름이 다르면 --me 로 지정하세요. "
+def _me_label(chat: Chat, name: str | None) -> str | None:
+    """파일에서 본인 메시지에 찍힌 이름. 저장한 이름이 없고 '나' 로 찍혀 있으면 '나'."""
+    if name and name in chat.participants:
+        return name
+    return guess_me(chat) or name
+
+
+def _resolve_me(chat: Chat, me_arg: str | None) -> tuple[str | None, list[str]]:
+    """(파일 속 본인 발신자 이름, 본인을 가리키는 다른 이름들)."""
+    name = me_arg or config.load_me()
+    label = _me_label(chat, name)
+    others = [name] if name and name != label else []
+    if label and label not in chat.participants:
+        print(f"※ '{label}' 님이 이 방에서 보낸 메시지가 없어요. 이름이 다르면 --me 로 지정하세요. "
               f"(참여자: {', '.join(chat.participants)})", file=sys.stderr)
-    return me
+    return label, others
 
 
 def _require_me(chat: Chat, me: str | None) -> str:
@@ -69,13 +80,17 @@ def _filtered(chat: Chat, days: int | None) -> Chat:
 
 def _pad(text: str, width: int) -> str:
     """한글처럼 화면에서 두 칸을 차지하는 글자를 고려해 왼쪽 정렬."""
-    out, used = "", 0
-    for ch in text:
-        w = 2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1
-        if used + w > width:
-            break
-        out, used = out + ch, used + w
-    return out + " " * (width - used)
+    def w(ch: str) -> int:
+        return 2 if unicodedata.east_asian_width(ch) in ("W", "F") else 1
+
+    if sum(map(w, text)) > width:  # 잘리면 말줄임표
+        out, used = "", 0
+        for ch in text:
+            if used + w(ch) > width - 1:
+                break
+            out, used = out + ch, used + w(ch)
+        return out + "…" + " " * (width - used - 1)
+    return text + " " * (width - sum(map(w, text)))
 
 
 def _fmt_time(t) -> str:
@@ -92,6 +107,18 @@ def _stale_warning(status) -> None:
 
 
 SHOW_LIMIT = 20
+
+
+def _positive(value: str) -> int:
+    if not re.fullmatch(r"[0-9]+", value) or int(value) < 1:
+        raise argparse.ArgumentTypeError(f"1 이상의 숫자여야 해요: {value}")
+    return int(value)
+
+
+def _non_negative(value: str) -> int:
+    if not re.fullmatch(r"[0-9]+", value):
+        raise argparse.ArgumentTypeError(f"0 이상의 숫자여야 해요: {value}")
+    return int(value)
 
 
 class _Parser(argparse.ArgumentParser):
@@ -137,7 +164,7 @@ def cmd_inbox(args) -> None:
     if not common and (guessed := guess_me_across(chats)):
         common = guessed
         print(f"※ 모든 방에 있는 '{guessed}' 님을 본인으로 추정했어요. 틀리면 `kakao-reply me <이름>` 으로 저장하세요.\n")
-    pairs = [(room_status(c, common or guess_me(c)), c) for c in chats]
+    pairs = [(room_status(c, _me_label(c, common)), c) for c in chats]
     pairs.sort(key=lambda rc: (rc[0].last_time is None, -(rc[0].last_time.timestamp() if rc[0].last_time else 0)))
     rows = [r for r, _ in pairs]
 
@@ -145,7 +172,7 @@ def cmd_inbox(args) -> None:
     for r, c in pairs:
         who = "?" if r.last_is_mine is None else ("나" if r.last_is_mine else r.last_sender)
         notes = []
-        if common and common not in c.participants:
+        if common and _me_label(c, common) not in c.participants:
             notes.append("본인 메시지 없음")
         if r.last_is_mine is False:
             notes.append("답장 필요")
@@ -161,7 +188,7 @@ def cmd_inbox(args) -> None:
 
 def cmd_show(args) -> None:
     full = _parse(args.file)
-    me = _resolve_me(full, args.me)
+    me, _ = _resolve_me(full, args.me)
     chat = _filtered(full, args.days)
     st = room_status(chat, me)
     print(f"대화방: {st.title}  ({_age(st)})")
@@ -211,14 +238,16 @@ def _pick_copy(args, result: Analysis) -> int | None:
         return None
     try:
         answer = input(f"\n복사할 번호 (1-{n}, Enter=건너뛰기): ").strip()
-    except EOFError:
+    except (EOFError, KeyboardInterrupt):
+        print()
         return None
-    return int(answer) if answer.isdigit() and 1 <= int(answer) <= n else None
+    return int(answer) if re.fullmatch(r"[0-9]+", answer) and 1 <= int(answer) <= n else None
 
 
 def cmd_suggest(args) -> None:
     full = _parse(args.file)
-    me = _require_me(full, _resolve_me(full, args.me))
+    label, other_names = _resolve_me(full, args.me)
+    me = _require_me(full, label)
     chat = _filtered(full, args.days)
     status = room_status(chat, me)
     _stale_warning(status)
@@ -227,7 +256,7 @@ def cmd_suggest(args) -> None:
                     messages=chat.messages[-args.last:])
 
     # 가명표는 기간 필터 전 전체 대화로 만들어야 기간 밖 참여자 이름도 가려진다.
-    pseudo = None if args.no_pseudonymize else Pseudonymizer(full, me)
+    pseudo = None if args.no_pseudonymize else Pseudonymizer(full, me, also_me=other_names)
     if pseudo:
         send_chat, send_me = pseudo.apply(chat), Pseudonymizer.ME
         ask = pseudo.text(args.ask) if args.ask else None
@@ -236,13 +265,14 @@ def cmd_suggest(args) -> None:
 
     if args.dry_run:
         print("# 아래 내용이 Claude API 로 전송됩니다 (실제 전송 안 함)\n")
-        print(json.dumps(build_request(send_chat, send_me, 0, ask), ensure_ascii=False, indent=2))
+        print(json.dumps(build_request(send_chat, send_me, 0, ask, pseudonymized=bool(pseudo)),
+                         ensure_ascii=False, indent=2))
         return
 
     import anthropic
 
     try:
-        result = analyze(secrets.make_client(), send_chat, send_me, 0, ask)
+        result = analyze(secrets.make_client(), send_chat, send_me, 0, ask, pseudonymized=bool(pseudo))
     except anthropic.AuthenticationError:
         _fail("API 키가 잘못됐습니다. `kakao-reply key set` 으로 다시 등록하세요.")
     except anthropic.RateLimitError:
@@ -274,6 +304,9 @@ def cmd_suggest(args) -> None:
     choice = _pick_copy(args, result)
     if choice and output.copy_to_clipboard(result.suggestions[choice - 1].text):
         print(f"\n{choice}번 초안을 클립보드에 복사했어요. 카카오톡에서 붙여넣고 직접 보내세요.")
+        blanks = re.findall(r"\[[^\[\]\n]{1,15}\]", result.suggestions[choice - 1].text)
+        if blanks:
+            print(f"⚠ 보내기 전에 {', '.join(dict.fromkeys(blanks))} 를 채워 넣으세요.")
 
 
 def cmd_key(args) -> None:
@@ -309,14 +342,14 @@ def main(argv: list[str] | None = None) -> None:
         sp = sub.add_parser(name, help=help_)
         sp.add_argument("file", help="카카오톡 대화 내보내기 파일 (.txt 또는 .csv)")
         sp.add_argument("--me", help="본인 이름 (기본: `kakao-reply me` 로 저장한 이름)")
-        sp.add_argument("--days", type=int, help="최근 N일 대화만 사용")
+        sp.add_argument("--days", type=_positive, help="최근 N일 대화만 사용 (1 이상)")
         sp.set_defaults(func=fn)
         if name == "suggest":
-            sp.add_argument("--last", type=int, default=200, help="최근 N개 메시지만 보냄 (기본 200, 0=전체)")
+            sp.add_argument("--last", type=_non_negative, default=200, help="최근 N개 메시지만 보냄 (기본 200, 0=전체)")
             sp.add_argument("--ask", help='추가 요청, 예: "정중하게 거절하고 싶어"')
             sp.add_argument("--no-pseudonymize", action="store_true",
                             help="이름 가명 처리·번호 가림을 끄고 원문 그대로 전송 (기본은 켜짐)")
-            sp.add_argument("--copy", type=int, metavar="N", help="N번 초안을 바로 클립보드에 복사 (기본: 출력 후 물어봄)")
+            sp.add_argument("--copy", type=_positive, metavar="N", help="N번 초안을 바로 클립보드에 복사 (기본: 출력 후 물어봄)")
             sp.add_argument("--dry-run", action="store_true", help="전송할 내용만 출력하고 API 는 호출하지 않음")
 
     kp = sub.add_parser("key", help="API 키를 키체인에 저장/삭제")

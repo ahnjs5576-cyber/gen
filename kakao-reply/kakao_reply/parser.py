@@ -19,7 +19,8 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from pathlib import Path
 
-_AMPM = r"(?P<ampm>오전|오후)\s*(?P<h>\d{1,2}):(?P<mi>\d{2})"
+# 오전/오후 12시간제와 24시간제('19:02') 둘 다 받는다.
+_AMPM = r"(?:(?P<ampm>오전|오후)\s*)?(?P<h>\d{1,2}):(?P<mi>\d{2})"
 _ANDROID_TS = r"(?P<y>\d{4})년\s*(?P<mo>\d{1,2})월\s*(?P<d>\d{1,2})일\s*" + _AMPM
 # iOS 쪽 그룹 이름은 'i' 접두사를 붙여 Android 쪽과 겹치지 않게 한다.
 _IOS_TS = (r"(?P<y>\d{4})\.\s*(?P<mo>\d{1,2})\.\s*(?P<d>\d{1,2})\.\s*" + _AMPM).replace("?P<", "?P<i")
@@ -32,15 +33,16 @@ _PC_DATE = re.compile(r"^-+\s*(?P<y>\d{4})년\s*(?P<mo>\d{1,2})월\s*(?P<d>\d{1,
 _PC_MSG = re.compile(r"^\[(?P<sender>.+?)\]\s*\[" + _AMPM + r"\]\s?(?P<text>.*)$")
 # 2026년 11월 6일 금요일   (모바일 날짜 구분선)
 _MOBILE_DATE = re.compile(r"^(?P<y>\d{4})년\s*(?P<mo>\d{1,2})월\s*(?P<d>\d{1,2})일\s*\S+요일$")
-_MOBILE_MSG = re.compile(r"^" + _MOBILE_TS + r",\s*(?P<sender>.+?)\s:\s(?P<text>.*)$")
+_MOBILE_MSG = re.compile(r"^" + _MOBILE_TS + r",\s*(?P<sender>.+?)\s:(?:\s(?P<text>.*))?$")
 # 타임스탬프는 있지만 ' : ' 가 없는 줄 = 입장/퇴장 같은 시스템 메시지
-_MOBILE_SYSTEM = re.compile(r"^" + _MOBILE_TS + r",\s*(?!.*\s:\s).+$")
+_MOBILE_SYSTEM = re.compile(r"^" + _MOBILE_TS + r",\s*(?!.*\s:(?:\s|$)).+$")
 
 # PC 형식의 시스템 메시지는 타임스탬프 없이 한 줄로 나온다. 일반 문장과 헷갈리지 않게 문장 전체가
 # 정해진 꼴일 때만 후보로 보고, 다음 줄이 새 메시지·날짜·파일 끝일 때만 실제로 버린다(parse_text 참고).
 _PC_SYSTEM = re.compile(
     r"^(?:.{1,20}?님이 (?:들어왔습니다|나갔습니다)"
     r"|.{1,20}?님이 .{1,300}님을 (?:초대했습니다|초대하였습니다|내보냈습니다)"
+    r"|.{1,20}?님을 내보냈습니다"
     r"|메시지가 삭제되었습니다"
     r"|.{1,20}?님이 메시지를 가렸습니다)\.?$"
 )
@@ -52,18 +54,19 @@ _SAVED_MOBILE = re.compile(r"^" + _MOBILE_TS)
 
 # 내보내기 파일에서 첨부물은 본문 대신 이런 자리표시로만 남는다 (원본/링크 없음).
 _ATTACHMENTS = [
+    # 일반 문장('일정 언제가 좋아?', '이체 확인했어?')을 첨부로 오인하지 않게, 카카오톡이 쓰는 자리표시 꼴 전체가 맞을 때만.
     (re.compile(r"^사진(\s*\d+장)?$"), "사진"),
     (re.compile(r"^동영상(\s*\d+개)?$"), "동영상"),
-    (re.compile(r"^샵검색\s*:"), "샵검색"),
-    (re.compile(r"^(지도|위치)(\s*:.*)?$"), "위치"),
-    (re.compile(r"^연락처(\s*:.*)?$"), "연락처"),
-    (re.compile(r"^(송금|이체|카카오페이|정산)"), "송금"),
-    (re.compile(r"^(보이스톡|페이스톡|음성통화|영상통화)"), "통화"),
-    (re.compile(r"^(투표|일정|공지)\s*:?"), "투표/일정"),
-    (re.compile(r"^(이모티콘|\(이모티콘\).*)$"), "이모티콘"),
-    (re.compile(r"^음성메시지"), "음성메시지"),
-    (re.compile(r"^파일\s*:\s*.+"), "파일"),
+    (re.compile(r"^(이모티콘|\(이모티콘\)\s*.{0,20})$"), "이모티콘"),
+    (re.compile(r"^음성메시지(\s*\d{1,2}:\d{2})?$"), "음성메시지"),
+    (re.compile(r"^파일\s*:\s*.+\.[A-Za-z0-9]{1,6}(\s*\(.*\))?$"), "파일"),
     (re.compile(r"^삭제된 메시지입니다\.?$"), "삭제됨"),
+    (re.compile(r"^샵검색\s*:\s*.+$"), "샵검색"),
+    (re.compile(r"^(지도|위치 공유|위치)$"), "위치"),
+    (re.compile(r"^연락처\s*:\s*.+$"), "연락처"),
+    (re.compile(r"^(카카오페이\s*)?(송금|정산)\s*[\d,]+원(\s*.{0,10})?$"), "송금"),
+    (re.compile(r"^(보이스톡|페이스톡)(\s*(\d{1,2}:\d{2}(:\d{2})?|취소|부재중|해요))?$"), "통화"),
+    (re.compile(r"^(투표|일정)\s*:\s*.+$"), "투표/일정"),
 ]
 
 
@@ -109,9 +112,10 @@ class Chat:
 
 
 def _to_time(y, mo, d, ampm, h, mi) -> datetime:
-    hour = int(h) % 12
-    if ampm == "오후":
-        hour += 12
+    if ampm is None:  # 24시간제
+        hour = int(h)
+    else:
+        hour = int(h) % 12 + (12 if ampm == "오후" else 0)
     return datetime(int(y), int(mo), int(d), hour, int(mi))
 
 
@@ -141,11 +145,19 @@ def parse_text(content: str) -> Chat:
     chat = Chat()
     current_day: date | None = None
     last: Message | None = None
+    body: list[str] = []  # 지금 메시지의 줄들 (마지막에 한 번에 합쳐 긴 메시지도 빠르게)
+    # 시스템 메시지/날짜 구분선처럼 보이지만 아직 확정하지 않은 줄. 다음 줄이 새 메시지·날짜·파일 끝이면
+    # 진짜 시스템 줄이라 버리고, 본문이 이어지면 원래 본문이었던 것으로 되돌린다.
+    held: list[str] = []
 
-    held: list[str] = []  # 시스템 메시지처럼 보이지만 아직 확정하지 않은 줄
-
-    def boundary() -> None:
-        held.clear()  # 다음이 새 메시지/날짜/끝이면 보류한 줄은 진짜 시스템 메시지였다
+    def start(msg: Message | None) -> None:
+        nonlocal last, body
+        if last is not None:
+            last.text = "\n".join(body).rstrip("\n")
+        held.clear()
+        last, body = msg, ([msg.text] if msg else [])
+        if msg is not None:
+            chat.messages.append(msg)
 
     for raw in content.splitlines():
         line = raw.rstrip("\r\n").lstrip("\ufeff")
@@ -159,61 +171,49 @@ def parse_text(content: str) -> Chat:
                 chat.saved_at = _parse_saved_at(s["rest"])
                 continue
 
-        if last is not None and held and not stripped:
-            held.append(line)  # 보류 중에 나온 빈 줄도 함께 보류
-            continue
-
-        if last is not None and _MOBILE_DATE.match(stripped):
-            # 모바일 날짜 구분선은 본문에도 나올 수 있는 꼴이라 보류했다가, 다음에 새 메시지가 오면 구분선으로 본다.
-            held.append(line)
-            continue
-
-        if m := (_PC_DATE.match(stripped) or _MOBILE_DATE.match(stripped)):
-            boundary()
-            current_day = date(int(m["y"]), int(m["mo"]), int(m["d"]))
-            last = None
-            continue
-
         if m := _PC_MSG.match(line):
-            boundary()
             t = None
             if current_day is not None:
                 t = _to_time(current_day.year, current_day.month, current_day.day, m["ampm"], m["h"], m["mi"])
-            last = Message(sender=m["sender"].strip(), text=m["text"], time=t)
-            chat.messages.append(last)
+            start(Message(sender=m["sender"].strip(), text=m["text"], time=t))
             continue
-
         if m := _MOBILE_MSG.match(line):
-            boundary()
-            last = Message(sender=m["sender"].strip(), text=m["text"], time=_mobile_time(m))
-            chat.messages.append(last)
+            start(Message(sender=m["sender"].strip(), text=m["text"] or "", time=_mobile_time(m)))
+            continue
+        if m := _PC_DATE.match(stripped):
+            current_day = date(int(m["y"]), int(m["mo"]), int(m["d"]))
+            start(None)
             continue
 
-        if _MOBILE_SYSTEM.match(line):
-            boundary()
-            last = None
-            continue
-
-        if last is not None and _PC_SYSTEM.match(stripped):
-            held.append(line)
-            continue
-
-        # 여러 줄짜리 메시지의 이어지는 줄. 그 외(빈 줄, 알 수 없는 머리말)는 무시.
         if last is not None:
-            for h in held:  # 보류했던 줄 뒤에 내용이 이어지면 그건 본문이었다
-                last.text += "\n" + h
+            if held and not stripped:
+                held.append(line)  # 보류 중에 나온 빈 줄도 함께 보류
+                continue
+            if _MOBILE_DATE.match(stripped) or _MOBILE_SYSTEM.match(line) or _PC_SYSTEM.match(stripped):
+                held.append(line)
+                continue
+            body.extend(held)  # 보류했던 줄 뒤에 본문이 이어지면 그건 본문이었다
             held.clear()
-            last.text += "\n" + line
+            body.append(line)
+            continue
 
-    for msg in chat.messages:
-        msg.text = msg.text.rstrip("\n")
+        # 메시지 밖: 날짜 구분선은 날짜만 기억하고, 나머지(시스템 줄, 빈 줄, 알 수 없는 머리말)는 무시
+        if m := _MOBILE_DATE.match(stripped):
+            current_day = date(int(m["y"]), int(m["mo"]), int(m["d"]))
+
+    start(None)
     chat.messages = _sort_by_time(chat.messages)
     return chat
 
 
 def parse_csv(content: str) -> Chat:
     chat = Chat()
-    for row in csv.DictReader(io.StringIO(content.lstrip("\ufeff"))):
+    csv.field_size_limit(16 * 1024 * 1024)
+    try:
+        rows = list(csv.DictReader(io.StringIO(content.lstrip("\ufeff"))))
+    except csv.Error as e:
+        raise ExportReadError(f"CSV 형식이 깨져 읽지 못했습니다 ({e}).") from None
+    for row in rows:
         sender = (row.get("User") or "").strip()
         if not sender:
             continue
@@ -275,7 +275,8 @@ def parse_file(path: str | Path) -> Chat:
 
 
 # Mac CSV: KakaoTalk_Chat_민수_2026-11-06-22-10-03.csv
-_FILENAME = re.compile(r"^KakaoTalk_Chat_(?P<title>.+?)_(?P<y>\d{4})-(?P<mo>\d{2})-(?P<d>\d{2})-(?P<H>\d{2})-(?P<M>\d{2})-\d{2}$")
+_FILENAME = re.compile(r"^KakaoTalk_Chat_(?P<title>.+?)_(?P<y>\d{4})-(?P<mo>\d{2})-(?P<d>\d{2})-(?P<H>\d{2})-(?P<M>\d{2})-\d{2}"
+                       r"(?:\s*\(\d+\))?$")  # 브라우저가 붙이는 ' (1)' 허용
 
 
 def _from_filename(stem: str) -> tuple[str | None, datetime | None]:
