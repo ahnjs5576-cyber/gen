@@ -38,6 +38,9 @@ class IsolatedConfig(unittest.TestCase):
         patcher = mock.patch.dict(os.environ, {"XDG_CONFIG_HOME": self.tmp.name})
         patcher.start()
         self.addCleanup(patcher.stop)
+        import logging
+        logger = logging.getLogger("kakao_reply")
+        self.addCleanup(logger.setLevel, logger.level)  # -v 로 바뀐 로그 수준이 다른 테스트로 새지 않게
 
     def write(self, name, text, encoding="utf-8"):
         p = Path(self.tmp.name) / name

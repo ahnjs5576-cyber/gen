@@ -26,25 +26,28 @@ from .parser import Chat
 _D0 = r"(?<!\d)"
 _D1 = r"(?!\d)"
 _YYMMDD = r"\d{2}(?:0[1-9]|1[0-2])(?:0[1-9]|[12]\d|3[01])"
-_DASH = r"[-–—ㅡ]"
-_SEP = r"\s*[-.–—ㅡ]\s*|\s"
+# 하이픈처럼 쓰이는 문자들: -, 유니코드 하이픈(‐‑), 대시(–—), 빼기(−), 전각(－﹣), 한글 'ㅡ'
+_DASH = r"[-‐‑–—−﹣－ㅡ]"
+_SEP = r"\s*[-.‐‑–—−﹣－ㅡ]\s*|\s"
 _DATE = re.compile(r"^(?:(?:19|20)?\d{2})[-.\s](?:0?[1-9]|1[0-2])[-.\s](?:0?[1-9]|[12]\d|3[01])$")
-_DATE_PREFIX = re.compile(r"^(?:19|20)\d{2}\s*[-.–—ㅡ ]\s*(?:0?[1-9]|1[0-2])\s*[-.–—ㅡ ]\s*(?:0?[1-9]|[12]\d|3[01])(?!\d)")
+_DATE_PREFIX = re.compile(r"^(?:19|20)\d{2}\s*(?:" + _DASH + r"|[. ])\s*(?:0?[1-9]|1[0-2])\s*(?:" + _DASH +
+                          r"|[. ])\s*(?:0?[1-9]|[12]\d|3[01])(?!\d)")
 # 숫자 바로 뒤의 단위 '낱말 전체' (원지혜·일요일 같은 낱말 첫 글자를 단위로 오인하지 않게 뒤에 한글이 더 오면 단위가 아님)
 _UNIT = re.compile(r"\s*(?:원|만원|천원|억|달러|개|명|번째|회|위|건|장|권|시|분|초|년|월|일|주|kg|g|km|m|%)"
                    r"(?:[이가은는을를에도만의]|까지|짜리|이야|입니다|이에요|예요|이나|씩)?(?![가-힣A-Za-z])")
 
 _PATTERNS = [
     # 주민·외국인등록번호 (뒷자리 첫 숫자 1~8)
-    (re.compile(_D0 + _YYMMDD + r"\s*[-.–—ㅡ]?\s*[1-8]\d{6}" + _D1), "[주민번호]"),
+    (re.compile(_D0 + _YYMMDD + r"\s*(?:" + _DASH + r"|\.)?\s*[1-8]\d{6}" + _D1), "[주민번호]"),
     (re.compile(r"\+82(?:" + _SEP + r")?1[016789](?:" + _SEP + r")?\d{3,4}(?:" + _SEP + r")?\d{4}" + _D1), "[전화번호]"),
     (re.compile(_D0 + r"01[016789](?:" + _SEP + r")?\d{3,4}(?:" + _SEP + r")?\d{4}" + _D1), "[전화번호]"),
     (re.compile(_D0 + r"0\d{1,2}(?:" + _SEP + r")\d{3,4}(?:" + _SEP + r")\d{4}" + _D1), "[전화번호]"),
     (re.compile(r"\(?" + _D0 + r"0\d{1,2}\)\s*\d{3,4}(?:" + _SEP + r")?\d{4}" + _D1), "[전화번호]"),  # (02) 123 4567, 031)123-4567
-    (re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}"), "[이메일]"),
+    (re.compile(r"(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63}){0,8}\.[A-Za-z]{2,24}"),
+     "[이메일]"),
 ]
 # 계좌·카드·사업자번호처럼 끊어 쓴 숫자 묶음. 하이픈류(-–—ㅡ)·공백으로 끊긴 것, 점으로 끊긴 4자리 묶음(카드).
-_GROUPED = re.compile(_D0 + r"\d{2,8}(?:(?:\s*" + _DASH + r"\s*|\s)\d{2,8}){1,4}" + _D1)
+_GROUPED = re.compile(_D0 + r"\d{2,8}(?:(?:\s*" + _DASH + r"\s*|\s)\d{1,8}){1,5}" + _D1)
 _DOTTED = re.compile(_D0 + r"\d{4}(?:\.\d{4}){2,3}" + _D1)
 _PLAIN = re.compile(_D0 + r"\d{10,16}" + _D1)
 
@@ -59,9 +62,15 @@ def _mask_grouped(m: re.Match) -> str:
     if sum(len(g) for g in groups) < 10 or _DATE.match(raw) or _DATE_PREFIX.match(raw):
         return raw
     if not re.search(_DASH, raw):
-        # 공백으로만 끊긴 묶음: 각 묶음이 3자리 이상이고 금액이 아닐 때만 (로또 '12 25 33 41 45' 제외).
-        # 하이픈으로 끊긴 금액은 없으므로 단위 검사는 여기서만 한다 ('…-123456 명의 확인').
-        if min(len(g) for g in groups) < 3 or _followed_by_unit(m):
+        # 공백으로만 끊긴 묶음은 숫자 나열('12 25 33 41 45', '100 200 300 400', '2020 2021 2022 2023')과 구별한다.
+        lengths = {len(g) for g in groups}
+        if len(lengths) == 1 and lengths.pop() <= 3:
+            return raw  # 같은 길이의 짧은 숫자들 나열
+        if all(len(g) == 4 and 1900 <= int(g) <= 2099 for g in groups):
+            return raw  # 연도 나열
+        if sum(len(g) < 3 for g in groups) > 1 or len(groups[-1]) < 2 and len(groups) > 2:
+            return raw  # 짧은 묶음이 여럿이면 계좌가 아님
+        if _followed_by_unit(m):  # 금액 ('3000 000 000원') — 하이픈 금액은 없으므로 여기서만
             return raw
     return "[계좌/카드번호]"
 
@@ -83,13 +92,18 @@ _STARTERS = [
     "이", "가", "은", "는", "을", "를", "의", "도", "만", "와", "과", "랑", "하고", "한테", "에게", "에", "께",
     "한텐", "에겐", "께선", "로선", "까지", "부터", "보다", "보고", "더러", "처럼", "같이", "만큼", "밖에", "조차", "마저", "로", "으로", "나", "든",
     "요", "라", "란", "래", "냐", "니", "네", "면", "고", "지", "거", "꺼", "잖", "였", "인", "다", "야말로",
+    "입", "예", "임", "죠", "여", "두", "하구", "쪽", "측", "들", "말", "생일", "폰", "집", "자리", "몫", "차례", "덕",
+    "탓", "편", "껀", "건", "꺼", "세", "시", "며", "얌", "당", "ㅋ", "ㅎ",
     # 호칭·부르는 꼴
     "야", "아", "님", "씨", "군", "양", "형", "누나", "언니", "오빠", "쌤", "선배", "선생",
 ]
 # 흔한 낱말과 같은 이름은 부르는 꼴에서만 이름으로 본다 ('하나야' 는 바꾸고 '하나도 몰라' 는 그대로).
-_ADDRESS_COMMON = ["야", "아", "씨", "님", " 씨", " 님", "이가", "이는", "이도", "이랑", "이한테", "이야", "형", "누나", "언니",
+_ADDRESS_COMMON = ["야", "아", "씨", "님", " 씨", " 님", "이가", "이는", "이도", "이랑", "이한테", "형", "누나", "언니",
                    "오빠", "쌤", "선배"]
 _COMMON_EXCEPT = {"하나님"}  # 이름+부르는 꼴이지만 실제로는 낱말인 것
+_JOB_TITLES = ["대리", "과장", "차장", "부장", "팀장", "실장", "주임", "선임", "책임", "수석", "이사", "대표", "사장",
+               "매니저", "프로", "선생님", "교수님", "원장", "본부장", "센터장"]
+_ADDRESS_COMMON += [sep + t for t in _JOB_TITLES for sep in ("", " ")]
 
 # 사람 이름으로도 쓰이지만 흔한 낱말인 것들
 _COMMON_WORDS = {
@@ -99,6 +113,7 @@ _COMMON_WORDS = {
     "지원", "수정", "유리", "정의", "성공", "승리", "은혜", "행복", "영광", "희망", "소원", "평화", "자유",
     "미래", "대한", "민국", "현실", "성실", "신비", "진실", "보배", "고운", "다정", "한빛", "가온", "나래",
     "마루", "서로", "이든", "하람", "빛나", "새롬", "정민원", "상수", "정수", "인정", "현장", "가희", "경주",
+    "미정", "지나", "정원", "연수", "이유", "대리", "사원", "학생", "장인", "구성", "안정", "예정", "설정",
 }
 # 닉네임에 붙는 직함·소속·호칭 (이름 후보에서 뺀다)
 _TITLES = {
@@ -119,7 +134,19 @@ _STARTERS += sorted({t for t in _TITLES if re.fullmatch(r"[가-힣]+", t)} |
 _PERSON_TAIL = sorted({t for t in _TITLES if re.fullmatch(r"[가-힣]+", t)} |
                       {"님", "씨", "야", "아", "한테", "에게", "께", "랑", "이랑", "하고", "가", "이", "와", "과", "도", "이가",
                        "형", "누나", "언니", "오빠", "쌤", "선배", "때문", "였", "이었", "이야"})
-_PARTICLE_ENDINGS = set("은는이가을를도의와과만로지고면나서요야아")
+# '성 한 글자 + 이름' 이 흔한 낱말 + 조사로 읽히는 경우 ('설정은' = 설정+은, '주민수' 의 '주민').
+# (성 + 이름 앞부분) 이 이 목록에 있으면 성을 붙인 꼴로 보지 않는다.
+_SURNAME_NOUNS = set("""
+설정 예정 조정 선정 안정 구성 여성 남성 이상 설명 결정 인정 일정 가정 과정 규정 측정 수정 지정 확정 긍정 부정 추정 감정
+열정 표정 사정 진정 한정 고정 검정 이성 감성 개성 완성 작성 형성 정상 비상 현상 대상 상상 감상 보상 손상 영상 인상 일상
+세상 증명 분명 유명 생명 운명 발명 해명 표명 성명 문명 지명 서명 주민 시민 국민 고민 조명 공정 공지 공유 기정 기상
+기존 기지 도시 도전 문제 문의 문자 반대 반지 방법 방문 방금 배송 변경 변수 성공 성과 성장 소식 소개 신청 신규 신고
+심사 안내 안전 안부 양해 여유 연락 연결 연기 오늘 오전 오후 오해 우선 원래 원인 위치 유지 유효 인사 인원 임시 장소
+전화 전달 전체 정보 정리 정말 제출 제안 제공 제목 조건 조사 조금 주말 주소 주문 주의 주제 지금 지난 지역 진행 진짜
+차이 최근 최종 추가 추천 편집 표시 현재 현장 현지 홍보 나은 나이 남은 노력 마감 명단 모두 모임 고지 공식 구조 기술
+기억 기본 기분 기준 기대 기능 도움 반응 방향 성능 성적 신경 양식 연습 연말 연휴 오류 용도 위해 이전 이번 이후 이유
+전부 제일 조심 주간 지원 지출 채용 하루 한번 함께 허락 황당 결국 고장 공부 구매 국내 권한 금액 남편 내일 노래
+""".split())
 
 
 def _alt(words) -> str:
@@ -147,8 +174,9 @@ def name_forms(nickname: str) -> list[str]:
         if len(token) < 2:
             continue
         forms.append(token)
-        if re.fullmatch(r"[가-힣]{3}", token) and token[:2] not in _SURNAMES_2:
-            forms.append(token[1:])  # 성을 뺀 이름: 김민수 → 민수 (남궁민 처럼 복성+외자는 제외)
+        if re.fullmatch(r"[가-힣]{3}", token) and token[:2] not in _SURNAMES_2 and token[0] in _SURNAMES_1 \
+                and token[1:] not in _TITLES:
+            forms.append(token[1:])  # 성을 뺀 이름: 김민수 → 민수 (아이유·김대리·회사원·남궁민 은 제외)
         elif re.fullmatch(r"[가-힣]{4}", token) and token[:2] in _SURNAMES_2:
             forms.append(token[2:])  # 복성: 황보지은 → 지은
     seen: dict[str, None] = {}
@@ -181,7 +209,7 @@ def _is_rieul(ch: str) -> bool:
 
 
 # (받침 있을 때, 받침 없을 때)
-_JOSA_PAIRS = [("이랑", "랑"), ("이에요", "예요"), ("이었", "였"), ("이야", "야"), ("이라고", "라고"), ("이나", "나"),
+_JOSA_PAIRS = [("이세요", "세요"), ("이시", "시"), ("이라는", "라는"), ("이요", "요"), ("이랑", "랑"), ("이에요", "예요"), ("이었", "였"), ("이야", "야"), ("이라고", "라고"), ("이나", "나"),
                ("이든", "든"), ("이고", "고"), ("이지", "지"), ("이네", "네"), ("이니", "니"), ("이라", "라"),
                ("이", "가"), ("은", "는"), ("을", "를"), ("아", "야"), ("과", "와"), ("으로", "로"),
                # 모델이 '상대1이가' 처럼 겹쳐 쓴 꼴 (앞의 짝이 우선이라 '가', '는' 은 위 짝으로 남는다)
@@ -209,6 +237,20 @@ def attach_josa(name: str, josa: str) -> str:
 
 # ------------------------------------------------------------------ 가명 처리
 
+# 닉네임에 들어 있으면 별칭 옆에 붙여 보내는 관계·직함 (사람을 특정하지 않고 말투 판단에 도움)
+_ROLE_WORDS = ["엄마", "아빠", "어머니", "아버지", "할머니", "할아버지", "이모", "삼촌", "고모", "외삼촌", "남편", "아내",
+               "와이프", "여보", "형", "누나", "언니", "오빠", "동생", "선배", "후배", "쌤", "선생님", "교수님"] + _JOB_TITLES
+
+
+def role_of(nickname: str) -> str | None:
+    tokens = re.findall(r"[가-힣]+", nickname)
+    for t in tokens:
+        base = t[:-1] if t.endswith("님") and t[:-1] in _ROLE_WORDS else t
+        if base in _ROLE_WORDS:
+            return base
+    return None
+
+
 _GROUP_TITLE_WORDS = {"가족", "친구", "동기", "회사", "팀", "모임", "스터디", "동아리", "공지", "단톡", "단톡방", "우리", "반"}
 _ME_JOSA = {"이": "내가", "가": "내가", "은": "나는", "는": "나는", "을": "나를", "를": "나를", "과": "나와", "와": "나와",
             "이랑": "나랑", "랑": "나랑", "으로": "나로", "로": "나로", "이야": "나야", "야": "나야", "아": "나야",
@@ -233,6 +275,11 @@ class Pseudonymizer:
         forms_derived: dict[str, str] = {}  # 본문 꼴 → 별칭 (닉네임에서 뽑은 것)
 
         def register(nickname: str, alias: str) -> None:
+            if nickname.strip() in _ROLE_WORDS:
+                # '엄마' 처럼 관계만 적힌 닉네임은 사람을 특정하지 않으니 본문의 '엄마' 는 그대로 둔다
+                if alias != self.ME:
+                    self._display.setdefault(alias, nickname.strip())
+                return
             forms = name_forms(nickname)
             if forms:
                 forms_full.setdefault(forms[0], alias)
@@ -256,22 +303,26 @@ class Pseudonymizer:
                 n += 1
                 alias = f"상대{n}"
                 self.backward[alias] = name
-            self.sender_map[name] = alias
+            role = role_of(name) if alias != self.ME else None
+            self.sender_map[name] = f"{alias}({role})" if role else alias
             register(name, alias)
+        if me:
+            register(me, self.ME)  # 이 방에서 아직 말하지 않았어도 본인 이름은 가린다
         for extra in also_me:
             if extra and extra.strip():
                 register(extra, self.ME)
 
         # 방 제목: 1:1 방 제목은 보통 내가 저장한 상대 이름이다 (발신자 닉네임과 다를 수 있음: '김민수' vs '민수').
         # 상대가 한 명이면 제목을 그 사람의 다른 이름으로, 한 명도 없으면 새 사람으로 본다. 단체방 제목은 사람이 아니다.
-        others = [a for name, a in self.sender_map.items() if a != self.ME]
+        others = [re.sub(r"\(.*\)$", "", a) for a in self.sender_map.values() if a != self.ME]
         title = re.sub(r"\s+\d+$", "", chat.title or "").strip()  # 'Android 단체방 제목 4' 의 인원수
         known = set(forms_full) | set(forms_derived)
         core = re.sub(r"\(.*?\)|\[.*?\]", " ", title)  # '김민수(대학)' 의 괄호 안 설명은 뺀다
         core_tokens = [t for t in re.findall(r"[가-힣]+|[A-Za-z]+", core) if t not in _TITLES and not _is_team(t)]
         person_like = len(core_tokens) == 1 and 2 <= len(core_tokens[0]) <= 10  # '영어 스터디' 같은 두 낱말 제목은 제외
+        is_group = (chat.member_count or 0) >= 3  # Android 단체방 제목 뒤 인원수
         if title and title not in known and core_tokens and core_tokens[0] not in _GROUP_TITLE_WORDS \
-                and person_like and len(set(others)) <= 1:
+                and person_like and len(set(others)) <= 1 and not is_group:
             alias = others[0] if others else None
             if alias is None:
                 n += 1
@@ -305,7 +356,7 @@ class Pseudonymizer:
             # 앞에 성이 붙은 꼴: '민수' 만 알 때 본문의 '김민수 대리님', '김민수가'
             person_tail = rf"(?:\s?(?:{_alt(_PERSON_TAIL)}))[가-힣]*(?!{_WORD})"
             self._regexes.append(re.compile(rf"(?<!{_WORD}){surname}(?P<n2>{names})(?={person_tail})"))
-            bare = [f for f in normal if re.fullmatch(r"[가-힣]{2}", f) and f[-1] not in _PARTICLE_ENDINGS]
+            bare = [f for f in normal if re.fullmatch(r"[가-힣]{2}", f)]
             if bare:
                 self._regexes.append(re.compile(rf"(?<!{_WORD}){surname}(?P<n2>{_alt(bare)})(?!{_WORD})"))
         if latin:
@@ -313,18 +364,25 @@ class Pseudonymizer:
             self._regexes.append(re.compile(rf"(?<![A-Za-z0-9])(?P<n1>{_alt(latin)})(?![A-Za-z0-9])", re.IGNORECASE))
         if common:
             self._regexes.append(re.compile(
-                rf"(?<!{_WORD}){_SURNAME_PREFIX}(?P<n1>{_alt(common)})(?=(?:{_alt(_ADDRESS_COMMON)})(?!{_WORD}))"))
+                rf"(?<!{_WORD}){_SURNAME_PREFIX}(?P<n1>{_alt(common)})(?=(?:{_alt(_ADDRESS_COMMON)})"
+                rf"(?:님)?(?:한테|에게|께서|께|[이가은는을를도의])?(?!{_WORD}))"))
         aliases = list(self.backward) + [self.ME]
         # 한 글자 조사(과, 이 …)는 뒤에 한글이 바로 이어지면 조사가 아니다 ('상대1과장님' 의 '과').
         single = [j for j in _JOSA_LOOKUP if len(j) == 1]
         multi = [j for j in _JOSA_LOOKUP if len(j) > 1]
-        josa = rf"(?:{_alt(multi)}|(?:{_alt(single)})(?=요|[^가-힣]|$))"
-        self._restore_re = re.compile(rf"({_alt(aliases)})(?!\d)({josa})?")
+        # 뒤에 한글이 이어져도 되는 한 글자 꼴(였어, 라는, 랑은 …)은 경계 검사를 하지 않는다.
+        loose = [j for j in single if j in ("였", "라", "랑", "나", "든", "고", "지", "네", "니")]
+        strict = [j for j in single if j not in loose]
+        josa = rf"(?:{_alt(multi)}|(?:{_alt(loose)})|(?:{_alt(strict)})(?=요|[^가-힣]|$))"
+        self._restore_re = re.compile(rf"({_alt(aliases)})(?!\d)(?:\([가-힣]{{1,6}}\))?({josa})?")
 
     def _sub(self, m: re.Match) -> str:
-        key = (m.groupdict().get("n1") or m.groupdict().get("n2") or "").lower()
+        n2 = m.groupdict().get("n2")
+        key = (m.groupdict().get("n1") or n2 or "").lower()
         if any(m.string.startswith(w, m.start()) for w in _COMMON_EXCEPT):
             return m.group(0)
+        if n2 and m.group(0)[: -len(n2)] + n2[:-1] in _SURNAME_NOUNS:
+            return m.group(0)  # '설정은', '주민수가' 처럼 낱말로 읽히는 꼴
         return self._lower.get(key, m.group(0))
 
     def text(self, text: str) -> str:
@@ -336,6 +394,8 @@ class Pseudonymizer:
 
     def _message_text(self, m) -> str:
         # 첨부 파일 이름에는 제3자 이름이 들어가기 쉬워('홍길동_이력서.pdf') 확장자만 남긴다
+        if m.attachment == "연락처":
+            return "연락처: [이름]"  # 연락처 카드는 제3자 이름
         if m.attachment == "파일":
             ext = re.search(r"\.([A-Za-z0-9]{1,6})(?:\s*\(.*\))?\s*$", m.text)
             return f"파일: [파일명]{'.' + ext.group(1) if ext else ''}"
@@ -345,7 +405,7 @@ class Pseudonymizer:
         msgs = [replace(m, sender=self.sender_map.get(m.sender, m.sender), text=self._message_text(m))
                 for m in chat.messages]
         return Chat(title=self.text(chat.title) if chat.title else chat.title, saved_at=chat.saved_at,
-                    saved_at_estimated=chat.saved_at_estimated, messages=msgs)
+                    saved_at_estimated=chat.saved_at_estimated, member_count=chat.member_count, messages=msgs)
 
     def restore(self, text: str) -> str:
         def sub(m: re.Match) -> str:

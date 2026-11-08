@@ -48,7 +48,8 @@ def filter_period(chat: Chat, days: int | None, now: datetime | None = None) -> 
     base = now or chat.saved_at or datetime.now()
     cutoff = base - timedelta(days=days)
     kept = [m for m in chat.messages if m.time is not None and m.time >= cutoff]  # 시간 모르는 메시지는 기간 밖으로 본다
-    return Chat(title=chat.title, saved_at=chat.saved_at, saved_at_estimated=chat.saved_at_estimated, messages=kept)
+    return Chat(title=chat.title, saved_at=chat.saved_at, saved_at_estimated=chat.saved_at_estimated,
+                member_count=chat.member_count, undated=chat.undated, messages=kept)
 
 
 @dataclass

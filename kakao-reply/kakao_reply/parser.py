@@ -101,6 +101,8 @@ class Chat:
     saved_at: datetime | None = None
     saved_at_estimated: bool = False  # 파일에 기록이 없어 파일 수정 시각으로 추정했는지
     undated: int = 0  # 시간을 읽지 못한 메시지 수 (CSV 의 깨진 날짜 등)
+    member_count: int | None = None  # Android 단체방 제목 뒤 인원수 ('가족 4' → 4)
+    skipped: int = 0  # 읽지 못하고 건너뛴 줄 수 (CSV)
     messages: list[Message] = field(default_factory=list)
 
     @property
@@ -165,6 +167,13 @@ def parse_text(content: str) -> Chat:
 
     def start(msg: Message | None) -> None:
         nonlocal last, body
+        if last is not None and held and fmt == "mobile":
+            # 보류한 모바일 날짜 줄은 다음 메시지의 날짜와 같을 때만 구분선이다. 다르거나 파일 끝이면 본문에 쓴 날짜다.
+            for h in held:
+                if (dm := _MOBILE_DATE.match(h.strip())) and (
+                        msg is None or msg.time is None or
+                        (int(dm["y"]), int(dm["mo"]), int(dm["d"])) != (msg.time.year, msg.time.month, msg.time.day)):
+                    body.append(h)
         if last is not None:
             last.text = "\n".join(body).rstrip("\n")
         held.clear()
@@ -241,7 +250,8 @@ def parse_csv(content: str) -> Chat:
         raise ExportReadError("CSV 첫 줄이 카카오톡 형식(Date,User,Message)이 아닙니다. 카카오톡에서 내보낸 CSV 인지 확인하세요.")
     for row in rows:
         sender = (row.get("User") or "").strip()
-        if not sender:
+        if not sender or "\n" in sender or len(sender) > 60:
+            chat.skipped += 1  # 따옴표가 깨진 줄 등: 발신자로 볼 수 없는 값
             continue
         t = None
         if stamp := (row.get("Date") or "").strip():
@@ -279,6 +289,11 @@ def read_text(p: Path) -> str:
             return data.decode(enc)
         except UnicodeDecodeError:
             pass
+    if encodings[0] == "utf-8-sig":
+        # 끝이 잘린 파일처럼 깨진 바이트가 아주 조금이면 그 글자만 '�' 로 바꾸고 읽는다
+        text = data.decode("utf-8-sig", errors="replace")
+        if text.count("\ufffd") <= max(3, len(text) // 1000):
+            return text
     raise ExportReadError(f"{p}: 글자 인코딩을 알 수 없거나 파일이 깨졌습니다 (UTF-8/CP949/UTF-16 아님).")
 
 
@@ -287,12 +302,16 @@ def parse_file(path: str | Path) -> Chat:
     p = Path(path)
     content = read_text(p)
     is_csv = p.suffix.lower() == ".csv" or content.lstrip().startswith("Date,User,Message")
-    chat = parse_csv(content) if is_csv else parse_text(content)
+    try:
+        chat = parse_csv(content) if is_csv else parse_text(content)
+    except ExportReadError as e:
+        raise ExportReadError(f"{p.name}: {e}") from None
     name_title, name_saved = _from_filename(p.stem)
     if chat.title is None:
         chat.title = name_title or p.stem
-    if chat.title:
-        chat.title = re.sub(r"\s+\d+$", "", chat.title)  # 단체방 제목 뒤 인원수 ('가족 4')
+    if chat.title and (mc := re.search(r"\s+(\d{1,4})$", chat.title)):
+        chat.member_count = int(mc.group(1))  # 단체방 제목 뒤 인원수 ('가족 4')
+        chat.title = chat.title[: mc.start()]
     if chat.saved_at is None and name_saved is not None:
         chat.saved_at = name_saved
     if chat.saved_at is None:

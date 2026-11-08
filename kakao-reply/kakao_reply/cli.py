@@ -73,6 +73,8 @@ def _require_me(chat: Chat, me: str | None) -> str:
 
 
 def _filtered(chat: Chat, days: int | None) -> Chat:
+    if chat.skipped:
+        print(f"※ 형식이 깨져 읽지 못한 줄이 {chat.skipped}개 있어요.", file=sys.stderr)
     if chat.undated:
         note = " (--days 를 쓰면 빠집니다)" if days else ""
         print(f"※ 시간을 읽지 못한 메시지가 {chat.undated}개 있어요{note}.", file=sys.stderr)
@@ -107,8 +109,8 @@ def _age(st) -> str:
 
 
 def _stale_warning(status) -> None:
-    if status.stale:
-        print(f"⚠ {_age(status)} — 그 뒤에 온 대화는 빠져 있어요. 최신 내용이 필요하면 다시 내보내세요.")
+    if status.stale:  # 경고는 stderr 로 (--json 출력과 섞이지 않게)
+        print(f"⚠ {_age(status)} — 그 뒤에 온 대화는 빠져 있어요. 최신 내용이 필요하면 다시 내보내세요.", file=sys.stderr)
 
 
 SHOW_LIMIT = 20
@@ -163,6 +165,7 @@ def cmd_inbox(args) -> None:
     if not d.is_dir():
         _fail(f"{d}: 폴더가 아닙니다. 내보내기 파일들이 있는 폴더를 지정하세요.")
     chats: list[Chat] = []
+    files: dict[int, str] = {}  # 방 → 파일 이름 (suggest 에 넘길 파일을 바로 찾을 수 있게)
     for f in sorted(p for p in d.iterdir() if p.suffix.lower() in (".txt", ".csv")):
         try:
             chat = parse_file(f)
@@ -171,6 +174,7 @@ def cmd_inbox(args) -> None:
             continue
         if chat.messages:
             chats.append(chat)
+            files[id(chat)] = f.name
         else:
             print(f"건너뜀: {f.name} (메시지 없음)", file=sys.stderr)
     if not chats:
@@ -186,7 +190,7 @@ def cmd_inbox(args) -> None:
     pairs.sort(key=lambda rc: (rc[0].last_time is None, -(rc[0].last_time.timestamp() if rc[0].last_time else 0)))
     rows = [r for r, _ in pairs]
 
-    print(f"{_pad('방', 18)} {_pad('마지막', 12)} {_pad('마지막 발신', 12)} {_pad('답할 것', 8)} 비고")
+    print(f"{_pad('방', 18)} {_pad('마지막', 12)} {_pad('마지막 발신', 12)} {_pad('답할 것', 8)} {_pad('파일', 24)} 비고")
     for r, c in pairs:
         who = "?" if r.last_is_mine is None else ("나" if r.last_is_mine else r.last_sender)
         notes = []
@@ -199,7 +203,7 @@ def cmd_inbox(args) -> None:
         if r.stale:
             notes.append(_age(r))
         print(f"{_pad(r.title, 18)} {_pad(_fmt_time(r.last_time), 12)} {_pad(who, 12)} "
-              f"{_pad('?' if r.last_is_mine is None else str(len(r.pending)), 8)} {', '.join(notes)}")
+              f"{_pad('?' if r.last_is_mine is None else str(len(r.pending)), 8)} {_pad(files[id(c)], 24)} {', '.join(notes)}")
     if any(r.last_is_mine is None for r in rows):
         print("\n'?' 는 본인 이름을 몰라서예요. `kakao-reply me <이름>` 으로 한 번 저장하세요.")
 
@@ -274,6 +278,8 @@ def _pick_copy(args, result: Analysis) -> int | None:
 
 
 def cmd_suggest(args) -> None:
+    if args.json and not args.dry_run:
+        _fail("--json 은 --dry-run 과 함께만 쓸 수 있어요.")
     full = _parse(args.file)
     label, other_names = _resolve_me(full, args.me)
     me = _require_me(full, label)
@@ -292,7 +298,10 @@ def cmd_suggest(args) -> None:
     else:
         send_chat, send_me, ask = chat, me, args.ask
 
-    room_size = len(set(full.participants) | {me})
+    room_size = max(full.member_count or 0, len(set(full.participants) | {me}))
+    if status.last_is_mine and not args.ask and not args.dry_run:
+        _fail("마지막 메시지가 내 메시지예요. 이어서 보낼 말이 필요하면 --ask 로 원하는 내용을 적어 주세요.\n"
+              '  예: kakao-reply suggest 파일 --ask "답이 없어서 한 번 더 물어보고 싶어"')
     request = build_request(send_chat, send_me, 0, ask, pseudonymized=bool(pseudo), room_size=room_size)
     if args.dry_run:
         if args.json:
@@ -350,7 +359,11 @@ def cmd_suggest(args) -> None:
 
 def cmd_key(args) -> None:
     if args.action == "set":
-        value = getpass.getpass("Anthropic API 키 (입력은 화면에 표시되지 않음): ").strip()
+        try:
+            value = getpass.getpass("Anthropic API 키 (입력은 화면에 표시되지 않음): ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            _fail("취소했어요.")
         if not value:
             _fail("입력이 비어 있습니다.")
         try:
