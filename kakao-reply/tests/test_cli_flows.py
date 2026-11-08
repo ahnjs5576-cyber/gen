@@ -83,7 +83,7 @@ class CliHardeningTest(IsolatedConfig):
         run_cli(["me", "나"])
         code, out, _ = run_cli(["show", str(FIX / "ios_export.txt")])
         self.assertEqual(code, 0)
-        self.assertIn("답 안 한", out.replace("내 마지막 메시지 이후 온 메시지", "답 안 한"))
+        self.assertNotIn("본인 이름을 알려", out)  # 저장한 이름을 써서 본인을 아는 상태
 
     def test_ask_is_pseudonymized_by_default(self):
         code, out, _ = run_cli(["suggest", str(FIX / "pc_export.txt"), "--dry-run",
@@ -156,7 +156,7 @@ class CliRound2Test(IsolatedConfig):
 
 class CliRound3Test(IsolatedConfig):
     def test_show_caps_pending(self):
-        body = DAY + "".join(f"[민수] [오후 7:{i:02d}] m{i}\n" for i in range(40))
+        body = DAY + "[나] [오후 6:00] 시작\n" + "".join(f"[민수] [오후 7:{i:02d}] m{i}\n" for i in range(40))
         p = Path(self.tmp.name) / "long.txt"
         p.write_text(body, encoding="utf-8")
         code, out, _ = run_cli(["show", str(p), "--me", "나"])
@@ -360,6 +360,38 @@ class CliRound7Test(IsolatedConfig):
             code, out, _ = run_cli(["suggest", str(FIX / "pc_export.txt")])
         self.assertIn("지시처럼 보이는 문장", out)
         self.assertIn("3개보다 적거나", out)
+
+
+class CliRound8Test(IsolatedConfig):
+    def test_show_room_without_my_messages(self):
+        run_cli(["me", "하나"])
+        p = Path(self.tmp.name) / "w.txt"
+        p.write_text(DAY + "[팀장] [오후 1:00] 회의해요\n[철수] [오후 1:01] 네\n", encoding="utf-8")
+        code, out, _ = run_cli(["show", str(p)])
+        self.assertIn("안 읽은 위치를 알 수 없어요", out)
+        self.assertNotIn("내 마지막 메시지 이후", out)
+
+    def test_inbox_shows_last_sender_without_identity(self):
+        code, out, _ = run_cli(["inbox", str(FIX)])
+        row = [l for l in out.splitlines() if l.startswith("엄마")][0]
+        self.assertEqual(row.split()[3], "엄마")
+
+    def test_default_window_is_30_days_before_last_message(self):
+        p = Path(self.tmp.name) / "slow.txt"
+        p.write_text("--------------- 2026년 1월 2일 금요일 ---------------\n[민수] [오후 1:00] 아주 옛날 얘기\n"
+                     "[나] [오후 1:01] ㅇㅋ\n" + DAY + "[민수] [오후 7:00] 최근 질문\n", encoding="utf-8")
+        code, out, err = run_cli(["suggest", str(p), "--me", "나", "--dry-run"])
+        self.assertNotIn("아주 옛날 얘기", out)
+        self.assertIn("최근 질문", out)
+        self.assertIn("마지막 메시지 기준 30일", out)
+
+    def test_install_scripts_syntax(self):
+        import shutil
+        import subprocess
+        root = Path(__file__).resolve().parent.parent
+        if shutil.which("bash"):
+            subprocess.run(["bash", "-n", str(root / "install.sh")], check=True)
+        self.assertIn("pipx", (root / "install.ps1").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

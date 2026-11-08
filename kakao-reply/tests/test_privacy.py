@@ -25,7 +25,7 @@ from kakao_reply.parser import Chat, Message, parse_text
 from kakao_reply.analyzer import build_request, draft_warnings, parse_analysis
 from kakao_reply.privacy import Pseudonymizer, attach_josa, mask_identifiers
 import time
-from kakao_reply.privacy import Pseudonymizer, mask_identifiers, name_forms
+from kakao_reply.privacy import Pseudonymizer, mask_identifiers, name_forms, role_of
 import logging
 from kakao_reply.analyzer import Suggestion, build_request, draft_warnings
 from kakao_reply.transcript import filter_period
@@ -73,14 +73,14 @@ class PseudonymizerTest(unittest.TestCase):
         p = Pseudonymizer(chat, "철수")
         out = p.apply(chat)
         self.assertEqual(out.title, "상대1")
-        self.assertEqual(out.messages[1].text, "상대1야 내일 봐")
+        self.assertEqual(out.messages[1].text, "상대1아 내일 봐")
         self.assertEqual(out.messages[1].sender, "[본인]")
         self.assertEqual(p.restore("상대1님"), "김민수님")
 
     def test_my_name_in_text_keeps_meaning(self):
         chat = Chat(messages=[Message("민수", "철수야 뭐해"), Message("철수", "응")])
         out = Pseudonymizer(chat, "철수").apply(chat)
-        self.assertEqual(out.messages[0].text, "[본인]야 뭐해")  # '나야' 처럼 뜻이 바뀌지 않음
+        self.assertEqual(out.messages[0].text, "[본인]아 뭐해")  # '나야' 처럼 뜻이 바뀌지 않음
 
     def test_participants_outside_period_still_masked(self):
         full = Chat(title="민수", saved_at=datetime(2026, 11, 7, 12), messages=[
@@ -107,7 +107,7 @@ class NameBoundaryTest(unittest.TestCase):
 
     def test_names_with_particles_replaced(self):
         p = _p(["김민수", "지수", "Al"], me=None)
-        self.assertEqual(p.text("민수야 지수한테도 말해"), "상대1야 상대2한테도 말해")
+        self.assertEqual(p.text("민수야 지수한테도 말해"), "상대1아 상대2한테도 말해")
         self.assertEqual(p.text("김민수 왔어"), "상대1 왔어")
         self.assertEqual(p.text("Al, hi"), "상대3, hi")
 
@@ -118,7 +118,7 @@ class NameBoundaryTest(unittest.TestCase):
 
     def test_one_to_one_title_is_person(self):
         p = _p(["나"], me="나", title="민수")
-        self.assertEqual(p.text("민수야"), "상대1야")
+        self.assertEqual(p.text("민수야"), "상대1아")
 
     def test_numbers_masked_before_names(self):
         p = _p(["민수"], me=None)
@@ -161,7 +161,7 @@ class GivenNameCoverageTest(unittest.TestCase):
     def test_common_word_name_only_in_address_form(self):
         p = _p(["하나"])
         self.assertEqual(p.text("하나도 몰라"), "하나도 몰라")
-        self.assertEqual(p.text("하나야 어디야"), "상대1야 어디야")
+        self.assertEqual(p.text("하나야 어디야"), "상대1아 어디야")
 
     def test_nickname_with_title_or_team(self):
         p = _p(["김민수 대리", "지은/개발팀", "Minsu Kim"])
@@ -244,7 +244,7 @@ class RestoreDisplayTest(unittest.TestCase):
         p = _p(["민수 (회사)", "Minsu Kim", "김지은 대리", "나"], me="나")
         self.assertEqual(p.restore("상대1은"), "민수는")
         self.assertEqual(p.restore("상대1이랑"), "민수랑")
-        self.assertEqual(p.restore("상대2아"), "Minsu아")
+        self.assertEqual(p.restore("상대2아"), "Minsu야")
         self.assertEqual(p.restore("상대3가"), "김지은이")
         self.assertEqual(p.restore("[본인]이 할게"), "내가 할게")
 
@@ -311,7 +311,7 @@ class NameRound5Test(unittest.TestCase):
         for title in ("영어 스터디", "주말 등산"):
             p = _p(["Minsu", "나"], me="나", title=title)
             self.assertEqual(p.text("영어 공부 주말 등산"), "영어 공부 주말 등산")
-            self.assertEqual(p.restore("상대1아"), "Minsu아")
+            self.assertEqual(p.restore("상대1아"), "Minsu야")
 
     def test_compound_surname_and_upper_latin(self):
         self.assertNotIn("궁민", name_forms("남궁민"))
@@ -510,6 +510,81 @@ class MaskingRound7Test(unittest.TestCase):
         self.assertEqual(p.restore("상대3로부터"), "박서준으로부터")
         self.assertEqual(p.restore("상대2로서"), "이지은으로서")
         self.assertEqual(p.restore("[본인]님"), "나")
+
+
+class NicknameRound8Test(unittest.TestCase):
+    """학부모·꾸민 닉네임, 닉네임 속 설명 낱말, 가족 관계 힌트."""
+
+    def test_parent_nicknames_mask_child_and_parent(self):
+        p = _p(["준서맘", "서윤맘(김혜진)", "하린할머니", "하준이네", "나"], me="나")
+        out = p.text("준서맘 저희 애도 / 서윤맘이 회비 걷어주신대요~ 하린이는 / 하준이가 엄청 기대 / 혜진씨")
+        for name in ("준서", "서윤", "하린", "하준", "혜진"):
+            self.assertNotIn(name, out)
+        self.assertEqual(p.sender_map["하준이네"], "상대4(○○가족)")
+        self.assertEqual(p.restore("상대2(○○엄마)님 감사해요"), "서윤맘님 감사해요")
+
+    def test_glued_cute_nicknames(self):
+        for nick in ("민수짱", "민수입니다", "지은공주", "지은이당"):
+            self.assertTrue({"민수", "지은"} & set(name_forms(nick)), nick)
+
+    def test_descriptive_words_in_nicknames_are_not_names(self):
+        cases = {"삼성전자 김지은": "삼성전자", "신한은행 이수진 대리": "신한은행", "인테리어 김민수 실장": "인테리어",
+                 "1학년3반 준서맘": "학년", "3학년 2반 담임 김선희": "담임", "오늘도 지은": "오늘도", "민수 (부재중)": "부재중",
+                 "김지은 퇴사": "퇴사", "박지성 선수": "선수", "작은아빠": "작은"}
+        for nick, word in cases.items():
+            self.assertNotIn(word, name_forms(nick), nick)
+        p = _p(["삼성전자 김지은", "나"], me="나")
+        self.assertEqual(p.text("삼성전자 주가 몇 학년이에요?"), "삼성전자 주가 몇 학년이에요?")
+        self.assertEqual(p.restore("상대1님 감사합니다"), "김지은님 감사합니다")
+
+    def test_own_family_roles_are_not_someone_elses(self):
+        for nick in ("엄마 김영희", "김영희(엄마)", "우리엄마", "친정엄마", "남편♥박준호", "와이프 김지수", "이모 김영숙"):
+            self.assertFalse((role_of(nick) or "").startswith("○○"), nick)
+        for nick in ("서준 엄마", "준서맘", "하린할머니"):
+            self.assertTrue(role_of(nick).startswith("○○"), nick)
+        p = _p(["남편♥박준호", "나"], me="나")
+        self.assertEqual(p.text("준호야"), "상대1아")
+
+
+class ThirdPartyRound8Test(unittest.TestCase):
+    def test_common_word_names_with_ssi(self):
+        p = _p(["김민수", "철수"], me="철수")
+        for raw in ("지혜씨 오늘 출근하셨어요?", "지원씨", "수정씨", "유리씨", "은혜씨", "수영씨", "이하나씨", "영희님", "이영희님"):
+            self.assertIn("[이름]", p.text(raw), raw)
+
+    def test_honorific_nouns_kept(self):
+        p = _p(["김민수", "철수"], me="철수")
+        for raw in ("부모님 감사합니다", "장모님", "교장님", "방장님", "상무님", "전무님", "담당자님", "변호사님", "기자님",
+                    "박사님", "집사님", "장로님", "기장님", "약사님", "아가씨", "손글씨", "호박씨", "날씨", "솜씨",
+                    "선생님", "고객님", "김과장님", "박대리님", "구청장님", "하나님"):
+            self.assertEqual(p.text(raw), raw, raw)
+
+    def test_fullname_with_title(self):
+        p = _p(["김민수", "철수"], me="철수")
+        self.assertEqual(p.text("김영희 과장님께 보고드렸어요"), "[이름] 과장님께 보고드렸어요")
+        self.assertEqual(p.text("오늘도 과장님"), "오늘도 과장님")
+
+
+class IdentifierRound8Test(unittest.TestCase):
+    def test_id_pattern_boundaries(self):
+        for raw in ("kidding me", "midnight", "videos", "holidays", "president", "paid 1000", "계정 100개"):
+            self.assertEqual(mask_identifiers(raw), raw)
+        self.assertEqual(mask_identifiers("카톡 아이디가 minsu94야"), "카톡 아이디가 [아이디]야")
+
+    def test_more_identifier_variants(self):
+        for raw, want in (("900101-1******", "[주민번호]"), ("90년 3월 2일생", "[생년월일]"), ("1990.03.02생", "[생년월일]"),
+                          ("생년월일 1990-03-02", "생년월일 [생년월일]"), ("instagram.com/minsu", "[프로필링크]"),
+                          ("m.facebook.com/minsu.kim", "[프로필링크]"), ("메일 a.b@ex.com", "메일 [이메일]")):
+            self.assertEqual(mask_identifiers(raw), want, raw)
+
+    def test_latin_names_restore_with_vowel_ending(self):
+        p = _p(["Minsu Kim", "John", "김민수", "나"], me="나")
+        self.assertEqual([p.restore(t) for t in ("상대1아", "상대1은", "상대2아", "상대3이한테")],
+                         ["Minsu야", "Minsu는", "John아", "김민수한테"])
+
+    def test_alias_vocative_fixed_forward(self):
+        p = _p(["김민수", "철수"], me="철수")
+        self.assertEqual(p.text("철수야 김민수야"), "[본인]아 상대1아")
 
 
 if __name__ == "__main__":

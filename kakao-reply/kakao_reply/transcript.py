@@ -30,22 +30,26 @@ def guess_me_across(chats: list[Chat]) -> str | None:
 
 
 def pending_messages(chat: Chat, me: str | None) -> list[Message]:
-    """내가 마지막으로 말한 뒤에 다른 사람이 보낸 메시지들."""
+    """내가 마지막으로 '말한' 뒤에 다른 사람이 보낸 메시지들.
+
+    내가 사진·이모티콘만 보낸 건 답한 것으로 보지 않는다 (그 앞의 질문도 아직 답할 대상).
+    """
     if not me:
         return []
     out: list[Message] = []
     for m in reversed(chat.messages):
-        if m.sender == me:
+        if m.sender == me and not m.attachment:
             break
-        out.append(m)
+        if m.sender != me:
+            out.append(m)
     return list(reversed(out))
 
 
-def filter_period(chat: Chat, days: int | None, now: datetime | None = None) -> Chat:
-    """필요한 기간만 남긴다 (개인정보 최소 조회)."""
+def filter_period(chat: Chat, days: int | None, now: datetime | None = None, from_last: bool = False) -> Chat:
+    """필요한 기간만 남긴다 (개인정보 최소 조회). ``from_last`` 면 '마지막 메시지 기준 N일' (조용한 방에서도 최근 대화가 남게)."""
     if not days:
         return chat
-    base = now or chat.saved_at or datetime.now()
+    base = (chat.last_time if from_last else None) or now or chat.saved_at or datetime.now()
     cutoff = base - timedelta(days=days)
     kept = [m for m in chat.messages if m.time is not None and m.time >= cutoff]  # 시간 모르는 메시지는 기간 밖으로 본다
     return Chat(title=chat.title, saved_at=chat.saved_at, saved_at_estimated=chat.saved_at_estimated,

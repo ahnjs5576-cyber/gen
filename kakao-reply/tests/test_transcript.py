@@ -75,5 +75,12 @@ class TranscriptRound7Test(unittest.TestCase):
         self.assertFalse(st.me_seen)
 
 
+class PendingRound8Test(unittest.TestCase):
+    def test_attachment_only_reply_does_not_end_pending(self):
+        chat = parse_text(DAY + "[팀장] [오후 1:00] 보고서 언제 줄 수 있어요?\n[나] [오후 1:05] 사진\n[팀장] [오후 1:06] ?\n")
+        pending = pending_messages(chat, "나")
+        self.assertEqual([m.text for m in pending], ["보고서 언제 줄 수 있어요?", "?"])
+
+
 if __name__ == "__main__":
     unittest.main()

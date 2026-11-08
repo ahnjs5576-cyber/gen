@@ -129,6 +129,13 @@ def _to_time(y, mo, d, ampm, h, mi) -> datetime:
     return datetime(int(y), int(mo), int(d), hour, int(mi))
 
 
+def _safe_date(m: re.Match) -> date | None:
+    try:
+        return date(int(m["y"]), int(m["mo"]), int(m["d"]))
+    except ValueError:
+        return None
+
+
 def _safe_time(*parts) -> datetime | None:
     try:
         return _to_time(*parts)
@@ -144,10 +151,13 @@ def _mobile_time(m: re.Match) -> datetime:
 def _parse_saved_at(rest: str) -> datetime | None:
     rest = re.sub(r"\s*(\S+요일|\([월화수목금토일]\))\s*", " ", rest.strip())  # '2026년 11월 6일 금요일 오후 10:12'
     rest = re.sub(r"\s+", " ", rest).strip()
-    if m := _SAVED_ISO.match(rest):
-        return datetime(int(m["y"]), int(m["mo"]), int(m["d"]), int(m["H"]), int(m["M"]))
-    if m := _SAVED_MOBILE.match(rest):
-        return _mobile_time(m)
+    try:
+        if m := _SAVED_ISO.match(rest):
+            return datetime(int(m["y"]), int(m["mo"]), int(m["d"]), int(m["H"]), int(m["M"]))
+        if m := _SAVED_MOBILE.match(rest):
+            return _mobile_time(m)
+    except ValueError:  # '2026년 2월 30일' 같은 없는 날짜
+        return None
     return None
 
 
@@ -216,8 +226,8 @@ def parse_text(content: str) -> Chat:
                 fmt = "mobile"
                 start(Message(sender=m["sender"].strip(), text=m["text"] or "", time=t))
                 continue
-        if m := _PC_DATE.match(stripped):
-            current_day = date(int(m["y"]), int(m["mo"]), int(m["d"]))
+        if (m := _PC_DATE.match(stripped)) and (d := _safe_date(m)) is not None:
+            current_day = d
             start(None)
             continue
 
@@ -236,8 +246,8 @@ def parse_text(content: str) -> Chat:
             continue
 
         # 메시지 밖: 날짜 구분선은 날짜만 기억하고, 나머지(시스템 줄, 빈 줄, 알 수 없는 머리말)는 무시
-        if m := _MOBILE_DATE.match(stripped):
-            current_day = date(int(m["y"]), int(m["mo"]), int(m["d"]))
+        if (m := _MOBILE_DATE.match(stripped)) and (d := _safe_date(m)) is not None:
+            current_day = d
 
     start(None)
     chat.messages = _sort_by_time(chat.messages)
@@ -338,5 +348,8 @@ _FILENAME = re.compile(r"^KakaoTalk_Chat_(?P<title>.+?)_(?P<y>\d{4})-(?P<mo>\d{2
 
 def _from_filename(stem: str) -> tuple[str | None, datetime | None]:
     if m := _FILENAME.match(stem):
-        return m["title"], datetime(int(m["y"]), int(m["mo"]), int(m["d"]), int(m["H"]), int(m["M"]))
+        try:
+            return m["title"], datetime(int(m["y"]), int(m["mo"]), int(m["d"]), int(m["H"]), int(m["M"]))
+        except ValueError:
+            return m["title"], None
     return None, None

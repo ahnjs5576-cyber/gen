@@ -37,6 +37,8 @@ _UNIT = re.compile(r"(?:원|만원|천원|억|달러|개|명|번째|회|위|건|
                    r"(?:[이가은는을를에도만의]|까지|짜리|이야|입니다|이에요|예요|이나|씩)?(?![가-힣A-Za-z])")
 
 _PATTERNS = [
+    (re.compile(r"(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63}){0,8}\.[A-Za-z]{2,24}"),
+     "[이메일]"),
     # 주민·외국인등록번호 (뒷자리 첫 숫자 1~8)
     (re.compile(_D0 + _YYMMDD + r"\s*(?:" + _DASH + r"|\.)?\s*[1-8]\d{6}" + _D1), "[주민번호]"),
     (re.compile(r"\+82(?:" + _SEP + r")?1[016789](?:" + _SEP + r")?\d{3,4}(?:" + _SEP + r")?\d{4}" + _D1), "[전화번호]"),
@@ -44,14 +46,19 @@ _PATTERNS = [
     (re.compile(_D0 + r"0\d{1,2}(?:" + _SEP + r")\d{3,4}(?:" + _SEP + r")\d{4}" + _D1), "[전화번호]"),
     (re.compile(r"\(?" + _D0 + r"0\d{1,2}\)\s*\d{3,4}(?:" + _SEP + r")?\d{4}" + _D1), "[전화번호]"),  # (02) 123 4567, 031)123-4567
     # 카톡 아이디·SNS 계정·프로필 링크 (사람을 바로 찾을 수 있는 것)
-    (re.compile(r"https?://(?:open\.kakao\.com|(?:www\.)?instagram\.com|(?:www\.)?facebook\.com|(?:www\.)?x\.com|"
-                r"(?:www\.)?twitter\.com|(?:m\.)?blog\.naver\.com|(?:www\.)?tiktok\.com)/\S*"), "[프로필링크]"),
-    (re.compile(r"((?:카톡|카카오톡|인스타|인스타그램|트위터|페북|디스코드|라인|텔레)?\s*(?:아이디|ID|id|계정)\s*(?:은|는|:|=)?\s*)"
-                r"@?[A-Za-z0-9._-]{3,30}"), r"\1[아이디]"),
+    (re.compile(r"(?<![A-Za-z0-9.@-])(?:https?://)?(?:www\.|m\.)?(?:open\.kakao\.com|instagram\.com|facebook\.com|x\.com|twitter\.com|"
+                r"blog\.naver\.com|tiktok\.com|youtube\.com/@)/?[^\s가-힣]*"), "[프로필링크]"),
+    # '아이디/ID/계정' 뒤의 영문으로 시작하는 값 ('kidding', 'midnight' 속 id 는 제외: 앞뒤가 영문이 아니어야 함)
+    (re.compile(r"((?:카톡|카카오톡|인스타|인스타그램|트위터|페북|디스코드|라인|텔레)?\s*(?:아이디|(?<![A-Za-z])(?:ID|id|Id)(?![A-Za-z])|계정)"
+                r"\s*(?:은|는|가|이|:|=)?\s*)@?[A-Za-z][A-Za-z0-9._-]{2,29}"), r"\1[아이디]"),
     (re.compile(r"(?<![A-Za-z0-9._%+-])@[A-Za-z0-9._]{3,30}(?![A-Za-z0-9._@])"), "[아이디]"),
-    (re.compile(r"(?:19|20)\d{2}\s*년\s*\d{1,2}\s*월\s*\d{1,2}\s*일\s*생"), "[생년월일]"),
-    (re.compile(r"(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9-]{1,63}(?:\.[A-Za-z0-9-]{1,63}){0,8}\.[A-Za-z]{2,24}"),
-     "[이메일]"),
+    # 생년월일: '1999년 3월 2일생', '90년 3월 2일생', '1990.03.02생', '생년월일 1990-03-02', '생일: 1990.3.2'
+    (re.compile(r"(?:19|20)?\d{2}\s*년\s*\d{1,2}\s*월\s*\d{1,2}\s*일\s*생"), "[생년월일]"),
+    (re.compile(r"(?<!\d)(?:19|20)?\d{2}[.\-/]\s?\d{1,2}[.\-/]\s?\d{1,2}\.?\s*생(?![가-힣])"), "[생년월일]"),
+    (re.compile(r"((?:생년월일|생일|출생일)\s*(?:은|는|:)?\s*)(?:(?:19|20)?\d{2}\s*[.\-/년]\s*\d{1,2}\s*[.\-/월]\s*\d{1,2}\s*일?)"),
+     r"\1[생년월일]"),
+    # 뒷자리를 별표로 가린 주민번호 ('900101-1******')
+    (re.compile(_D0 + _YYMMDD + r"\s*(?:" + _DASH + r")?\s*[1-8][\d*]{0,6}\*+"), "[주민번호]"),
 ]
 # 계좌·카드·사업자번호처럼 끊어 쓴 숫자 묶음. 하이픈류(-–—ㅡ)·공백으로 끊긴 것, 점으로 끊긴 4자리 묶음(카드).
 _GROUPED = re.compile(_D0 + r"\d{2,8}(?:(?:\s*" + _DASH + r"\s*|\s)\d{1,8}){1,5}" + _D1)
@@ -77,8 +84,9 @@ def _mask_grouped(m: re.Match) -> str:
             return raw  # 연도 나열
         if sum(len(g) < 3 for g in groups) > 1 or len(groups[-1]) < 2 and len(groups) > 2:
             return raw  # 짧은 묶음이 여럿이면 계좌가 아님
-        if _followed_by_unit(m):  # 금액 ('3000 000 000원') — 하이픈 금액은 없으므로 여기서만
-            return raw
+        same_len = len({len(g) for g in groups}) == 1
+        if _followed_by_unit(m) or (same_len and m.string[m.end():m.end() + 1] == " " and _UNIT.match(m.string, m.end() + 1)):
+            return raw  # 금액·수량 ('3000 000 000원', '1200 1500 1800 2100 명') — 하이픈 금액은 없으므로 여기서만
     return "[계좌/카드번호]"
 
 
@@ -168,8 +176,16 @@ def _is_team(token: str) -> bool:
 
 
 # 닉네임 낱말 끝에 붙여 쓰는 직함·호칭 ('김민수대리', '이지은과장님', '수빈언니', '민수아빠', '지은맘', '지민이')
-_GLUED_SUFFIXES = sorted(set(_TITLES) | {"님", "맘", "아빠", "엄마", "언니", "오빠", "누나", "형", "쌤", "샘", "고객", "고객님"},
+_GLUED_SUFFIXES = sorted(set(_TITLES) | {"님", "맘", "아빠", "엄마", "언니", "오빠", "누나", "형", "쌤", "샘", "고객", "고객님",
+                                         "네", "할머니", "할아버지", "이모", "삼촌", "고모", "짱", "공주", "왕자", "입니다",
+                                         "이당", "이에요", "예요", "이야", "담임", "담임선생님", "딸", "아들"},
                          key=len, reverse=True)
+# 닉네임에 붙는 상태·설명 낱말 (이름이 아님): '민수 (부재중)', '김지은 퇴사', '1학년3반 준서맘'
+_DESCRIPTORS = {"부재중", "회의중", "출장", "출장중", "외근", "재택", "휴가", "휴가중", "퇴사", "입사", "학년", "담임", "선수",
+                "공사중", "운동중", "수업중", "근무중", "본사", "지점", "매장", "사무실", "현장", "알바", "직원", "사장",
+                "대표", "원장", "작가", "강사", "코치", "감독", "기자", "의사", "약사", "간호사", "변호사", "세무사"}
+# 이름 앞에 붙는 꾸밈·관계 낱말 ('우리엄마', '친정엄마', '작은아빠')
+_FAMILY_MODIFIERS = {"우리", "울", "내", "친정", "시댁", "시", "외", "큰", "작은", "막내", "둘째", "첫째", "새", "친", "사랑"}
 # 성으로 시작하는 세 글자라도 이름이 아닌 흔한 낱말 (성을 떼면 엉뚱한 '이름' 이 생김: 강아지 → 아지)
 _NOT_NAMES = {"강아지", "오렌지", "고양이", "고구마", "오징어", "이모티콘", "선배님", "고객님", "사장님", "부장님", "과장님",
               "팀장님", "대리님", "선생님", "교수님", "원장님", "기사님", "회장님", "총무님", "반장님", "이사님", "실장님"}
@@ -192,41 +208,83 @@ def _core_token(token: str) -> tuple[str, str | None]:
     # 부를 때 붙이는 '이' ('지민이', '하은이'): 세 글자이고 가운데 글자가 받침으로 끝날 때
     if len(token) == 3 and token.endswith("이") and _has_batchim(token[1]):
         token = token[:2]
+    elif len(token) == 3 and token.endswith("아") and _has_batchim(token[1]) and token[0] not in _SURNAMES_1:
+        token = token[:2]  # '찬영아' (부르는 꼴을 닉네임으로)
     return token, suffix
 
 
+_ADJECTIVES = {"예쁜", "착한", "멋진", "귀여운", "사랑스러운", "배고픈", "졸린", "행복한", "즐거운", "작은", "큰", "새로운",
+               "따뜻한", "멋있는", "잘생긴", "이쁜", "고마운", "든든한", "소중한", "다정한", "엉뚱한"}
+
+
 def _is_modifier(token: str) -> bool:
-    """'사랑하는', '귀여운', '우리의' 처럼 이름 앞에 붙는 꾸밈말."""
-    return len(token) >= 3 and token.endswith(("하는", "스러운", "러운", "여운", "는", "의"))
+    """'사랑하는', '귀여운', '배고픈', '우리의' 처럼 이름 앞에 붙는 꾸밈말."""
+    if token in _ADJECTIVES:
+        return True
+    if len(token) >= 3 and token.endswith(("하는", "스러운", "러운", "여운", "는", "의", "한", "픈", "운", "린", "진")) \
+            and not _full_name_like(token):
+        return True
+    return False
+
+
+def _full_name_like(core: str) -> bool:
+    """성으로 시작하는 세 글자(김지은) 또는 복성 네 글자(황보지은). '오늘도', '부재중' 처럼 낱말로 읽히면 제외."""
+    if core in _NOT_NAMES or core in _DESCRIPTORS:
+        return False
+    if re.fullmatch(r"[가-힣]{3}", core):
+        return core[0] in _SURNAMES_1 and core[:2] not in _SURNAME_NOUNS and core[:2] not in _SURNAMES_2 \
+            and core[1:] not in _TITLES
+    return bool(re.fullmatch(r"[가-힣]{4}", core)) and core[:2] in _SURNAMES_2
+
+
+def _name_tokens(nickname: str) -> list[tuple[str, str, str, str | None]]:
+    """닉네임 낱말을 (원래 낱말, 핵심 이름, 종류, 붙은 호칭) 으로. 종류: glued(호칭이 붙음)·full(성+이름)·short·latin.
+
+    호칭이 붙은 낱말이나 성까지 있는 이름이 하나라도 있으면, 나머지 두 글자 낱말은 이름이 아니라 설명으로 본다
+    ('삼성전자 김지은', '김지은 퇴사', '박지성 선수', '1학년3반 준서맘').
+    """
+    out = []
+    for raw in re.findall(r"[가-힣]+|[A-Za-z]+", nickname.strip()):
+        if re.fullmatch(r"[A-Za-z]+", raw):
+            if len(raw) >= 3 and not (raw.isupper() and len(raw) <= 3):  # PM, CEO 같은 약어 제외
+                out.append((raw, raw, "latin", None))
+            continue
+        if raw in _NOT_NAMES or raw in _DESCRIPTORS or _is_modifier(raw) or raw in _FAMILY_MODIFIERS:
+            continue
+        core, suffix = _core_token(raw)
+        # '우리엄마', '친정엄마', '작은아빠' 처럼 꾸밈말+관계: 이름 없음
+        if suffix and core in _FAMILY_MODIFIERS:
+            continue
+        if core in _TITLES or core in _ROLE_ONLY or _is_team(core) or core in _DESCRIPTORS or core in _NOT_NAMES \
+                or len(core) < 2 or core in _GROUP_TITLE_WORDS:
+            continue
+        if re.fullmatch(r"[가-힣]{4,}", core) and not _full_name_like(core):
+            continue  # '삼성전자', '인테리어', '신한은행' 처럼 네 글자 이상 낱말
+        kind = "glued" if suffix else ("full" if _full_name_like(core) else "short")
+        if kind == "short" and len(core) >= 3 and core[-1] in "도은는이가을를의만랑":
+            continue  # '오늘도', '그래도' 처럼 조사로 끝나는 낱말
+        out.append((raw, core, kind, suffix))
+    if any(k in ("glued", "full") for _, _, k, _ in out):
+        out = [t for t in out if t[2] != "short"]
+    return out
 
 
 def name_forms(nickname: str) -> list[str]:
-    """닉네임에서 본문에 나올 만한 이름 꼴을 뽑는다.
+    """닉네임에서 본문에 나올 만한 이름 꼴을 뽑는다 (첫 항목은 닉네임 그대로).
 
-    '김민수 대리' → ['김민수 대리', '김민수', '민수'], '🐶민수94' → ['🐶민수94', '민수'], 'Minsu Kim' → [..., 'Minsu', 'Kim'],
-    '이지은과장님' → [..., '이지은', '지은']. 직함·팀 이름·숫자·짧은 영문 약어(PM)·꾸밈말은 뺀다.
+    '김민수 대리' → ['김민수 대리', '김민수', '민수'], '🐶민수94' → ['🐶민수94', '민수'], '준서맘' → ['준서맘', '준서'],
+    '삼성전자 김지은' → ['삼성전자 김지은', '김지은', '지은']. 직함·설명·숫자·영문 약어·꾸밈말은 뺀다.
     """
     nick = nickname.strip()
     forms = [nick]
-    # 한글/영문 덩어리만 뽑는다: 이모티콘·기호·숫자는 구분자로 본다.
-    for raw_token in re.findall(r"[가-힣]+|[A-Za-z]+", nick):
-        token = raw_token
-        if re.fullmatch(r"[가-힣]+", token):
-            if token in _NOT_NAMES or _is_modifier(token):
-                continue
-            token, _ = _core_token(token)
-        if token in _TITLES or token in _ROLE_ONLY or _is_team(token) or token in _NOT_NAMES:
-            continue
-        if re.fullmatch(r"[A-Za-z]+", token) and (len(token) < 3 or (token.isupper() and len(token) <= 3)):
-            continue  # PM, CEO, B 같은 약어 (JIEUN 처럼 긴 대문자 이름은 남김)
-        if len(token) < 2:
-            continue
-        forms.append(token)
-        if re.fullmatch(r"[가-힣]{3}", token) and token[:2] not in _SURNAMES_2 and token[0] in _SURNAMES_1 \
-                and token[1:] not in _TITLES and token not in _NOT_NAMES:
-            forms.append(token[1:])  # 성을 뺀 이름: 김민수 → 민수 (아이유·김대리·회사원·남궁민 은 제외)
-        elif re.fullmatch(r"[가-힣]{4}", token) and token[:2] in _SURNAMES_2:
-            forms.append(token[2:])  # 복성: 황보지은 → 지은
+    for raw, core, kind, suffix in _name_tokens(nick):
+        if kind == "glued" and len(raw) >= 2:
+            forms.append(raw)  # '준서맘', '김민수대리' 처럼 붙여 쓴 꼴 그대로도 본문에 나온다
+        forms.append(core)
+        if re.fullmatch(r"[가-힣]{3}", core) and _full_name_like(core):
+            forms.append(core[1:])  # 성을 뺀 이름: 김민수 → 민수
+        elif re.fullmatch(r"[가-힣]{4}", core) and core[:2] in _SURNAMES_2:
+            forms.append(core[2:])  # 복성: 황보지은 → 지은
     seen: dict[str, None] = {}
     for f in forms:
         if len(f) >= 2:  # 한 글자는 본문에서 바꾸면 문장이 망가진다
@@ -249,7 +307,9 @@ def display_name(nickname: str) -> str:
 def _has_batchim(ch: str) -> bool | None:
     if "가" <= ch <= "힣":
         return (ord(ch) - 0xAC00) % 28 != 0
-    return None  # 한글이 아니면 판단하지 않음
+    if ch.isascii() and ch.isalpha():
+        return ch.lower() not in "aeiouy"  # 영문 이름은 끝 글자 소리로: Minsu → 민수(받침 없음), John → 존(받침)
+    return None
 
 
 def _is_rieul(ch: str) -> bool:
@@ -257,7 +317,7 @@ def _is_rieul(ch: str) -> bool:
 
 
 # (받침 있을 때, 받침 없을 때)
-_JOSA_PAIRS = [("으로부터", "로부터"), ("으로서", "로서"), ("으로써", "로써"), ("이시죠", "시죠"), ("이면", "면"),
+_JOSA_PAIRS = [("이한테", "한테"), ("이에게", "에게"), ("으로부터", "로부터"), ("으로서", "로서"), ("으로써", "로써"), ("이시죠", "시죠"), ("이면", "면"),
                ("이세요", "세요"), ("이시", "시"), ("이라는", "라는"), ("이요", "요"), ("이랑", "랑"), ("이에요", "예요"), ("이었", "였"), ("이야", "야"), ("이라고", "라고"), ("이나", "나"),
                ("이든", "든"), ("이고", "고"), ("이지", "지"), ("이네", "네"), ("이니", "니"), ("이라", "라"),
                ("이", "가"), ("은", "는"), ("을", "를"), ("아", "야"), ("과", "와"), ("으로", "로"),
@@ -287,29 +347,48 @@ def attach_josa(name: str, josa: str) -> str:
 # ------------------------------------------------------------------ 가명 처리
 
 # 닉네임에 들어 있으면 별칭 옆에 붙여 보내는 관계·직함 (사람을 특정하지 않고 말투 판단에 도움)
-_ROLE_WORDS = ["엄마", "아빠", "어머니", "아버지", "할머니", "할아버지", "이모", "삼촌", "고모", "외삼촌", "남편", "아내",
-               "와이프", "여보", "형", "누나", "언니", "오빠", "동생", "선배", "후배", "쌤", "선생님", "교수님"] + _JOB_TITLES
+_ROLE_WORDS = ["엄마", "아빠", "어머니", "아버지", "할머니", "할아버지", "외할머니", "외할아버지", "친할머니", "친할아버지",
+               "이모", "삼촌", "고모", "외삼촌", "큰엄마", "작은엄마", "큰아빠", "작은아빠", "남편", "아내", "와이프", "여보",
+               "신랑", "딸", "아들", "형", "누나", "언니", "오빠", "동생", "선배", "후배", "쌤", "선생님", "교수님", "담임",
+               "남친", "여친"] + _JOB_TITLES
 
 
 _ROLE_ONLY = set(_ROLE_WORDS)
-_FAMILY = {"엄마", "아빠", "어머니", "아버지", "할머니", "할아버지", "이모", "삼촌", "고모", "외삼촌", "남편", "아내", "와이프", "맘"}
+_FAMILY = {"엄마", "아빠", "어머니", "아버지", "할머니", "할아버지", "외할머니", "외할아버지", "친할머니", "친할아버지", "이모",
+           "삼촌", "고모", "외삼촌", "남편", "아내", "와이프", "맘", "가족", "담임", "선생님"}
 
 
 def role_of(nickname: str) -> str | None:
-    """닉네임 속 관계·직함. '서준 엄마'·'민수아빠' 처럼 다른 이름과 함께 쓴 가족 호칭은 '○○엄마' (누군가의 엄마)."""
-    tokens = [t for t in re.findall(r"[가-힣]+", nickname) if not _is_modifier(t)]
-    role, other_name = None, False
-    for t in tokens:
-        base = t[:-1] if t.endswith("님") and t[:-1] in _ROLE_ONLY else t
-        if base in _ROLE_ONLY or base == "맘":
-            role = role or ("엄마" if base == "맘" else base)
+    """닉네임 속 관계·직함.
+
+    가족 호칭이 아이 이름 같은 짧은 이름 **뒤에** 붙으면('서준 엄마', '준서맘', '하준이네') 누군가의 가족이라 '○○엄마'.
+    '엄마 김영희', '김영희(엄마)', '우리엄마', '와이프 김지수' 처럼 그 사람 자신의 관계면 그냥 '엄마'.
+    """
+    raws = [t for t in re.findall(r"[가-힣]+", nickname)]
+    role, of_other = None, False
+    prev_short = False  # 바로 앞 낱말이 아이 이름 같은 짧은 이름인지
+    for raw in raws:
+        base = raw[:-1] if raw.endswith("님") and raw[:-1] in _ROLE_ONLY else raw
+        if base in _ROLE_ONLY or base in ("맘", "네"):
+            r = {"맘": "엄마", "네": "가족"}.get(base, base)
+            if role is None:
+                role = r
+                of_other = prev_short and r in _FAMILY | {"가족"}
+            prev_short = False
             continue
-        core, suffix = _core_token(t)
-        if suffix in _ROLE_ONLY or suffix == "맘":
-            role = role or ("엄마" if suffix == "맘" else suffix)
-        if len(core) >= 2 and core not in _TITLES:
-            other_name = True
-    if role in _FAMILY and other_name:
+        core, suffix = _core_token(raw)
+        if suffix in ("선생", "담임", "담임선생"):
+            suffix = "선생님"
+        if suffix in _ROLE_ONLY or suffix in ("맘", "네"):
+            r = {"맘": "엄마", "네": "가족"}.get(suffix, suffix)
+            if role is None:
+                role = r
+                of_other = (r in _FAMILY | {"가족"}) and core not in _FAMILY_MODIFIERS and not _full_name_like(core)
+        elif suffix in _TITLES and role is None:
+            role = suffix
+        prev_short = len(core) in (2, 3) and not _full_name_like(core) and core not in _FAMILY_MODIFIERS \
+            and core not in _TITLES and core not in _DESCRIPTORS
+    if role and of_other:
         return f"○○{role}"
     return role
 
@@ -397,14 +476,25 @@ class Pseudonymizer:
             role = role_of(nickname)
             if forms and not (role and len(forms) > 1):
                 forms_full.setdefault(forms[0], alias)
+            of_other = bool(role and role.startswith("○○"))
+            # '서준 엄마', '준서맘' 의 '서준'·'준서' 는 엄마가 아니라 아이: 다른 사람이므로 [이름] 으로만 가린다.
+            # 호칭까지 붙은 꼴('준서맘')과 성까지 있는 이름('서윤맘(김혜진)' 의 김혜진)은 그 사람 자신이다.
+            child = set()
+            if of_other:
+                for raw, core, kind, suffix in _name_tokens(nickname):
+                    if kind == "short" or (kind == "glued" and suffix in _FAMILY | {"맘", "네"}):
+                        child.add(core)
             for f in forms[1:]:
-                # '서준 엄마' 의 '서준' 은 엄마가 아니라 아이: 다른 사람이므로 [이름] 으로만 가린다
-                forms_derived.setdefault(f, "[이름]" if role and role.startswith("○○") else alias)
+                forms_derived.setdefault(f, "[이름]" if f in child else alias)
+            if of_other and forms:
+                forms_full.setdefault(forms[0], alias)
             if alias != self.ME:
                 role = role_of(nickname)
                 # '서준 엄마' 는 '서준' 이 아니라 그 엄마다: 되돌릴 때 닉네임 그대로 ('서준 엄마님')
                 if role and role.startswith("○○"):
-                    d = nickname.strip()
+                    # 되돌릴 때는 '서윤맘' 처럼 호칭이 붙은 꼴 (괄호 속 실명·장식은 빼고)
+                    glued = [raw for raw, _, kind, _ in _name_tokens(nickname) if kind == "glued"]
+                    d = glued[0] if glued else re.sub(r"\s*\(.*?\)", "", nickname).strip()
                 elif role and len(name_forms(nickname)) <= 1:
                     d = role  # '사랑하는 엄마' → '엄마'
                 else:
@@ -495,7 +585,7 @@ class Pseudonymizer:
         loose = [j for j in single if j in ("였", "라", "랑", "나", "든", "고", "지", "네", "니", "면", "시")]
         strict = [j for j in single if j not in loose]
         josa = rf"(?:{_alt(multi)}|(?:{_alt(loose)})|(?:{_alt(strict)})(?=요|[^가-힣]|$))"
-        self._restore_re = re.compile(rf"({_alt(aliases)})(?!\d)(?:\([가-힣]{{1,6}}\))?({josa})?")
+        self._restore_re = re.compile(rf"({_alt(aliases)})(?!\d)(?:\([가-힣○]{{1,8}}\))?({josa})?")
 
     def _sub(self, m: re.Match) -> str:
         n2 = m.groupdict().get("n2")
@@ -512,6 +602,7 @@ class Pseudonymizer:
         for rx in self._regexes:
             text = rx.sub(self._sub, text)
         text = _THIRD_PARTY.sub(_mask_third_party, text)
+        text = _FULLNAME_TITLE.sub(_mask_fullname_title, text)
         return _fix_alias_josa(text)
 
     def _message_text(self, m) -> str:
@@ -545,26 +636,62 @@ class Pseudonymizer:
 
 
 # 대화에 참여하지 않은 사람을 '○○씨/○○님' 으로 부를 때 (영희씨도 합류해요) → [이름]
-_HONORIFIC_WORDS = set(_TITLES) | set(_ROLE_WORDS) | {
-    "고객", "어머", "아버", "할머", "할아버", "아드", "따", "부처", "하느", "하나", "손", "환자", "기사", "회원", "작가",
-    "주인", "목사", "신부", "선생", "사모", "형", "누", "오라버", "도련", "아가씨", "아저", "아주머", "사장", "의사", "간호사",
-    "강사", "코치", "감독", "선수", "멘토", "튜터", "님", "여러", "모두", "다들", "그분", "이분", "저분", "그", "이", "저"}
-_THIRD_PARTY = re.compile(r"(?<![가-힣A-Za-z0-9\[])([가-힣]{2,3})(?=\s?(?:씨|님)(?:한테|에게|께서|께|이랑|하고|[이가은는을를도의랑])?"
+# '님' 앞에 오는 호칭·직업·관계 낱말 (교장님, 기자님, 부모님 …) — 이것들은 사람 이름이 아니다.
+_HONORIFIC_WORDS = set(_TITLES) | set(_ROLE_WORDS) | set(_DESCRIPTORS) | set("""
+고객 어머 아버 할머 할아버 아드 따 부처 하느 하나 주 손 환자 기사 회원 작가 주인 목사 신부 수녀 스 선생 사모 형 누 오라버
+도련 사장 의사 간호사 강사 코치 감독 선수 멘토 튜터 여러 모두 다들 그분 이분 저분 그 이 저 부모 장모 장인 시모 시부 사돈
+매형 처형 처남 형수 제수 숙모 외숙 당숙 교장 교감 방장 상무 전무 기자 박사 석사 집사 권사 장로 기장 약사 판사 검사 변호사
+세무사 회계사 노무사 법무사 담당자 담당 관리자 운영자 의장 국장 처장 차관 장관 시장 군수 구청장 총장 학장 소장 지점장 점장
+고문 계장 조장 파트장 사무장 이사장 부회장 회장 원장 센터장 본부장 실장 반장 총무 위원 의원 교수 강사 교사 학부모 담임
+도사 영감 대감 마님 나리 도령 사부 스승 조상 성 형 누님 언니 오빠 동생 막내 아가 아기 애기 공주 왕자 대표 기관사 승무원
+조종사 운전기사 택배기사 배달기사 경비 관리소장 사감 조교 연구원 직원 사원 대리 과장 차장 부장 팀장 선배 후배 동기 동료
+시누 올케 서방 손자 손녀 사위 며느 이웃 성우 배우 가수 총리 간사 조카 사촌 동서 형부 제부 매제 처제 시아버 시어머 친구 고객
+가이드 기사 셰프 선장 함장 대장 병장 상병 일병 이병 중사 상사 원사 소위 중위 대위 소령 중령 대령 장군 경찰 형사 검찰 판사
+사회자 진행자 출연자 참가자 신청자 지원자 문의자 작성자 게시자 방문자 이용자 회원님 구독자 시청자 청취자 독자 학우 교우 신도
+성도 교인 신자 목자 원생 학원생 수강생 학생 학부모 대학원생 박사님 위원장 이장 통장 반상회 동장 면장 읍장 부녀회장 노인회장
+""".split())
+# '씨' 로 끝나는 낱말 (이름 + 씨 가 아님)
+_SSI_WORDS = {"아가", "호박", "손글", "말", "솜", "맵", "마음", "날", "글", "불", "꽃", "볍", "홀", "씨앗", "말솜", "옷맵", "아저",
+              "아줌", "아주머", "아재"}
+_THIRD_PARTY = re.compile(r"(?<![가-힣A-Za-z0-9\[])([가-힣]{2,3})(?=\s?(씨|님)(?:한테|에게|께서|께|이랑|하고|[이가은는을를도의랑])?"
                           r"(?![가-힣A-Za-z0-9]))")
+# 성+이름 뒤에 띄어 쓴 직함 ('김영희 과장님께') — 참여자가 아니어도 실명이므로 가린다
+_FULLNAME_TITLE = re.compile(r"(?<![가-힣A-Za-z0-9\[])([가-힣]{3})(?=\s(?:" + "|".join(sorted(_JOB_TITLES, key=len, reverse=True))
+                             + r")(?:님)?(?![가-힣]{2}))")
 
 
 def _mask_third_party(m: re.Match) -> str:
-    word = m.group(1)
-    if word in _HONORIFIC_WORDS or word.startswith("상대") or word in _COMMON_WORDS or word in _SURNAME_NOUNS:
+    word, hon = m.group(1), m.group(2)
+    if word.startswith("상대"):
+        return word
+    if hon == "씨":
+        # 씨: 이름에 주로 붙는다. '아가씨', '솜씨' 같은 낱말과 '김씨' 같은 성만 쓴 꼴은 그대로
+        if word in _SSI_WORDS or word in _HONORIFIC_WORDS:
+            return word
+        return "[이름]"
+    # 님: 대부분 호칭 앞에 붙는다. 호칭 목록에 없고 이름처럼 생긴 것만 가린다.
+    if word in _HONORIFIC_WORDS or word in _COMMON_EXCEPT_WORDS or word in _SURNAME_NOUNS:
         return word
     if any(word.endswith(t) for t in _HONORIFIC_WORDS if len(t) >= 2):
-        return word  # '박대리님', '김과장님' 처럼 성+직함은 사람을 특정하지 않는다
+        return word  # '박대리님', '김과장님', '구청장님'
+    if len(word) == 3 and word[-1] in "사관생장가원자인":
+        return word  # '변호사님', '소방관님', '대학생님' 같은 직업
+    if len(word) == 3 and not _full_name_like(word):
+        return word
     return "[이름]"
+
+
+_COMMON_EXCEPT_WORDS = {"하나", "하느", "부처", "예수", "알라", "주"}
+
+
+def _mask_fullname_title(m: re.Match) -> str:
+    word = m.group(1)
+    return "[이름]" if _full_name_like(word) else word
 
 
 # 별칭 뒤 조사를 별칭 받침에 맞춘다: '철수가' → '[본인]이', '김민수랑' → '상대1이랑' (상대1 = 상대'일')
 _DIGIT_READING = {"0": "영", "1": "일", "2": "이", "3": "삼", "4": "사", "5": "오", "6": "육", "7": "칠", "8": "팔", "9": "구"}
-_ALIAS_JOSA = re.compile(r"(상대\d+|\[본인\])(?:\([가-힣]{1,6}\))?(이랑|랑|으로|로|이|가|은|는|을|를|과|와)(?![가-힣])")
+_ALIAS_JOSA = re.compile(r"(상대\d+|\[본인\])(?:\([가-힣○]{1,8}\))?(이랑|랑|으로|로|이|가|은|는|을|를|과|와|아|야)(?![가-힣])")
 
 
 def _fix_alias_josa(text: str) -> str:

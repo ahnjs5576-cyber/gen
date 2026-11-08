@@ -321,5 +321,15 @@ class ParserRound7Test(IsolatedConfig):
         self.assertEqual([m.attachment for m in st.pending_attachments], ["사진"])
 
 
+class ImpossibleDateTest(IsolatedConfig):
+    def test_impossible_dates_do_not_crash(self):
+        p = self.write("x.txt", "x 님과 카카오톡 대화\n저장한 날짜 : 2026년 2월 30일 오후 10:12\n"
+                                "--------------- 2026년 2월 30일 월요일 ---------------\n[민수] [오후 1:00] 안녕\n")
+        chat = parse_file(p)
+        self.assertEqual(chat.messages[0].text, "안녕")
+        p = self.write("KakaoTalk_Chat_x_2026-02-30-10-00-00.csv", "Date,User,Message\n2026-11-06 10:00:00,민수,a\n")
+        self.assertEqual(parse_file(p).title, "x")
+
+
 if __name__ == "__main__":
     unittest.main()

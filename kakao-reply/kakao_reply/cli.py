@@ -118,6 +118,7 @@ def _stale_warning(status) -> None:
 
 
 SHOW_LIMIT = 20
+DEFAULT_DAYS = 30  # suggest 의 기본 범위: 마지막 메시지 기준 30일
 
 
 def _positive(value: str) -> int:
@@ -206,7 +207,7 @@ def cmd_inbox(args) -> None:
     fw = max(_width(n) for n in files.values()) + 1  # 파일 이름은 자르지 않는다 (suggest 에 그대로 붙여 넣게)
     print(f"{_pad('방', 18)} {_pad('마지막', 12)} {_pad('마지막 발신', 12)} {_pad('답할 것', 8)} {_pad('파일', fw)} 비고")
     for r, c in pairs:
-        who = "?" if r.last_is_mine is None else ("나" if r.last_is_mine else r.last_sender)
+        who = "나" if r.last_is_mine else (r.last_sender or "?")
         notes = []
         if r.last_is_mine is not None and not r.me_seen:
             notes.append("본인 메시지 없음")
@@ -238,6 +239,13 @@ def cmd_show(args) -> None:
         return
     if st.last_is_mine:
         print("\n마지막 메시지가 내 메시지예요. 답 기다리는 중.")
+        return
+    if not st.me_seen:
+        # 이 방에서 내 메시지를 못 찾으면 '안 읽은 위치' 를 알 수 없다
+        recent = chat.messages[-SHOW_LIMIT:]
+        print(f"\n이 방에서 '{me}' 님의 메시지를 찾지 못해 안 읽은 위치를 알 수 없어요. 최근 {len(recent)}개를 보여 드려요.")
+        for m in recent:
+            print("  " + m.line().replace("\n", "\n    "))
         return
     print(f"\n내 마지막 메시지 이후 온 메시지: {len(st.pending)}개")
     shown = st.pending[-SHOW_LIMIT:]
@@ -299,7 +307,12 @@ def cmd_suggest(args) -> None:
     full = _parse(args.file)
     label, other_names = _resolve_me(full, args.me)
     me = _require_me(full, label)
-    chat = _filtered(full, args.days)
+    if args.days is None:
+        # 기본 범위: 마지막 메시지 기준 최근 DEFAULT_DAYS 일 (조용한 방에서 몇 달 치가 통째로 나가지 않게)
+        chat = filter_period(full, DEFAULT_DAYS, from_last=True)
+        log.info("loaded %s", log_summary(chat))
+    else:
+        chat = _filtered(full, args.days)
     status = room_status(chat, me)
     _stale_warning(status)
     if args.last > 0:  # 보낼 범위만 남긴다 (가명 처리도 이 범위만 하면 된다)
@@ -324,7 +337,9 @@ def cmd_suggest(args) -> None:
             print(json.dumps(request, ensure_ascii=False, indent=2))
             return
         print("# 아래 대화가 Claude API 로 전송됩니다 (실제 전송 안 함). 요청 전체는 --json 으로 볼 수 있어요.\n")
-        print(f"대화방: {send_chat.title}  ·  가명 처리 {'켜짐' if pseudo else '꺼짐'}  ·  메시지 {len(send_chat.messages)}개\n")
+        scope = f"최근 {args.days}일" if args.days else f"마지막 메시지 기준 {DEFAULT_DAYS}일"
+        print(f"대화방: {send_chat.title}  ·  가명 처리 {'켜짐' if pseudo else '꺼짐'}  ·  메시지 {len(send_chat.messages)}개 "
+              f"(범위: {scope}, 최대 {args.last or '전체'}개)\n")
         for m in send_chat.messages:
             print("  " + m.line().replace("\n", "\n    "))
         if ask:
