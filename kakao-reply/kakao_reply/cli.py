@@ -54,9 +54,11 @@ def _me_label(chat: Chat, name: str | None) -> str | None:
 
 def _resolve_me(chat: Chat, me_arg: str | None) -> tuple[str | None, list[str]]:
     """(파일 속 본인 발신자 이름, 본인을 가리키는 다른 이름들)."""
-    name = me_arg or config.load_me()
+    saved = config.load_me()
+    name = me_arg or saved
     label = _me_label(chat, name)
-    others = [name] if name and name != label else []
+    # --me 로 '나' 를 줘도 저장해 둔 실제 이름('김철수')은 본문에서 계속 가린다
+    others = [n for n in dict.fromkeys([me_arg, saved]) if n and n != label]
     if label and label not in chat.participants:
         print(f"※ '{label}' 님이 이 방에서 보낸 메시지가 없어요. 이름이 다르면 --me 로 지정하세요. "
               f"(참여자: {', '.join(chat.participants)})", file=sys.stderr)
@@ -71,6 +73,9 @@ def _require_me(chat: Chat, me: str | None) -> str:
 
 
 def _filtered(chat: Chat, days: int | None) -> Chat:
+    if chat.undated:
+        note = " (--days 를 쓰면 빠집니다)" if days else ""
+        print(f"※ 시간을 읽지 못한 메시지가 {chat.undated}개 있어요{note}.", file=sys.stderr)
     out = filter_period(chat, days)
     if not out.messages:
         _fail(f"최근 {days}일 안에 메시지가 없어요. --days 를 늘리거나 빼고 다시 실행하세요.")
@@ -119,6 +124,19 @@ def _non_negative(value: str) -> int:
     if not re.fullmatch(r"[0-9]+", value):
         raise argparse.ArgumentTypeError(f"0 이상의 숫자여야 해요: {value}")
     return int(value)
+
+
+# argparse 의 기본 안내 문구를 한국어로 (argparse 는 실행 중에 gettext 함수 '_' 로 문구를 가져온다)
+_KO = {
+    "usage: ": "사용법: ", "positional arguments": "필수 항목", "options": "옵션",
+    "optional arguments": "옵션", "show this help message and exit": "이 도움말을 보여 주고 끝냄",
+    "the following arguments are required: %s": "다음 항목이 필요해요: %s",
+    "unrecognized arguments: %s": "알 수 없는 항목: %s",
+    "invalid choice: %(value)r (choose from %(choices)s)": "잘못된 선택: %(value)r (가능한 값: %(choices)s)",
+    "argument %(argument_name)s: %(message)s": "%(argument_name)s: %(message)s",
+    "expected one argument": "값이 하나 필요해요",
+}
+argparse._ = lambda text: _KO.get(text, text)
 
 
 class _Parser(argparse.ArgumentParser):
@@ -181,7 +199,7 @@ def cmd_inbox(args) -> None:
         if r.stale:
             notes.append(_age(r))
         print(f"{_pad(r.title, 18)} {_pad(_fmt_time(r.last_time), 12)} {_pad(who, 12)} "
-              f"{_pad(str(len(r.pending)), 8)} {', '.join(notes)}")
+              f"{_pad('?' if r.last_is_mine is None else str(len(r.pending)), 8)} {', '.join(notes)}")
     if any(r.last_is_mine is None for r in rows):
         print("\n'?' 는 본인 이름을 몰라서예요. `kakao-reply me <이름>` 으로 한 번 저장하세요.")
 
@@ -211,19 +229,30 @@ def cmd_show(args) -> None:
         print("\n※ 첨부물 원본은 내보내기 파일에 들어 있지 않아 여기서 받을 수 없어요. 카카오톡 앱에서 확인하세요.")
 
 
-def _print_analysis(result: Analysis) -> None:
+def _print_analysis(result: Analysis, source_text: str = "") -> None:
     print("■ 요약\n" + result.summary + "\n")
     if result.pending_points:
         print("■ 답해야 할 것")
-        for p in result.pending_points:
-            print(f"  - {p.sender}: {p.point}")
+        for k, p in enumerate(result.pending_points, 1):
+            print(f"  {k}) {p.sender}: {p.point}")
         print()
     print("■ 답장 초안" + ("" if result.needs_reply else " (답장이 꼭 필요하진 않아 보여요)"))
     for i, s in enumerate(result.suggestions, 1):
         print(f"  {i}. [{s.intent}] {s.text}")
+        meta = []
+        if s.to:
+            meta.append(f"받는 사람: {s.to}")
+        valid = [a + 1 for a in s.answers if 0 <= a < len(result.pending_points)]
+        if valid:
+            meta.append("답하는 것: " + ", ".join(f"{a})" for a in valid))
+        if meta:
+            print("     ↳ " + " · ".join(meta))
         if s.placeholders:
             print(f"     ↳ 채워 넣을 것: {', '.join(s.placeholders)}")
-        for w in draft_warnings(s):
+        missing = [k + 1 for k in range(len(result.pending_points)) if k not in s.answers]
+        if result.pending_points and s.answers and missing:
+            print(f"     ↳ 이 초안이 다루지 않는 것: {', '.join(f'{k})' for k in missing)}")
+        for w in draft_warnings(s, source_text):
             print(f"     ⚠ {w}")
 
 
@@ -263,16 +292,25 @@ def cmd_suggest(args) -> None:
     else:
         send_chat, send_me, ask = chat, me, args.ask
 
+    room_size = len(set(full.participants) | {me})
+    request = build_request(send_chat, send_me, 0, ask, pseudonymized=bool(pseudo), room_size=room_size)
     if args.dry_run:
-        print("# 아래 내용이 Claude API 로 전송됩니다 (실제 전송 안 함)\n")
-        print(json.dumps(build_request(send_chat, send_me, 0, ask, pseudonymized=bool(pseudo)),
-                         ensure_ascii=False, indent=2))
+        if args.json:
+            print(json.dumps(request, ensure_ascii=False, indent=2))
+            return
+        print("# 아래 대화가 Claude API 로 전송됩니다 (실제 전송 안 함). 요청 전체는 --json 으로 볼 수 있어요.\n")
+        print(f"대화방: {send_chat.title}  ·  가명 처리 {'켜짐' if pseudo else '꺼짐'}  ·  메시지 {len(send_chat.messages)}개\n")
+        for m in send_chat.messages:
+            print("  " + m.line().replace("\n", "\n    "))
+        if ask:
+            print(f"\n추가 요청: {ask}")
         return
 
     import anthropic
 
     try:
-        result = analyze(secrets.make_client(), send_chat, send_me, 0, ask, pseudonymized=bool(pseudo))
+        result = analyze(secrets.make_client(), send_chat, send_me, 0, ask, pseudonymized=bool(pseudo),
+                         room_size=room_size)
     except anthropic.AuthenticationError:
         _fail("API 키가 잘못됐습니다. `kakao-reply key set` 으로 다시 등록하세요.")
     except anthropic.RateLimitError:
@@ -295,8 +333,9 @@ def cmd_suggest(args) -> None:
         for s in result.suggestions:
             s.intent, s.text = pseudo.restore(s.intent), pseudo.restore(s.text)
             s.placeholders = [pseudo.restore(x) for x in s.placeholders]
+            s.to = pseudo.restore(s.to)
 
-    _print_analysis(result)
+    _print_analysis(result, "\n".join(m.text for m in chat.messages))
     if status.pending_attachments:
         kinds = ", ".join(sorted({m.attachment for m in status.pending_attachments}))
         print(f"\n※ 받은 {kinds} 원본은 내보내기 파일에 없어 내용을 반영하지 못했어요. 앱에서 확인 후 보내세요.")
@@ -329,18 +368,18 @@ def main(argv: list[str] | None = None) -> None:
     sub = p.add_subparsers(dest="cmd", required=True, parser_class=_Parser)
 
     mp = sub.add_parser("me", help="본인 이름 저장/확인 (내보낸 파일에 표시된 이름)")
-    mp.add_argument("name", nargs="?")
+    mp.add_argument("name", nargs="?", metavar="이름")
     mp.set_defaults(func=cmd_me)
 
     ip = sub.add_parser("inbox", help="폴더 안 여러 대화방을 최근순으로 한눈에 보기")
-    ip.add_argument("dir", help="내보내기 파일들이 있는 폴더")
+    ip.add_argument("dir", metavar="폴더", help="내보내기 파일들이 있는 폴더")
     ip.add_argument("--me", help="본인 이름 (기본: 저장된 이름 → 모든 방에 공통인 발신자 → '나')")
     ip.set_defaults(func=cmd_inbox)
 
     for name, fn, help_ in (("show", cmd_show, "대화 정보와 답 안 한 메시지 보기"),
                             ("suggest", cmd_suggest, "요약 + 답장 초안 생성")):
         sp = sub.add_parser(name, help=help_)
-        sp.add_argument("file", help="카카오톡 대화 내보내기 파일 (.txt 또는 .csv)")
+        sp.add_argument("file", metavar="파일", help="카카오톡 대화 내보내기 파일 (.txt 또는 .csv)")
         sp.add_argument("--me", help="본인 이름 (기본: `kakao-reply me` 로 저장한 이름)")
         sp.add_argument("--days", type=_positive, help="최근 N일 대화만 사용 (1 이상)")
         sp.set_defaults(func=fn)
@@ -350,14 +389,16 @@ def main(argv: list[str] | None = None) -> None:
             sp.add_argument("--no-pseudonymize", action="store_true",
                             help="이름 가명 처리·번호 가림을 끄고 원문 그대로 전송 (기본은 켜짐)")
             sp.add_argument("--copy", type=_positive, metavar="N", help="N번 초안을 바로 클립보드에 복사 (기본: 출력 후 물어봄)")
-            sp.add_argument("--dry-run", action="store_true", help="전송할 내용만 출력하고 API 는 호출하지 않음")
+            sp.add_argument("--dry-run", action="store_true", help="전송할 대화만 보여 주고 API 는 호출하지 않음")
+            sp.add_argument("--json", action="store_true", help="--dry-run 과 함께: 요청 전체를 JSON 으로 출력")
 
     kp = sub.add_parser("key", help="API 키를 키체인에 저장/삭제")
     kp.add_argument("action", choices=["set", "delete"])
     kp.set_defaults(func=cmd_key)
 
     args = p.parse_args(argv)
-    logging.basicConfig(level=logging.INFO if args.verbose else logging.WARNING, format="%(message)s")
+    logging.basicConfig(format="%(message)s")
+    log.setLevel(logging.INFO if args.verbose else logging.WARNING)
     args.func(args)
 
 

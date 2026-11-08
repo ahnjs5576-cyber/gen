@@ -76,7 +76,7 @@ class IdentityTest(IsolatedConfig):
         p.write_text(DAY + "[민수] [오후 7:02] 철수야 내일 봐\n[나] [오후 7:03] 응\n[민수] [오후 7:04] 철수 너 올거지?\n",
                      encoding="utf-8")
         run_cli(["me", "철수"])
-        code, out, err = run_cli(["suggest", str(p), "--dry-run"])
+        code, out, err = run_cli(["suggest", str(p), "--dry-run", "--json"])
         self.assertEqual(code, 0, err)
         self.assertNotIn("철수", out)
         content = json.loads(out[out.index("{"):])["messages"][0]["content"]

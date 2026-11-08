@@ -27,7 +27,8 @@ _IOS_TS = (r"(?P<y>\d{4})\.\s*(?P<mo>\d{1,2})\.\s*(?P<d>\d{1,2})\.\s*" + _AMPM).
 _MOBILE_TS = r"(?:" + _ANDROID_TS + r"|" + _IOS_TS + r")"
 
 # ----- 2026년 11월 6일 금요일 -----
-_PC_DATE = re.compile(r"^-+\s*(?P<y>\d{4})년\s*(?P<mo>\d{1,2})월\s*(?P<d>\d{1,2})일.*-+$")
+# 요일까지 정확히 맞아야 날짜 구분선으로 본다 ('----- 2026년 11월 6일 회의 -----' 같은 본문 줄과 구별)
+_PC_DATE = re.compile(r"^-{3,}\s*(?P<y>\d{4})년\s*(?P<mo>\d{1,2})월\s*(?P<d>\d{1,2})일\s*[월화수목금토일]요일\s*-{3,}$")
 # [민수] [오후 7:02] 내용
 # 이름에 ']' 가 들어갈 수 있어(예: 철수[회사]) 바로 뒤에 시간이 오는 첫 지점까지를 이름으로 본다.
 _PC_MSG = re.compile(r"^\[(?P<sender>.+?)\]\s*\[" + _AMPM + r"\]\s?(?P<text>.*)$")
@@ -36,6 +37,9 @@ _MOBILE_DATE = re.compile(r"^(?P<y>\d{4})년\s*(?P<mo>\d{1,2})월\s*(?P<d>\d{1,2
 _MOBILE_MSG = re.compile(r"^" + _MOBILE_TS + r",\s*(?P<sender>.+?)\s:(?:\s(?P<text>.*))?$")
 # 타임스탬프는 있지만 ' : ' 가 없는 줄 = 입장/퇴장 같은 시스템 메시지
 _MOBILE_SYSTEM = re.compile(r"^" + _MOBILE_TS + r",\s*(?!.*\s:(?:\s|$)).+$")
+# 모바일 시스템 메시지에 실제로 쓰이는 문구 (본문의 '2026년 11월 14일 오후 3:00, 강남역' 과 구별)
+_MOBILE_SYSTEM_KNOWN = re.compile(r"^" + _MOBILE_TS + r",\s*.*(?:님이 |님을 |님과 |채팅방|메시지를 가렸|메시지가 삭제|관리자|"
+                                  r"들어왔습니다|나갔습니다|초대했습니다|내보냈습니다)")
 
 # PC 형식의 시스템 메시지는 타임스탬프 없이 한 줄로 나온다. 일반 문장과 헷갈리지 않게 문장 전체가
 # 정해진 꼴일 때만 후보로 보고, 다음 줄이 새 메시지·날짜·파일 끝일 때만 실제로 버린다(parse_text 참고).
@@ -96,6 +100,7 @@ class Chat:
     title: str | None = None
     saved_at: datetime | None = None
     saved_at_estimated: bool = False  # 파일에 기록이 없어 파일 수정 시각으로 추정했는지
+    undated: int = 0  # 시간을 읽지 못한 메시지 수 (CSV 의 깨진 날짜 등)
     messages: list[Message] = field(default_factory=list)
 
     @property
@@ -117,6 +122,13 @@ def _to_time(y, mo, d, ampm, h, mi) -> datetime:
     else:
         hour = int(h) % 12 + (12 if ampm == "오후" else 0)
     return datetime(int(y), int(mo), int(d), hour, int(mi))
+
+
+def _safe_time(*parts) -> datetime | None:
+    try:
+        return _to_time(*parts)
+    except ValueError:  # '2026. 11. 31.' 같은 없는 날짜 → 머리줄이 아닌 본문으로 본다
+        return None
 
 
 def _mobile_time(m: re.Match) -> datetime:
@@ -149,6 +161,7 @@ def parse_text(content: str) -> Chat:
     # 시스템 메시지/날짜 구분선처럼 보이지만 아직 확정하지 않은 줄. 다음 줄이 새 메시지·날짜·파일 끝이면
     # 진짜 시스템 줄이라 버리고, 본문이 이어지면 원래 본문이었던 것으로 되돌린다.
     held: list[str] = []
+    fmt: str | None = None  # 첫 메시지 줄을 보고 'pc' 또는 'mobile' 로 정한다
 
     def start(msg: Message | None) -> None:
         nonlocal last, body
@@ -171,15 +184,23 @@ def parse_text(content: str) -> Chat:
                 chat.saved_at = _parse_saved_at(s["rest"])
                 continue
 
-        if m := _PC_MSG.match(line):
+        if (m := _PC_MSG.match(line)) and fmt != "mobile":
             t = None
             if current_day is not None:
-                t = _to_time(current_day.year, current_day.month, current_day.day, m["ampm"], m["h"], m["mi"])
-            start(Message(sender=m["sender"].strip(), text=m["text"], time=t))
-            continue
-        if m := _MOBILE_MSG.match(line):
-            start(Message(sender=m["sender"].strip(), text=m["text"] or "", time=_mobile_time(m)))
-            continue
+                t = _safe_time(current_day.year, current_day.month, current_day.day, m["ampm"], m["h"], m["mi"])
+            if current_day is None or t is not None:
+                fmt = "pc"
+                start(Message(sender=m["sender"].strip(), text=m["text"], time=t))
+                continue
+        if (m := _MOBILE_MSG.match(line)) and fmt != "pc":
+            try:
+                t = _mobile_time(m)
+            except ValueError:
+                t = None
+            if t is not None:
+                fmt = "mobile"
+                start(Message(sender=m["sender"].strip(), text=m["text"] or "", time=t))
+                continue
         if m := _PC_DATE.match(stripped):
             current_day = date(int(m["y"]), int(m["mo"]), int(m["d"]))
             start(None)
@@ -189,7 +210,9 @@ def parse_text(content: str) -> Chat:
             if held and not stripped:
                 held.append(line)  # 보류 중에 나온 빈 줄도 함께 보류
                 continue
-            if _MOBILE_DATE.match(stripped) or _MOBILE_SYSTEM.match(line) or _PC_SYSTEM.match(stripped):
+            # 파일 형식에 맞는 시스템 줄만 보류한다 (PC 파일 본문의 '2026년 11월 14일 오후 3:00, 강남역' 은 그냥 본문)
+            if (fmt == "mobile" and (_MOBILE_DATE.match(stripped) or _MOBILE_SYSTEM_KNOWN.match(line))) or \
+                    (fmt == "pc" and _PC_SYSTEM.match(stripped)):
                 held.append(line)
                 continue
             body.extend(held)  # 보류했던 줄 뒤에 본문이 이어지면 그건 본문이었다
@@ -213,6 +236,9 @@ def parse_csv(content: str) -> Chat:
         rows = list(csv.DictReader(io.StringIO(content.lstrip("\ufeff"))))
     except csv.Error as e:
         raise ExportReadError(f"CSV 형식이 깨져 읽지 못했습니다 ({e}).") from None
+    header = set(rows[0].keys()) if rows else set()
+    if rows and not {"User", "Message"} <= header:
+        raise ExportReadError("CSV 첫 줄이 카카오톡 형식(Date,User,Message)이 아닙니다. 카카오톡에서 내보낸 CSV 인지 확인하세요.")
     for row in rows:
         sender = (row.get("User") or "").strip()
         if not sender:
@@ -226,6 +252,8 @@ def parse_csv(content: str) -> Chat:
                 except ValueError:
                     pass
         text = (row.get("Message") or "").replace("\r\n", "\n").replace("\r", "\n")
+        if t is None:
+            chat.undated += 1
         chat.messages.append(Message(sender=sender, text=text, time=t))
     chat.messages = _sort_by_time(chat.messages)
     return chat
