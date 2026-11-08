@@ -12,7 +12,8 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--fg); -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; overscroll-behavior: none; }
 #touch, #touch * { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-canvas#game { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; display: block; touch-action: none; }
+canvas#game, canvas#hud { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; display: block; touch-action: none; }
+canvas#hud { pointer-events: none; z-index: 2; }
 
 .overlay { position: fixed; inset: 0; display: flex; padding: 16px; overflow: auto; -webkit-overflow-scrolling: touch; background: radial-gradient(ellipse at top, rgba(46,196,255,0.18), transparent 60%), rgba(6, 12, 24, 0.72); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); z-index: 10; }
 .overlay.hidden, .hidden { display: none !important; }
