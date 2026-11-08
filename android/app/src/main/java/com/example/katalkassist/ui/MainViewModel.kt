@@ -1,12 +1,17 @@
 package com.example.katalkassist.ui
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.katalkassist.App
 import com.example.katalkassist.data.MessageEntity
+import com.example.katalkassist.importer.ImportManager
+import com.example.katalkassist.reply.RemoteReplyDrafter
 import com.example.katalkassist.reply.ReplySuggestion
 import com.example.katalkassist.reply.TemplateReplyDrafter
 import com.example.katalkassist.service.ReplySender
+import com.example.katalkassist.util.Prefs
+import com.example.katalkassist.util.Redact
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -15,10 +20,16 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class MainViewModel : ViewModel() {
+class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = App.instance.repository
-    private val drafter = TemplateReplyDrafter()
+    val prefs = Prefs(app)
+    private val template = TemplateReplyDrafter()
+    private val remote = RemoteReplyDrafter(prefs)
+    private val importer = ImportManager(app, repo, prefs)
+
+    /** True while a draft request (esp. the LLM one) is in flight. */
+    val loadingSuggestions = MutableStateFlow(false)
 
     val rooms: StateFlow<List<MessageEntity>> =
         repo.roomSummaries().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -41,9 +52,44 @@ class MainViewModel : ViewModel() {
 
     private fun refreshSuggestions(roomKey: String) {
         viewModelScope.launch {
-            val recent = repo.recent(roomKey, limit = 20).reversed() // oldest first
-            suggestions.value = drafter.draft(recent)
+            loadingSuggestions.value = true
+            try {
+                val recent = repo.recent(roomKey, limit = 20).reversed() // oldest first
+                suggestions.value = if (prefs.llmReady()) {
+                    // LLM first; fall back to the offline template on any failure.
+                    runCatching { remote.draft(recent) }
+                        .onFailure { Redact.w("remote drafter failed, using template") }
+                        .getOrNull()
+                        ?.takeIf { it.isNotEmpty() }
+                        ?: template.draft(recent)
+                } else {
+                    template.draft(recent)
+                }
+            } finally {
+                loadingSuggestions.value = false
+            }
         }
+    }
+
+    fun importExport(uri: android.net.Uri, onDone: (String) -> Unit) {
+        viewModelScope.launch {
+            val msg = runCatching { importer.importFrom(uri) }
+                .map { "‘${it.roomName}’에서 ${it.imported}개 메시지를 가져왔어요" }
+                .getOrElse { "가져오기 실패: ${it.message}" }
+            onDone(msg)
+        }
+    }
+
+    fun saveSettings(
+        apiKey: String?, useLlm: Boolean, model: String,
+        pseudonymize: Boolean, retentionHours: Int, myName: String
+    ) {
+        if (apiKey != null) prefs.llmApiKey = apiKey.trim().ifBlank { null }
+        prefs.useLlm = useLlm
+        prefs.modelId = model
+        prefs.pseudonymize = pseudonymize
+        prefs.retentionHours = retentionHours
+        prefs.myDisplayName = myName.trim()
     }
 
     /** True if a working direct-reply handle exists for the selected room. */

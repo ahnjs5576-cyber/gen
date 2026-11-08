@@ -46,16 +46,46 @@ class Prefs(context: Context) {
         get() = plain.getBoolean(KEY_MANUAL_SEND, true)
         set(v) = plain.edit().putBoolean(KEY_MANUAL_SEND, v).apply()
 
+    /** Turn the LLM drafter on. Off => offline template drafter (no network). */
+    var useLlm: Boolean
+        get() = plain.getBoolean(KEY_USE_LLM, false)
+        set(v) = plain.edit().putBoolean(KEY_USE_LLM, v).apply()
+
+    /**
+     * Replace real names with stable labels (상대, 상대A/B) before sending context
+     * to the LLM. Default ON — minimize identifying data leaving the device.
+     */
+    var pseudonymize: Boolean
+        get() = plain.getBoolean(KEY_PSEUDO, true)
+        set(v) = plain.edit().putBoolean(KEY_PSEUDO, v).apply()
+
+    /** Claude model id. Default opus-5-5; haiku-5-5 is cheaper/faster for this. */
+    var modelId: String
+        get() = plain.getString(KEY_MODEL, "claude-opus-5-5") ?: "claude-opus-5-5"
+        set(v) = plain.edit().putString(KEY_MODEL, v).apply()
+
+    /** The user's own KakaoTalk display name — used to mark imported messages as "me". */
+    var myDisplayName: String
+        get() = plain.getString(KEY_MYNAME, "") ?: ""
+        set(v) = plain.edit().putString(KEY_MYNAME, v).apply()
+
     // --- secrets ---
 
     var llmApiKey: String?
         get() = secure.getString(KEY_LLM, null)
         set(v) = secure.edit().putString(KEY_LLM, v).apply()
 
+    /** True when the LLM path is both enabled and has a key. */
+    fun llmReady(): Boolean = useLlm && !llmApiKey.isNullOrBlank()
+
     companion object {
         private const val KEY_RETENTION = "retention_hours"
         private const val KEY_ROOMS = "allowed_rooms"
         private const val KEY_MANUAL_SEND = "manual_send_only"
+        private const val KEY_USE_LLM = "use_llm"
+        private const val KEY_PSEUDO = "pseudonymize"
+        private const val KEY_MODEL = "model_id"
+        private const val KEY_MYNAME = "my_display_name"
         private const val KEY_LLM = "llm_api_key"
     }
 }

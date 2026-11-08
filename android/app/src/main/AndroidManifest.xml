@@ -1,14 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!--
-      POST_NOTIFICATIONS: only so the app can show its own status notification.
-      We intentionally request NO internet permission by default — the offline
-      template drafter needs none. Add <uses-permission INTERNET/> yourself only
-      if you wire in a remote LLM, so the "no data leaves the device" default is
-      explicit and auditable.
-    -->
+    <!-- Only so the app can show its own status notification. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!--
+      INTERNET is used ONLY by the optional LLM drafter (RemoteReplyDrafter),
+      calling api.anthropic.com with the user's own key. The offline
+      TemplateReplyDrafter needs no network, and the LLM path is off until the
+      user enters a key and enables it in Settings. Nothing else leaves the
+      device; notification text is never uploaded unless the user turns the LLM on.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:name=".App"

@@ -5,20 +5,26 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -81,13 +87,16 @@ fun AppRoot(vm: MainViewModel) {
     }
 
     val selected = remember { mutableStateOf<MessageEntity?>(null) }
-    if (selected.value == null) {
-        RoomListScreen(vm) { room ->
-            selected.value = room
-            vm.selectRoom(room.roomKey)
-        }
-    } else {
-        ThreadScreen(vm, room = selected.value!!, onBack = {
+    val showSettings = remember { mutableStateOf(false) }
+
+    when {
+        showSettings.value -> SettingsScreen(vm, onBack = { showSettings.value = false })
+        selected.value == null -> RoomListScreen(
+            vm,
+            onOpen = { room -> selected.value = room; vm.selectRoom(room.roomKey) },
+            onSettings = { showSettings.value = true }
+        )
+        else -> ThreadScreen(vm, room = selected.value!!, onBack = {
             selected.value = null
             vm.selectRoom(null)
         })
@@ -116,9 +125,18 @@ fun PermissionGate(onGrant: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RoomListScreen(vm: MainViewModel, onOpen: (MessageEntity) -> Unit) {
+fun RoomListScreen(vm: MainViewModel, onOpen: (MessageEntity) -> Unit, onSettings: () -> Unit) {
     val rooms by vm.rooms.collectAsStateWithLifecycle()
-    Scaffold(topBar = { TopAppBar(title = { Text("대화") }) }) { pad ->
+    Scaffold(topBar = {
+        TopAppBar(
+            title = { Text("대화") },
+            actions = {
+                IconButton(onClick = onSettings) {
+                    Icon(Icons.Filled.Settings, contentDescription = "설정")
+                }
+            }
+        )
+    }) { pad ->
         if (rooms.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(pad), contentAlignment = Alignment.Center) {
                 Text(
@@ -151,6 +169,7 @@ fun ThreadScreen(vm: MainViewModel, room: MessageEntity, onBack: () -> Unit) {
     val context = LocalContext.current
     val thread by vm.thread.collectAsStateWithLifecycle()
     val suggestions by vm.suggestions.collectAsStateWithLifecycle()
+    val loading by vm.loadingSuggestions.collectAsStateWithLifecycle()
     var snackbar by remember { mutableStateOf<String?>(null) }
     val snackState = remember { SnackbarHostState() }
 
@@ -177,11 +196,13 @@ fun ThreadScreen(vm: MainViewModel, room: MessageEntity, onBack: () -> Unit) {
             }
 
             HorizontalDivider()
-            Text(
-                "답장 제안",
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.padding(start = 16.dp, top = 12.dp, bottom = 4.dp)
-            )
+            Row(
+                Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("답장 제안", style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
+                if (loading) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+            }
             val canSend = vm.canSend(room.roomKey)
             suggestions.forEach { s ->
                 SuggestionRow(
@@ -256,6 +277,122 @@ fun SuggestionRow(
             if (canSend) {
                 FilledTonalButton(onClick = onSend) { Text("전송") }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
+    val p = vm.prefs
+    var apiKey by remember { mutableStateOf("") }        // blank = leave existing key unchanged
+    var useLlm by remember { mutableStateOf(p.useLlm) }
+    var model by remember { mutableStateOf(p.modelId) }
+    var pseudonymize by remember { mutableStateOf(p.pseudonymize) }
+    var retention by remember { mutableStateOf(p.retentionHours.toString()) }
+    var myName by remember { mutableStateOf(p.myDisplayName) }
+    var snack by remember { mutableStateOf<String?>(null) }
+    val snackState = remember { SnackbarHostState() }
+    LaunchedEffect(snack) { snack?.let { snackState.showSnackbar(it); snack = null } }
+
+    val picker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri -> if (uri != null) vm.importExport(uri) { snack = it } }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("설정") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "뒤로")
+                    }
+                }
+            )
+        },
+        snackbarHost = { SnackbarHost(snackState) }
+    ) { pad ->
+        Column(
+            Modifier.padding(pad).fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Text("답장 생성 (LLM)", style = MaterialTheme.typography.titleMedium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Switch(checked = useLlm, onCheckedChange = { useLlm = it })
+                Spacer(Modifier.width(8.dp))
+                Text("Claude로 답장 생성 (끄면 오프라인 템플릿)")
+            }
+            OutlinedTextField(
+                value = apiKey, onValueChange = { apiKey = it },
+                label = { Text("Anthropic API 키 (비워두면 기존 키 유지)") },
+                visualTransformation = PasswordVisualTransformation(),
+                singleLine = true, modifier = Modifier.fillMaxWidth()
+            )
+            Text("모델", style = MaterialTheme.typography.labelLarge)
+            Column {
+                listOf(
+                    "claude-opus-5-5" to "Opus 5.5 (기본·고품질)",
+                    "claude-haiku-5-5" to "Haiku 5.5 (저렴·빠름, 이 용도 추천)",
+                    "claude-sonnet-5-5" to "Sonnet 5.5 (중간)"
+                ).forEach { (id, label) ->
+                    Row(
+                        Modifier.fillMaxWidth().clickable { model = id },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(selected = model == id, onClick = { model = id })
+                        Text(label)
+                    }
+                }
+            }
+
+            HorizontalDivider()
+            Text("개인정보", style = MaterialTheme.typography.titleMedium)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Switch(checked = pseudonymize, onCheckedChange = { pseudonymize = it })
+                Spacer(Modifier.width(8.dp))
+                Text("LLM에 보낼 때 이름 가리기 (상대/상대2…)")
+            }
+            OutlinedTextField(
+                value = retention, onValueChange = { retention = it.filter(Char::isDigit) },
+                label = { Text("메시지 보존 시간 (0 = 저장 안 함)") },
+                singleLine = true, modifier = Modifier.fillMaxWidth()
+            )
+
+            HorizontalDivider()
+            Text("대화 내보내기 가져오기", style = MaterialTheme.typography.titleMedium)
+            OutlinedTextField(
+                value = myName, onValueChange = { myName = it },
+                label = { Text("내 카카오톡 이름 (가져온 대화에서 '나' 구분용)") },
+                singleLine = true, modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedButton(
+                onClick = { picker.launch(arrayOf("text/*")) },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("카카오톡 내보내기 .txt 가져오기") }
+            Text(
+                "카카오톡 채팅방 → 메뉴 → 대화 내보내기 → 텍스트로 저장한 파일을 선택하세요. " +
+                    "과거 대화 전체 맥락을 답장 생성에 사용합니다.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.outline
+            )
+
+            HorizontalDivider()
+            Button(
+                onClick = {
+                    vm.saveSettings(
+                        apiKey = apiKey.ifBlank { null },
+                        useLlm = useLlm, model = model, pseudonymize = pseudonymize,
+                        retentionHours = retention.toIntOrNull() ?: 24, myName = myName
+                    )
+                    apiKey = ""
+                    snack = "저장했어요"
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("저장") }
+            TextButton(
+                onClick = { vm.clearAll(); snack = "저장된 대화를 모두 지웠어요" },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("저장된 대화 전체 삭제") }
         }
     }
 }

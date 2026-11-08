@@ -63,4 +63,7 @@ dependencies {
 
     // Encrypted prefs — API keys go through Android Keystore, never plaintext.
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
+
+    // HTTP client for the Claude Messages API (no Android-friendly official SDK).
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

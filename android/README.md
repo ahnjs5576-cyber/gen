@@ -30,23 +30,48 @@
 ## 모듈 구조
 
 ```
-service/KatalkNotificationListener.kt  ← 읽기: 알림 파싱 (MessagingStyle 우선)
+service/KatalkNotificationListener.kt  ← 읽기(실시간): 알림 파싱 (MessagingStyle 우선)
 service/ReplyActionCache.kt            ← 방별 직접답장 핸들(RemoteInput) 캐시
 service/ReplySender.kt                 ← 쓰기: RemoteInput으로 전송
+importer/KakaoExportParser.kt          ← 읽기(과거): 공식 '대화 내보내기' .txt 파서
+importer/ImportManager.kt              ← 내보내기 파일 → Room 저장
+reply/ReplyDrafter.kt                  ← 답장 초안 인터페이스 + 오프라인 템플릿
+reply/RemoteReplyDrafter.kt            ← LLM(Claude Messages API) 드래프터
 data/*                                 ← Room DB (본인 기기 내 보관, 보존기간 제한)
-reply/ReplyDrafter.kt                  ← 답장 초안 생성 (기본: 오프라인 템플릿)
-util/Prefs.kt                          ← 설정 + 암호화 키 저장
+util/Prefs.kt                          ← 설정 + 암호화 키 저장(Keystore)
 util/Redact.kt                         ← 로그에서 이름·본문 가림
-ui/*                                   ← Jetpack Compose 화면
+ui/*                                   ← Jetpack Compose 화면 (목록/대화/설정)
 ```
 
 읽기(로컬 데이터 조회) · 쓰기(공식 답장 API) · 최신성(알림 수신)을 **분리**한다는
-원래 원칙은 그대로 유지됩니다.
+원래 원칙은 그대로 유지됩니다. 과거 전체 맥락은 **공식 내보내기 파일**로 보완합니다.
+
+## 두 개의 읽기 소스
+
+| 소스 | 범위 | 실시간성 | 방식 |
+|---|---|---|---|
+| 알림 리스너 | 알림에 뜨는 새 메시지 | 실시간 | `NotificationListenerService` |
+| 내보내기 import | 그 방의 과거 전체(또는 긴) 히스토리 | 수동(사용자가 파일 선택) | 공식 '대화 내보내기' .txt 파싱 |
+
+둘 다 루팅·복호화 없이, 안드로이드/카카오톡이 **정당하게 내주는 데이터**만 씁니다.
+
+## LLM 답장 생성 (Claude)
+
+- 설정 화면에서 **Anthropic API 키**를 입력하면(암호화 저장소에 보관), 대화 맥락을
+  `api.anthropic.com`에 보내 답장 후보 3개를 받습니다. 키가 없거나 꺼져 있으면
+  자동으로 **오프라인 템플릿**으로 동작하고, LLM 호출이 실패해도 템플릿으로 폴백합니다.
+- 모델 기본값은 `claude-opus-5-5`(고품질). 이 용도에는 **`claude-haiku-5-5`가
+  저렴·빠름** — 설정에서 전환 가능. 응답은 `effort: low`로 빠르게 받습니다.
+- **가명화(기본 ON):** LLM에 보내기 전에 실제 이름을 `상대/상대2…`로 치환해
+  식별정보를 최소화합니다.
+- ⚠️ 이 구조는 앱이 기기에서 사용자 본인의 키로 Claude를 직접 호출합니다. 개인용으로는
+  괜찮지만, 배포용이라면 키가 단말에 실리지 않도록 **자체 백엔드로 프록시**하세요.
 
 ## 개인정보 보호 (기본값)
 
-- **인터넷 권한 없음** — 기본 템플릿 드래프터는 네트워크를 쓰지 않아 데이터가 기기 밖으로
-  나가지 않습니다. 원격 LLM을 붙일 때만 `INTERNET` 권한을 직접 추가하세요(감사 가능).
+- **네트워크는 LLM 켤 때만** — `INTERNET` 권한은 오직 `RemoteReplyDrafter`가
+  `api.anthropic.com`을 호출할 때만 쓰입니다. LLM을 끄면(기본값) 아무 데이터도 기기 밖으로
+  나가지 않습니다.
 - **보존기간 제한** — `Prefs.retentionHours`(기본 24h). `0`이면 저장 자체를 하지 않는
   휘발 모드.
 - **방 화이트리스트** — `Prefs.allowedRooms`에 담긴 방만 캡처(비어 있으면 전체).
@@ -54,14 +79,15 @@ ui/*                                   ← Jetpack Compose 화면
 - **로그 가림** — `Redact`가 이름/본문을 로그에 남기지 않음.
 - **키는 Keystore** — API 키는 `EncryptedSharedPreferences`에만.
 
-## 답장 생성 확장 (LLM 연결)
+## 답장 생성 구조
 
-기본은 오프라인 `TemplateReplyDrafter`입니다. LLM을 붙이려면:
+`ReplyDrafter` 인터페이스 뒤에 두 구현이 있습니다.
 
-1. `ReplyDrafter`를 구현한 `RemoteReplyDrafter`를 추가.
-2. 키는 `Prefs.llmApiKey`(암호화 저장소)에서 읽기.
-3. `AndroidManifest.xml`에 `<uses-permission android:name="android.permission.INTERNET"/>` 추가.
-4. 보낼 컨텍스트에서 이름 등 식별정보를 최소화(가명화) 후 전송 권장.
+- `TemplateReplyDrafter` — 오프라인 휴리스틱(네트워크 無). 키 없이 바로 동작.
+- `RemoteReplyDrafter` — Claude Messages API 호출(키 필요). 가명화 후 전송.
+
+`MainViewModel`이 `Prefs.llmReady()`를 보고 둘 중 하나를 고르며, 원격 실패 시 템플릿으로
+폴백합니다. 다른 LLM(사내 API 등)으로 바꾸려면 `ReplyDrafter`를 하나 더 구현해 끼우면 됩니다.
 
 ## 빌드
 
