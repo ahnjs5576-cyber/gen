@@ -17,6 +17,7 @@ const { chromium } = require('playwright');
         const r = blks[k].getBoundingClientRect();
         if (r.bottom - start > avail) {
           let j = k;
+          if (['caption','note'].includes(blks[j].dataset.t) && j > 0 && blks[j - 1].dataset.t === 'table') j--; // 출처·주석은 표와 함께
           while (j > 0 && keep.has(blks[j - 1].dataset.t)) j--;
           if (blks[j].getBoundingClientRect().top - start < 50) j = k; // 무한 루프 방지
           out.push(+blks[j].dataset.i);
