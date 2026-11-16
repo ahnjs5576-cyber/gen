@@ -1,0 +1,14 @@
+{
+  "name": "하루 스피킹",
+  "short_name": "하루 스피킹",
+  "description": "매일 10분 영어 아티큘레이션 트레이닝",
+  "lang": "ko",
+  "start_url": "./#today",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f1ec",
+  "theme_color": "#0f6e66",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

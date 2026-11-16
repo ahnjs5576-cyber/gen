@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>하루 스피킹</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="매일 10분, 영어로 또렷하고 조리 있게 말하는 연습. 발음 드릴, 섀도잉, 60초 즉흥 말하기, 표현 업그레이드.">
+<meta name="theme-color" content="#f4f1ec" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141210" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,650&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<a class="skip" href="#main">본문으로 건너뛰기</a>
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="#today"><span class="dot" aria-hidden="true"></span>하루 스피킹</a>
+    <nav class="nav" aria-label="주요 메뉴">
+      <a href="#today" data-r="today">오늘</a>
+      <a href="#review" data-r="review">복습<span class="badge" id="review-badge" hidden></span></a>
+      <a href="#library" data-r="library">연습실</a>
+      <a href="#stats" data-r="stats">기록</a>
+      <a href="#prefs" data-r="prefs">설정</a>
+    </nav>
+  </div>
+</header>
+<main id="main" class="wrap" tabindex="-1"></main>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+<script src="lib/score.js"></script>
+<script src="content/warmups.js"></script>
+<script src="content/sounds.js"></script>
+<script src="content/passages.js"></script>
+<script src="content/topics.js"></script>
+<script src="content/upgrades.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
