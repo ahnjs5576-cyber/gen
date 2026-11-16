@@ -140,19 +140,22 @@
    * 즉흥 말하기 분석
    * @param {string} text 인식된 전체 문장
    * @param {number} seconds 말한 시간(초)
-   * @param {object} opt { pauses: 긴 멈춤 횟수, hints: 추천 단어 }
+   * @param {object} opt { pauses: 긴 멈춤 횟수, hints: 추천 단어, target: 주어진 시간(초),
+   *                        confidence: 인식 신뢰도 평균(0~1, 없으면 0), topic: 질문 문장 }
    */
   function analyzeTalk(text, seconds, opt) {
     opt = opt || {};
     const T = tokens(text);
     const words = T.length;
     const secs = Math.max(1, seconds || 0);
+    const given = Math.max(secs, opt.target || secs);
     const wpm = Math.round(words / (secs / 60));
     const f = fillers(T);
     const perMin = +(f.total / (secs / 60)).toFixed(1);
+    const pauses = opt.pauses || 0;
     const content = T.filter(w => !STOP.has(w) && w.length > 2);
     const uniq = new Set(content);
-    const variety = content.length ? Math.round(uniq.size / content.length * 100) : 0;
+    const variety = mattr(content, 25);
     const counts = {};
     content.forEach(w => { counts[w] = (counts[w] || 0) + 1; });
     const repeated = Object.entries(counts).filter(([, c]) => c >= 3).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([w, c]) => ({ w, c }));
@@ -162,19 +165,42 @@
       return ht && (' ' + T.join(' ') + ' ').includes(' ' + ht + ' ');
     });
 
-    // 0~100 점수 네 가지. 학습자 기준으로 너그럽게 잡는다.
+    // 질문과 관련 있는 말을 했는지(질문·추천 단어의 내용어가 하나라도 나왔는지)
+    const topicWords = new Set(tokens((opt.topic || '') + ' ' + (opt.hints || []).join(' ')).filter(w => !STOP.has(w) && w.length > 3));
+    const onTopic = topicWords.size ? content.filter(w => topicWords.has(w) || topicWords.has(w.replace(/s$/, ''))).length : null;
+
+    // 0~100 점수. 분량은 ‘주어진 시간 전체’ 기준이라 일찍 끝내면 깎인다.
     const pace = words < 5 ? 0 : wpm < 70 ? 40 : wpm < 100 ? 70 : wpm <= 165 ? 100 : wpm <= 190 ? 75 : 50;
-    const clean = Math.max(0, Math.round(100 - perMin * 15));
-    const vocab = content.length < 5 ? 0 : Math.max(0, Math.min(100, Math.round((variety - 35) / 40 * 100)));
-    const target = Math.round(secs / 60 * 110); // 1분에 110단어 정도면 충분히 채운 것
-    const volume = Math.min(100, Math.round(words / Math.max(1, target) * 100));
-    const score = Math.round(pace * 0.25 + clean * 0.25 + vocab * 0.2 + volume * 0.3);
+    // 인식기가 um/uh를 빼먹기 쉬워서, 긴 멈춤도 망설임으로 함께 본다
+    const clean = words < 10 ? 0 : Math.max(0, Math.round(100 - perMin * 15 - pauses / (given / 60) * 8));
+    // 어휘: 내용어 25개 창으로 본 다양성(MATTR). 내용어가 적으면 그만큼 깎는다.
+    const vocabRaw = clamp01((variety / 100 - 0.6) / 0.32);
+    const vocab = Math.round(vocabRaw * Math.min(1, content.length / 30) * 100);
+    const want = given / 60 * 110; // 1분에 110단어 정도면 충분히 채운 것
+    const volume = Math.min(100, Math.round(words / Math.max(1, want) * 100));
+    const conf = opt.confidence > 0 ? opt.confidence : 0;
+    const clarity = conf ? Math.round(clamp01((conf - 0.55) / 0.37) * 100) : null;
+    const W = clarity == null ? { pace: 0.2, clean: 0.2, vocab: 0.2, volume: 0.4, clarity: 0 } : { pace: 0.15, clean: 0.2, vocab: 0.15, volume: 0.35, clarity: 0.15 };
+    let score = pace * W.pace + clean * W.clean + vocab * W.vocab + volume * W.volume + (clarity || 0) * W.clarity;
+    if (onTopic === 0 && words >= 20) score *= 0.8; // 질문과 무관해 보이면 감점
+    score = Math.round(score);
+    // 주어진 시간의 75% 미만이면 ‘미완료’ — 점수는 참고용
+    const complete = secs >= given * 0.75 - 0.5;
 
     return {
-      words, seconds: Math.round(secs), wpm, fillers: f.total, fillerFound: f.found, fillerPerMin: perMin,
-      variety, repeated, rich, hintsUsed, pauses: opt.pauses || 0,
-      parts: { pace, clean, vocab, volume }, score,
+      words, seconds: Math.round(secs), given: Math.round(given), wpm, fillers: f.total, fillerFound: f.found, fillerPerMin: perMin,
+      variety, contentWords: content.length, repeated, rich, hintsUsed, pauses, onTopic, confidence: conf,
+      parts: { pace, clean, vocab, volume, clarity }, score, complete,
     };
+  }
+  function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+  /** 이동 창 어휘 다양성(MATTR, %) — 짧은 답이 100%가 되는 문제를 줄인다 */
+  function mattr(list, win) {
+    if (!list.length) return 0;
+    if (list.length <= win) return Math.round(new Set(list).size / list.length * 100);
+    let sum = 0, n = 0;
+    for (let i = 0; i + win <= list.length; i++) { sum += new Set(list.slice(i, i + win)).size / win; n++; }
+    return Math.round(sum / n * 100);
   }
 
   function paceLabel(wpm) {
@@ -195,6 +221,13 @@
     });
   }
 
+  /** 표현 업그레이드 판정: 핵심어를 쓰고, 밋밋한 말(avoid)은 쓰지 않아야 성공 */
+  function upgradeCheck(item, text) {
+    const used = keysUsed(item.keys, text);
+    const weak = keysUsed(item.avoid || [], text);
+    return { used, weak, ok: used.length > 0 && weak.length === 0 };
+  }
+
   /** 지문에서 요약 때 쓸 만한 핵심 단어 */
   function keywords(text, n) {
     const T = tokens(text).filter(w => !STOP.has(w) && w.length > 3);
@@ -203,7 +236,7 @@
     return Object.entries(c).sort((a, b) => b[1] - a[1] || b[0].length - a[0].length).slice(0, n || 6).map(([w]) => w);
   }
 
-  const api = { tokens, align, displayWords, judgeWord, fillers, analyzeTalk, paceLabel, keysUsed, keywords, numberWords };
+  const api = { tokens, align, displayWords, judgeWord, fillers, analyzeTalk, paceLabel, keysUsed, upgradeCheck, keywords, mattr, numberWords };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.SPKScore = api;
 })(typeof window !== 'undefined' ? window : globalThis);

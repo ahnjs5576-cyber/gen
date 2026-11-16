@@ -76,6 +76,7 @@ try {
   page.on('pageerror', e => errors.push(e.message));
   await page.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
   await page.addInitScript(MOCK);
+  await page.addInitScript(() => { window.__spkTalkSeconds = 2; });
   await page.goto(base + '#today');
 
   const n = await page.locator('.ticket').count();

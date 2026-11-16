@@ -1,8 +1,8 @@
 // 오프라인 캐시: 앱 셸과 콘텐츠를 미리 받아 두고, 네트워크가 되면 최신본으로 갱신한다.
-const CACHE = 'haru-speak-v1';
+const CACHE = 'haru-speak-v2';
 const ASSETS = [
   './', 'index.html', 'styles.css', 'app.js', 'lib/score.js', 'icon.svg', 'manifest.webmanifest',
-  'content/warmups.js', 'content/sounds.js', 'content/passages.js', 'content/topics.js', 'content/upgrades.js',
+  'content/warmups.js', 'content/sounds.js', 'content/passages.js', 'content/topics.js', 'content/upgrades.js', 'content/rhythm.js',
 ];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
