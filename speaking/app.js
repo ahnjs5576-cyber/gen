@@ -222,6 +222,8 @@
   function countsForStreak(step, res) {
     if (step === 'warmup') return false;
     if ((step === 'talk' || step === 'retell') && res.partial) return false;
+    if (step === 'rhythm' && !res.spoken) return false;
+    if (step === 'upgrade' && !res.said && res.hit !== 'self') return false;
     if (step === 'sound' && res.n < 3) return false;
     return true;
   }
@@ -749,6 +751,8 @@
         <p class="verdict" aria-live="polite"></p>
       </div>`;
     const btn = box.querySelector('[data-mic]'), out = box.querySelector('.verdict');
+    // 자동으로 다음 단어로 넘어가면 포커스가 사라지므로 말하기 버튼으로 옮긴다
+    if (!document.activeElement || document.activeElement === document.body || !document.body.contains(document.activeElement)) btn.focus({ preventScroll: true });
     return new Promise(resolve => {
       let ses = null, tries = 0;
       btn.onclick = async () => {
@@ -858,7 +862,11 @@
 
   /** 강세 표기(대문자 음절)를 굵게, 연음 기호(‿)를 강조해 보여 준다 */
   function stressHtml(show) {
-    return esc(show).replace(/[A-Z]{2,}|\b[A-Z](?=[a-z]*[A-Z])/g, m => `<b class="st">${m}</b>`).replace(/‿/g, '<span class="link">‿</span>');
+    return esc(show).replace(/[A-Z]{2,}(?:&#39;[A-Z]+)?/g, m => `<b class="st">${m}</b>`).replace(/‿/g, '<span class="link">‿</span>');
+  }
+  function twBest(id) {
+    const v = Object.entries(state.best || {}).filter(([k]) => k.startsWith('tw:' + id + ':')).map(([, b]) => b.secs);
+    return v.length ? Math.min(...v) : null;
   }
   const RTYPE = { stress: '단어 강세', schwa: '약하게 말하기', linking: '연음', reduction: '축약', focus: '문장 강세', twister: '혀 꼬기' };
 
@@ -886,6 +894,7 @@
         ${L.ko ? `<p class="small muted">${esc(L.ko)}</p>` : ''}
         <div id="rs"></div>`;
       fin.innerHTML = `<button type="button" class="btn quiet sm">${i + 1 < lines.length ? '다음 문장' : '완료'}</button>`;
+      if (i > 0) { const m = box.querySelector('[data-mic]'); if (m) m.focus({ preventScroll: true }); }
       let got = null, rated = null;
       SentenceTry(box.querySelector('#rs'), L.text, { check: true, onResult(acc) {
         got = Math.max(got || 0, acc);
@@ -903,9 +912,10 @@
       };
     }
     function twister() {
-      const L = lines[Math.floor(Math.random() * lines.length)];
+      const li = Math.floor(Math.random() * lines.length);
+      const L = lines[li];
       const target = [L.text, L.text, L.text].join(' ');
-      const bestKey = 'tw:' + item.id;
+      const bestKey = 'tw:' + item.id + ':' + li; // 문장마다 길이가 달라 기록도 문장별로
       const best = (state.best || {})[bestKey];
       box.innerHTML = `<p class="show en big" lang="en">${esc(L.text)}</p>
         <div class="row">${speakBtn(L.text, '듣기')}${speakBtn(L.text, '천천히', 'slow')}${micButton('3번 연속 말하기')}</div>
@@ -931,7 +941,8 @@
         const a = S.align(target, r.text);
         const secs = Math.round(Math.max(1, (r.untilLast || r.span) - 0.3) * 10) / 10;
         const rec = { acc: a.accuracy, secs };
-        const better = a.accuracy >= 0.85 && (!best || secs < best.secs);
+        const prevBest = (state.best || {})[bestKey];
+        const better = a.accuracy >= 0.85 && (!prevBest || secs < prevBest.secs);
         if (better) { state.best = Object.assign({}, state.best, { [bestKey]: rec }); save(); }
         heard.innerHTML = `<strong>${secs}초</strong> · 정확도 <strong>${Math.round(a.accuracy * 100)}%</strong>${better ? ' — 새 최고 기록!' : a.accuracy < 0.85 ? ' — 정확도 85% 이상이어야 기록돼요' : ''}<br><span class="en muted">“${esc(r.text)}”</span>`;
         if (r.blob) abCompare(heard, L.text, r.blob);
@@ -940,7 +951,7 @@
         fin.querySelector('button').onclick = finish;
       };
     }
-    function finish() { done({ secs: 25, acc: n ? sum / n : null, self: selfN ? `${selfYes}/${selfN}` : null, kind: item.type }); }
+    function finish() { done({ secs: 25, acc: n ? sum / n : null, spoken: n, self: selfN ? `${selfYes}/${selfN}` : null, kind: item.type }); }
   }
 
   function SoundStep(el, s, done) {
@@ -1584,7 +1595,7 @@
           <p class="small" id="mtout" aria-live="polite"></p>
           ${nav('다음', '나중에')}`;
         const mt = box.querySelector('#mictest');
-        mt.onclick = () => micTest(box.querySelector('#mtout'), mt);
+        mt.onclick = () => micTest(box.querySelector('#mtout'), mt, { keepIntro: true });
         bindNav();
       } else if (k === 'diag') {
         if (!SR) { next(); return; }
@@ -1634,7 +1645,9 @@
       function finishDiag() {
         const weak = Object.entries(res).filter(([, r]) => r.ok / r.n <= 0.5).sort((a, b) => a[1].ok / a[1].n - b[1].ok / b[1].n).slice(0, 3).map(([id]) => id);
         state.diag = { date: today(), res };
-        if (weak.length) state.prefs.focus = weak;
+        state.prefs.focus = weak; // 약한 소리가 없거나 건너뛰면 전체 소리를 돌아가며
+        const d = dayRec(today());
+        if (d.plan && !d.done.sound) d.plan.sound = weak[0] || d.plan.sound;
         save();
         const tested = Object.keys(res).length;
         box.innerHTML = `<header class="card-head"><p class="crumb mono">시작 설정 3/5</p><h1>진단 결과</h1></header>
@@ -1660,8 +1673,9 @@
   function viewBaseline() {
     main.innerHTML = `<article class="card"><header class="card-head"><p class="crumb mono"><a href="#today">오늘</a> · 주간 체크</p><h1>주간 체크</h1>
       <p class="muted">첫날과 같은 글이에요. 다 읽고 나면 <a href="#stats">기록</a>에서 예전 녹음과 비교해 들을 수 있어요.</p></header><div id="bb"></div><footer class="next-bar" id="nextbar" hidden></footer></article>`;
+    const nextBar = document.getElementById('nextbar');
     BaselineStep(document.getElementById('bb'), () => {
-      const bar = nextBar || document.getElementById('nextbar');
+      const bar = nextBar;
       if (!bar || !document.body.contains(bar)) return; // 저장 중 다른 화면으로 넘어갔으면 화면은 건드리지 않는다
       bar.hidden = false;
       bar.innerHTML = `<p class="small muted">${ICON.check} 저장했어요</p><a class="btn" href="#stats">비교해 듣기 →</a>`;
@@ -1676,7 +1690,7 @@
     if (k === 'rhythm') return r.self ? `강세 ${r.self}` : r.acc != null && !['stress', 'focus', 'schwa'].includes(r.kind) ? `단어 ${Math.round(r.acc * 100)}%` : '완료';
     return '완료';
   }
-  async function micTest(out, btn) {
+  async function micTest(out, btn, mopt) {
     if (!SR) {
       if (!CAN_REC) { out.textContent = '이 브라우저는 녹음도 지원하지 않아요. Chrome이나 Safari 최신 버전에서 열어 주세요.'; return; }
       out.textContent = '3초 동안 녹음합니다. 아무 말이나 해 보세요.';
@@ -1694,7 +1708,7 @@
     if (r.error) { out.textContent = errorText(r.error); return; }
     if (!r.text) { out.textContent = '아무 소리도 듣지 못했어요. 마이크 권한과 볼륨을 확인해 주세요.'; return; }
     out.innerHTML = `${ICON.check} 잘 들려요: <span class="en">“${esc(r.text)}”</span>`;
-    state.onboarded = true; save();
+    if (!(mopt && mopt.keepIntro)) { state.onboarded = true; save(); }
   }
 
   // ---------- 화면: 단계 진행 ----------
@@ -1842,7 +1856,7 @@
       </section>
       ${RHYTHMS.length ? `<section class="stack">
         <h2>리듬·강세</h2>
-        <ul class="list">${RHYTHMS.map(r => `<li><a href="#lib/rhythm/${r.id}"><span>${esc(r.title)}</span><span class="small muted">${esc(RTYPE[r.type] || '')}${state.best && state.best['tw:' + r.id] ? ` · 최고 ${state.best['tw:' + r.id].secs}초` : ''}</span></a></li>`).join('')}</ul>
+        <ul class="list">${RHYTHMS.map(r => `<li><a href="#lib/rhythm/${r.id}"><span>${esc(r.title)}</span><span class="small muted">${esc(RTYPE[r.type] || '')}${twBest(r.id) ? ` · 최고 ${twBest(r.id)}초` : ''}</span></a></li>`).join('')}</ul>
       </section>` : ''}
       <section class="stack">
         <h2>입 풀기</h2>
@@ -2091,6 +2105,10 @@
           <p class="small muted">다른 기기로 옮길 때 백업 코드를 복사해 붙여 넣으세요. (녹음 파일은 포함되지 않아요)</p>
           <div class="row"><button type="button" class="btn quiet sm" id="exp">백업 코드 복사</button><button type="button" class="btn quiet sm" id="imp">백업 코드 붙여 넣기</button></div>
           <textarea id="bk" rows="3" hidden aria-label="백업 코드"></textarea>
+        </fieldset>
+        <fieldset><legend>처음 설정</legend>
+          <p class="small muted">발음 진단을 다시 해서 집중 연습 소리를 새로 정하거나, 첫 녹음을 다시 남길 수 있어요.</p>
+          <div class="row"><a class="btn quiet sm" href="#start">처음 설정·발음 진단 다시 하기</a></div>
         </fieldset>
         <fieldset><legend>초기화</legend>
           <button type="button" class="btn danger sm" id="reset">모든 기록 지우기</button>

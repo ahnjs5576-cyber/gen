@@ -1,5 +1,5 @@
 // 오프라인 캐시: 앱 셸과 콘텐츠를 미리 받아 두고, 네트워크가 되면 최신본으로 갱신한다.
-const CACHE = 'haru-speak-v2';
+const CACHE = 'haru-speak-v3';
 const ASSETS = [
   './', 'index.html', 'styles.css', 'app.js', 'lib/score.js', 'icon.svg', 'manifest.webmanifest',
   'content/warmups.js', 'content/sounds.js', 'content/passages.js', 'content/topics.js', 'content/upgrades.js', 'content/rhythm.js',
@@ -21,6 +21,7 @@ self.addEventListener('fetch', e => {
         }
         return res;
       })
-      .catch(() => caches.match(e.request).then(r => r || caches.match('index.html')))
+      // 오프라인: 캐시에 있으면 그것을, 페이지 이동이면 앱 셸을, 그 밖에는 실패로 돌려준다
+      .catch(() => caches.match(e.request, { ignoreSearch: true }).then(r => r || (e.request.mode === 'navigate' ? caches.match('index.html') : Response.error())))
   );
 });

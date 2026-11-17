@@ -18,6 +18,7 @@
     theatre: 'theater', travelling: 'traveling', grey: 'gray', practise: 'practice',
   };
 
+  const ORD = { 1: 'first', 2: 'second', 3: 'third', 4: 'fourth', 5: 'fifth', 6: 'sixth', 7: 'seventh', 8: 'eighth', 9: 'ninth', 10: 'tenth', 11: 'eleventh', 12: 'twelfth', 20: 'twentieth', 30: 'thirtieth' };
   function numberWords(n) {
     n = parseInt(n, 10);
     if (isNaN(n)) return '';
@@ -28,12 +29,13 @@
       return NUM[h] + ' hundred' + (r ? ' ' + numberWords(r) : '');
     }
     // 연도처럼 읽는 수(1100~2099, 00으로 끝나지 않음): 1995 → nineteen ninety five
+    if (n >= 1100 && n < 2000 && n % 100 === 0) return numberWords(n / 100) + ' hundred';
     if (n >= 1100 && n < 2100 && n % 100 && (n < 2000 || n >= 2010)) return numberWords(Math.floor(n / 100)) + ' ' + numberWords(n % 100);
     if (n < 1000000) {
       const th = Math.floor(n / 1000), r = n % 1000;
       return numberWords(th) + ' thousand' + (r ? ' ' + numberWords(r) : '');
     }
-    return '';
+    return n < 1e9 ? numberWords(Math.floor(n / 1e6)) + ' million' + (n % 1e6 ? ' ' + numberWords(n % 1e6) : '') : '';
   }
 
   /** 소문자, 문장부호 제거, 숫자→단어, 표기 통일 후 단어 배열 */
@@ -46,7 +48,7 @@
       .replace(/%/g, ' percent ')
       .replace(/\be-mail/g, 'email')
       .replace(/(\d),(?=\d{3}\b)/g, '$1')
-      .replace(/(\d+)(st|nd|rd|th)\b/g, '$1')
+      .replace(/(\d+)(st|nd|rd|th)\b/g, (m, d) => ' ' + (ORD[+d] || numberWords(d)) + ' ')
       .replace(/\d+/g, m => ' ' + numberWords(m) + ' ')
       .replace(/-/g, ' ')
       .replace(/[^a-z' ]+/g, ' ');
@@ -125,10 +127,12 @@
   const HESITATION = new Set(['um', 'uh', 'er', 'erm', 'ah', 'hmm', 'mm', 'uhm', 'umm']);
   // 문장부호가 없는 받아쓰기라 문법적으로 쓰인 말을 군더더기로 세지 않도록 보수적으로 판단한다.
   // 'like': 바로 앞이 이런 말일 때만 군더더기(“it was like”, “and like”, “like like”)
-  const LIKE_FILLER_BEFORE = new Set(['and', 'so', 'but', 'was', 'were', 'just', 'then', 'or', 'totally', 'literally', 'basically', 'like', 'um', 'uh', 'er']);
+  const LIKE_FILLER_BEFORE = new Set(['and', 'so', 'but', 'then', 'or', 'totally', 'literally', 'basically', 'like', 'um', 'uh', 'er']);
+  // “it was like so crazy”처럼 was/were 뒤 like는 다음 말이 감탄·대명사일 때만 군더더기(“was like a sister”는 비유)
+  const LIKE_AFTER_BE = new Set(['so', 'really', 'totally', 'um', 'uh', 'i', 'you', 'we', 'they', 'he', 'she', 'oh', 'wow', 'no', 'yes', 'what', 'okay', 'ok', 'whoa', 'seriously', 'super']);
   const DET = new Set(['a', 'an', 'the', 'what', 'this', 'that', 'these', 'those', 'any', 'some', 'every', 'same', 'different', 'other', 'another', 'one', 'new', 'right', 'wrong', 'certain', 'which', 'each', 'my', 'your', 'our', 'their', 'his', 'her', 'its', 'all']);
   const ASK_BEFORE = new Set(['do', 'did', 'dont', 'didnt', 'if', 'would', 'will', 'might', 'should', 'can', 'could', 'to', 'as', 'youd', 'what', 'that']);
-  const OBJ_AFTER = new Set(['what', 'how', 'that', 'where', 'why', 'when', 'who', 'whether', 'if', 'about', 'him', 'her', 'them', 'it', 'this', 'me', 'us', 'the', 'a', 'an', 'to', 'your', 'my', 'his', 'their', 'our', 'more', 'everyone', 'everything', 'anything', 'someone', 'something', 'nothing', 'better']);
+  const OBJ_AFTER = new Set(['what', 'how', 'that', 'where', 'why', 'when', 'who', 'whether', 'if', 'about', 'him', 'her', 'them', 'me', 'us', 'to', 'your', 'his', 'their', 'our', 'more', 'everyone', 'everything', 'anything', 'someone', 'something', 'nothing', 'better', 'each', 'english', 'yourself', 'myself']);
 
   /** 군더더기 찾기. pos: 군더더기로 본 토큰 위치 */
   function fillers(T) {
@@ -138,8 +142,9 @@
     for (let i = 0; i < T.length; i++) {
       const w = T[i], nx = T[i + 1] || '', pv = T[i - 1] || '', pv2 = T[i - 2] || '';
       if ((w === 'kind' || w === 'sort') && nx === 'of') {
-        // a kind of tea, a different kind of problem → 명사로 쓰인 것
-        if (!DET.has(pv) && !DET.has(pv2) && pv !== 'of') { add(w + ' of', i, i + 1); i++; }
+        // a kind of tea, a different kind of problem → 명사, that's kind of you → 형용사
+        const n2 = T[i + 2] || '';
+        if (!DET.has(pv) && !DET.has(pv2) && pv !== 'of' && !(w === 'kind' && ['you', 'him', 'her', 'them'].includes(n2) && !T[i + 3])) { add(w + ' of', i, i + 1); i++; }
         continue;
       }
       if (w === 'you' && nx === 'know') {
@@ -147,11 +152,13 @@
         continue;
       }
       if (w === 'i' && nx === 'mean') {
-        if (!ASK_BEFORE.has(pv) && !OBJ_AFTER.has(T[i + 2] || '') && !['it', 'that', 'this'].includes(T[i + 2] || '')) { add('i mean', i, i + 1); i++; }
+        const n2 = T[i + 2] || '';
+        // “I mean it.”(진심이다)·“I mean that…”·“I mean to…”는 제외
+        if (!ASK_BEFORE.has(pv) && !OBJ_AFTER.has(n2) && !(n2 === 'it' && !T[i + 3])) { add('i mean', i, i + 1); i++; }
         continue;
       }
       if (FILLER_SINGLE.has(w)) { add(w, i); continue; }
-      if (w === 'like' && (LIKE_FILLER_BEFORE.has(pv) || HESITATION.has(nx))) add('like', i);
+      if (w === 'like' && (LIKE_FILLER_BEFORE.has(pv) || HESITATION.has(nx) || ((pv === 'was' || pv === 'were' || pv === 'its') && LIKE_AFTER_BE.has(nx)))) add('like', i);
     }
     const total = Object.values(found).reduce((a, b) => a + b, 0);
     return { total, found, pos };
@@ -198,8 +205,13 @@
     const vocabRaw = clamp01((variety / 100 - 0.6) / 0.32);
     const vocab = Math.round(vocabRaw * Math.min(1, content.length / 30) * 100);
     const want = given / 60 * 110; // 1분에 110단어 정도면 충분히 채운 것
-    const volume = Math.min(100, Math.round(words / Math.max(1, want) * 100));
-    const conf = opt.confidence > 0 ? opt.confidence : 0;
+    // 같은 말을 되풀이하면 분량으로 치지 않는다: 서로 다른 3단어 묶음의 비율로 실제 분량을 줄인다
+    const tri = [];
+    for (let k = 0; k + 2 < T.length; k++) tri.push(T[k] + ' ' + T[k + 1] + ' ' + T[k + 2]);
+    const fresh = tri.length >= 6 ? new Set(tri).size / tri.length : 1;
+    const effective = words * Math.min(1, fresh / 0.85);
+    const volume = Math.min(100, Math.round(effective / Math.max(1, want) * 100));
+    const conf = opt.confidence > 0 && words >= 15 ? opt.confidence : 0;
     const clarity = conf ? Math.round(clamp01((conf - 0.55) / 0.37) * 100) : null;
     const W = clarity == null ? { pace: 0.2, clean: 0.2, vocab: 0.2, volume: 0.4, clarity: 0 } : { pace: 0.15, clean: 0.2, vocab: 0.15, volume: 0.35, clarity: 0.15 };
     let score = pace * W.pace + clean * W.clean + vocab * W.vocab + volume * W.volume + (clarity || 0) * W.clarity;
@@ -210,7 +222,7 @@
 
     return {
       words, seconds: Math.round(secs), given: Math.round(given), wpm, fillers: f.total, fillerFound: f.found, fillerPerMin: perMin,
-      variety, contentWords: content.length, repeated, rich, hintsUsed, pauses, onTopic, confidence: conf, topicKeys: Array.from(topicWords).slice(0, 3),
+      variety, fresh: Math.round(fresh * 100), contentWords: content.length, repeated, rich, hintsUsed, pauses, onTopic, confidence: conf, topicKeys: Array.from(topicWords).slice(0, 3),
       parts: { pace, clean, vocab, volume, clarity }, score, complete,
     };
   }
@@ -233,12 +245,28 @@
     return '매우 빠름';
   }
 
-  /** 핵심어(keys) 중 말한 것 */
+  /** 아주 단순한 어간 추출: concerns→concern, delivering→deliver, hundreds→hundred */
+  function stem(w) {
+    if (w.length > 5 && w.endsWith('ies')) return w.slice(0, -3) + 'y';
+    if (w.length > 5 && w.endsWith('ing')) return w.slice(0, -3).replace(/(.)\1$/, '$1');
+    if (w.length > 4 && w.endsWith('ed')) return w.slice(0, -2).replace(/(.)\1$/, '$1');
+    if (w.length > 4 && w.endsWith('es') && /(ss|sh|ch|x|z)es$/.test(w)) return w.slice(0, -2);
+    if (w.length > 3 && w.endsWith('s') && !w.endsWith('ss')) return w.slice(0, -1);
+    return w;
+  }
+  /** 핵심어(keys) 중 말한 것 — 단·복수, -ing, -ed 형태가 달라도 인정 */
+  function sameWord(a, b) { return a === b || stem(a) === b || a === stem(b) || stem(a) === stem(b); }
   function keysUsed(keys, text) {
-    const t = ' ' + tokens(text).join(' ') + ' ';
+    const T = tokens(text);
     return (keys || []).filter(k => {
-      const kt = tokens(k).join(' ');
-      return kt && t.includes(' ' + kt + ' ');
+      const K = tokens(k);
+      if (!K.length) return false;
+      for (let i = 0; i + K.length <= T.length; i++) {
+        let ok = true;
+        for (let j = 0; j < K.length && ok; j++) ok = sameWord(T[i + j], K[j]);
+        if (ok) return true;
+      }
+      return false;
     });
   }
 

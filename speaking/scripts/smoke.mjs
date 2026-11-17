@@ -256,6 +256,32 @@ try {
   const today3 = await p3.evaluate(() => window.__spk.today());
   s3.days[today3].plan.sound === s3.prefs.focus[0] ? ok('오늘 드릴 = 진단에서 틀린 소리') : fail('오늘 드릴 ' + s3.days[today3].plan.sound);
 
+  // 주간 체크 저장(이전 버전에서 ReferenceError가 났던 곳)
+  await p3.goto(base + '#baseline');
+  await p3.waitForSelector('#bb .passage');
+  await p3.locator('#bb [data-mic]').click();
+  await p3.waitForSelector('#pdone');
+  await p3.click('#pdone');
+  await p3.waitForSelector('#nextbar:not([hidden]) a');
+  ok('주간 체크 저장 후 비교 안내');
+  const nb = await p3.evaluate(() => window.__spk.state().baselines.length);
+  nb === 2 ? ok('주간 체크 2회 기록') : fail('주간 체크 기록 ' + nb);
+
+  // 혀 꼬기 기록: 느린 두 번째 시도가 최고 기록을 덮어쓰지 않아야 한다
+  const tw = await p3.evaluate(() => window.SPK.rhythm.find(r => r.type === 'twister').id);
+  await p3.goto(base + '#lib/rhythm/' + tw);
+  await p3.waitForSelector('.show.big');
+  await p3.locator('#rl [data-mic]').click();
+  await p3.waitForSelector('#rfin .btn:not(.quiet)');
+  const firstBest = await p3.evaluate(() => Object.values(window.__spk.state().best || {})[0]);
+  await p3.evaluate(() => { const P = performance.now.bind(performance); let extra = 0; window.__slow = () => { extra = 3000; }; performance.now = () => P() + extra; });
+  await p3.locator('#rl [data-mic]').click();
+  await p3.evaluate(() => window.__slow());
+  await p3.waitForFunction(() => /초/.test(document.querySelector('.heard').textContent) && !document.querySelector('[data-mic].on'));
+  await p3.waitForTimeout(300);
+  const afterBest = await p3.evaluate(() => Object.values(window.__spk.state().best || {})[0]);
+  firstBest && afterBest && afterBest.secs === firstBest.secs ? ok(`혀 꼬기 최고 기록 유지 (${firstBest.secs}초)`) : fail('혀 꼬기 기록 ' + JSON.stringify([firstBest, afterBest]));
+
   // 음성 인식이 없는 브라우저
   const p2 = await ctx.newPage();
   await p2.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());

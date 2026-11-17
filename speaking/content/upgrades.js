@@ -200,7 +200,7 @@
       "The approach we tried last year was a success."
     ],
     keys: ["campaign", "initiative", "approach", "strategy"],
-    avoid: ["thing", "did"],
+    avoid: ["thing"],
     gloss: "campaign 캠페인 · initiative 새 계획 · approach 접근법 · strategy 전략"
   },
   // ---------- 약한 동사 (get, make, do, go) ----------
@@ -286,7 +286,7 @@
       "I'm happy to lead the presentation."
     ],
     keys: ["deliver", "lead", "handle", "present"],
-    avoid: ["do"],
+    avoid: ["do the"],
     gloss: "deliver 발표하다 · lead 이끌다 · handle 맡다 · present 발표하다"
   },
   {
@@ -552,7 +552,7 @@
       "Grocery prices have skyrocketed this year."
     ],
     keys: ["doubled", "percent", "tripled", "skyrocketed"],
-    avoid: ["went up", "a lot"],
+    avoid: ["a lot"],
     gloss: "doubled 두 배가 됐다 · percent 퍼센트 · tripled 세 배가 됐다 · skyrocketed 치솟았다"
   },
   {
@@ -819,7 +819,7 @@
       "You're spot on."
     ],
     keys: ["absolutely", "agree more", "exactly", "spot on"],
-    avoid: ["yes"],
+    avoid: ["yes i agree"],
     gloss: "absolutely 전적으로 · couldn't agree more 더할 나위 없이 동의한다 · exactly 바로 그거다 · spot on 정확하다"
   },
   {

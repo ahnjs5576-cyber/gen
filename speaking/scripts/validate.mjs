@@ -79,12 +79,12 @@ K.upgrades.forEach(u => {
   // avoid: plain의 밋밋한 말. key를 말했어도 avoid를 말하면 실패 처리되므로 better에는 없어야 함
   if (!Array.isArray(u.avoid) || u.avoid.length < 1 || u.avoid.length > 4) err(at, 'avoid 1~4');
   (u.avoid || []).forEach(a => {
-    if (!/^[a-z]+( [a-z]+)?$/.test(a)) return err(at, `avoid 형식 '${a}'`);
+    if (!/^[a-z]+( [a-z]+){0,2}$/.test(a)) return err(at, `avoid 형식 '${a}'`);
     if (!S.keysUsed([a], u.plain).length) err(at, `avoid '${a}'가 plain에 없음`);
     (u.better || []).forEach(b => { if (S.keysUsed([a], b).length) err(at, `better 문장에 avoid '${a}': ${b}`); });
     (u.keys || []).forEach(k => { if (S.keysUsed([a], k).length) err(at, `key '${k}'에 avoid '${a}' 포함`); });
   });
-  if (u.keys && S.keysUsed(u.keys, u.plain).length) err(at, `plain 문장에 이미 key 포함: ${S.keysUsed(u.keys, u.plain)}`);
+  if (u.keys && S.upgradeCheck(u, u.plain).ok) err(at, `plain 문장을 그대로 말해도 통과함: ${S.keysUsed(u.keys, u.plain)}`);
   if (u.keys && u.better && !u.better.some(b => S.keysUsed(u.keys, b).length)) err(at, 'better 문장에 key가 하나도 없음');
 });
 const RT = ['stress', 'schwa', 'linking', 'reduction', 'focus', 'twister'];
