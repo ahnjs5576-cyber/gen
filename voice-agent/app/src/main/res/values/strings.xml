@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">말로폰</string>
+    <string name="a11y_label">말로폰 음성 조작</string>
+    <string name="a11y_description">말로 한 명령을 대신 실행하기 위해 화면 내용을 읽고, 버튼을 누르고, 글자를 입력합니다. 화면 내용은 명령을 실행할 때만 읽으며, AI 해석을 켠 경우 그 순간의 화면 텍스트가 Claude API로 전송됩니다.</string>
+    <string name="tile_label">말로 명령</string>
+</resources>

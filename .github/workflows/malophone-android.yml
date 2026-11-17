@@ -1,0 +1,71 @@
+name: Malophone APK
+
+on:
+  push:
+    paths:
+      - "voice-agent/**"
+      - ".github/workflows/malophone-android.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: malophone-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: voice-agent
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests
+        run: ./gradlew --no-daemon --stacktrace :app:testDebugUnitTest
+
+      - name: Build APK
+        run: ./gradlew --no-daemon --stacktrace :app:assembleDebug
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: voice-agent/app/build/reports/tests/
+          if-no-files-found: ignore
+
+      - name: Prepare APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk malophone.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: malophone-apk
+          path: voice-agent/malophone.apk
+
+      - name: Publish to release "malophone-latest"
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: malophone-latest
+          target_commitish: ${{ github.sha }}
+          name: 말로폰 최신 빌드
+          prerelease: true
+          make_latest: false
+          files: voice-agent/malophone.apk
+          body: |
+            말로폰(음성으로 폰 조작하는 앱) 최신 빌드입니다.
+            폰에서 이 페이지를 열고 아래 **malophone.apk**를 눌러 설치하세요.
+            설치·설정 방법은 저장소의 voice-agent/README.md를 보세요.
+
+            빌드 커밋: ${{ github.sha }}
