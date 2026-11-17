@@ -255,7 +255,7 @@
   {
     id: "u-021",
     plain: "I got the job.",
-    ko: "got 대신 landed, was offered로 성취감을 살린다.",
+    ko: "got 대신 landed, secured로 성취감을 살린다.",
     better: [
       "I landed the job!",
       "I just secured a job offer from my first choice.",
@@ -412,7 +412,7 @@
     ],
     keys: ["canceled", "cancelled", "called off", "call off", "decided to"],
     avoid: ["was made", "made by"],
-    gloss: "canceled 취소했다 · call off 취소하다 · decided to ~하기로 했다"
+    gloss: "canceled 취소했다 · call off · called off 취소하다 · decided to ~하기로 했다"
   },
   {
     id: "u-034",
@@ -463,7 +463,7 @@
     ],
     keys: ["i made", "we made", "overlooked", "missed"],
     avoid: ["were made"],
-    gloss: "I made 내가 ~했다 · overlooked 간과했다 · missed 놓쳤다"
+    gloss: "I made · we made 내가(우리가) ~했다 · overlooked 간과했다 · missed 놓쳤다"
   },
   {
     id: "u-038",
@@ -623,7 +623,7 @@
   {
     id: "u-050",
     plain: "The app was slow, and then users left.",
-    ko: "and then 대신 as a result, because로 인과를 드러낸다.",
+    ko: "and then 대신 consequently, dropping off처럼 인과와 결과가 보이는 말을 쓴다.",
     better: [
       "The app was slow; consequently, many users abandoned it.",
       "Because the app was so slow, users started dropping off.",
@@ -636,7 +636,7 @@
   {
     id: "u-051",
     plain: "I like my job. But it's stressful.",
-    ko: "끊긴 두 문장을 although, while로 한 문장에 묶는다.",
+    ko: "끊긴 두 문장을 although, even though, that said로 묶는다.",
     better: [
       "I enjoy my job, although it can be stressful.",
       "Even though I love my work, it does get stressful at times.",
@@ -805,7 +805,7 @@
     ],
     keys: ["essential", "would argue", "top priority", "crucial"],
     avoid: ["i think", "important"],
-    gloss: "essential 필수적인 · I'd argue ~라고 주장하고 싶다 · top priority 최우선 과제 · crucial 결정적인"
+    gloss: "essential 필수적인 · I would argue ~라고 주장하고 싶다 · top priority 최우선 과제 · crucial 결정적인"
   },
   // ---------- 동의·반대 ----------
   {
@@ -853,12 +853,12 @@
     ko: "Yes, but 대신 상대 의견을 인정한 뒤 새 고려 사항을 더한다.",
     better: [
       "That's a fair point, but we also need to consider the cost.",
-      "I agree up to a point.",
+      "That's a good point, although I see one risk.",
       "That's a valid point; however, the budget is tight."
     ],
     keys: ["fair point", "good point", "valid point", "consider"],
     avoid: ["yes but"],
-    gloss: "fair point 일리 있는 말 · good point 좋은 지적 · valid point 타당한 지적 · consider 고려하다 · up to a point 어느 정도까지는"
+    gloss: "fair point 일리 있는 말 · good point 좋은 지적 · valid point 타당한 지적 · consider 고려하다"
   },
   {
     id: "u-069",

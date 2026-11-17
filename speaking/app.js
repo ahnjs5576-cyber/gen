@@ -290,6 +290,7 @@
       const fresh = buildPlan(t);
       d.plan = Object.assign(fresh, Object.fromEntries(['warmup', 'sound', 'passage', 'topic', 'upgrade', 'rhythm'].map(k => [k, d.plan[k] || fresh[k]])));
       d.plan.steps = want.filter(s => itemForStep(d.plan, s));
+      if (d.plan.steps.every(s => d.done[s]) && !d.complete) { d.complete = true; d.completedAt = Date.now(); }
       save();
     }
     return d.plan;
@@ -498,6 +499,8 @@
       rec.onerror = e => {
         if (e.error === 'no-speech' || e.error === 'aborted') return;
         error = e.error || 'error';
+        // onend가 오지 않는 브라우저도 있어 잠시 뒤 스스로 끝낸다
+        setTimeout(finish, 1500);
       };
       rec.onend = () => {
         if (active && opt.continuous && !error && restarts < 40) {
@@ -576,6 +579,21 @@
         return r;
       }),
     };
+  }
+
+  /**
+   * 녹음·인식 세션을 ‘바로’ 돌려준다. 마이크 권한을 기다리는 동안 다시 누르거나 화면을 떠나도
+   * 시작되자마자 멈추도록, stop()과 화면 이탈 정리를 await 전에 등록한다.
+   */
+  function session(opt) {
+    let real = null, cancelled = false;
+    const ctl = {
+      stop() { cancelled = true; if (real) real.stop(); },
+    };
+    ctl.ready = capture(opt).then(r => { real = r; if (cancelled) r.stop(); return r; });
+    ctl.done = ctl.ready.then(r => r.done);
+    onLeave(() => ctl.stop());
+    return ctl;
   }
 
   // ---------- 화면 공통 ----------
@@ -718,10 +736,9 @@
         setMic(btn, true, '듣는 중… 멈추기');
         out.className = 'verdict';
         out.textContent = SR ? '지금 말하세요' : '녹음 중… 말한 뒤 멈추기를 누르세요';
-        ses = await capture({ continuous: false, maxAlt: 5, interim: false, maxSeconds: SR ? 8 : 6 });
-        if (ses.error) { out.textContent = errorText(ses.error); setMic(btn, false); ses = null; return; }
-        onLeave(() => ses && ses.stop());
-        const r = await ses.done;
+        ses = session({ continuous: false, maxAlt: 5, interim: false, maxSeconds: SR ? 8 : 6 });
+        const st0 = await ses.ready; if (st0.error) { out.textContent = errorText(st0.error); setMic(btn, false); ses = null; return; }
+          const r = await ses.done;
         ses = null;
         setMic(btn, false, '', '다시 말하기');
         if (!SR) {
@@ -771,7 +788,8 @@
     opt = opt || {};
     const dw = S.displayWords(sentence);
     el.innerHTML = `
-      <p class="sentence en" lang="en">${dw.map(w => w.space ? w.text : `<span class="w" data-from="${w.from}" data-n="${w.count}">${esc(w.text)}</span>`).join('')}</p>
+      ${opt.check ? '<p class="small muted">인식 확인 — 알아들은 단어가 초록색으로 바뀌어요</p>' : ''}
+      <p class="sentence en ${opt.check ? 'check' : ''}" lang="en">${dw.map(w => w.space ? w.text : `<span class="w" data-from="${w.from}" data-n="${w.count}">${esc(w.text)}</span>`).join('')}</p>
       <div class="row">${speakBtn(sentence, '듣기')}${speakBtn(sentence, '천천히', 'slow')}${micButton('따라 말하기')}</div>
       <p class="heard small muted" aria-live="polite"></p>`;
     const slow = el.querySelector('.slow'); if (slow) slow.dataset.rate = '0.7';
@@ -783,9 +801,8 @@
       setMic(btn, true);
       el.querySelectorAll('.w').forEach(w => w.classList.remove('hit', 'miss'));
       heard.textContent = SR ? '듣는 중…' : '녹음 중…';
-      ses = await capture({ continuous: true, autoStopSilence: 2200, maxSeconds: 30, onUpdate: t => { heard.textContent = t; paint(t, false); } });
-      if (ses.error) { heard.textContent = errorText(ses.error); setMic(btn, false); ses = null; return; }
-      onLeave(() => ses && ses.stop());
+      ses = session({ continuous: true, autoStopSilence: 2200, maxSeconds: 30, onUpdate: t => { heard.textContent = t; paint(t, false); } });
+      const st0 = await ses.ready; if (st0.error) { heard.textContent = errorText(st0.error); setMic(btn, false); ses = null; return; }
       const r = await ses.done;
       ses = null;
       setMic(btn, false, '', '다시 말하기');
@@ -847,7 +864,7 @@
         <div id="rs"></div>`;
       fin.innerHTML = `<button type="button" class="btn quiet sm">${i + 1 < lines.length ? '다음 문장' : '완료'}</button>`;
       let got = null;
-      SentenceTry(box.querySelector('#rs'), L.text, { onResult(acc) { got = Math.max(got || 0, acc); fin.querySelector('button').className = 'btn sm'; } });
+      SentenceTry(box.querySelector('#rs'), L.text, { check: true, onResult(acc) { got = Math.max(got || 0, acc); fin.querySelector('button').className = 'btn sm'; } });
       fin.querySelector('button').onclick = () => {
         if (got != null) { sum += got; n++; }
         i++;
@@ -873,10 +890,9 @@
         stopSpeaking();
         setMic(btn, true, '다 했어요');
         heard.textContent = SR ? '시작! 세 번 연속으로' : '녹음 중…';
-        ses = await capture({ continuous: true, autoStopSilence: 1800, maxSeconds: 40, onUpdate: t => { heard.textContent = t; } });
-        if (ses.error) { heard.textContent = errorText(ses.error); setMic(btn, false); ses = null; return; }
-        onLeave(() => ses && ses.stop());
-        const r = await ses.done;
+        ses = session({ continuous: true, autoStopSilence: 1800, maxSeconds: 40, onUpdate: t => { heard.textContent = t; } });
+        const st0 = await ses.ready; if (st0.error) { heard.textContent = errorText(st0.error); setMic(btn, false); ses = null; return; }
+          const r = await ses.done;
         ses = null;
         setMic(btn, false, '', '다시 도전');
         if (!SR) { heard.innerHTML = audioPlayer(r.blob); sum += 0.8; n++; fin.innerHTML = '<button type="button" class="btn sm">완료</button>'; fin.querySelector('button').onclick = finish; return; }
@@ -1038,7 +1054,7 @@
       setMic(btn, true, '다 읽었어요');
       live.textContent = SR ? '읽기 시작하세요. 끝나면 자동으로 멈춰요.' : '녹음 중… 다 읽으면 버튼을 누르세요.';
       out.innerHTML = '';
-      ses = await capture({
+      ses = session({
         continuous: true, maxSeconds: 120, autoStopSilence: 4000, forceRecord: !!opt.baseline,
         onUpdate(t) {
           const a = paint(t, false);
@@ -1046,8 +1062,7 @@
           if (a.hits >= a.total) ses && ses.stop();
         },
       });
-      if (ses.error) { live.textContent = errorText(ses.error); setMic(btn, false, '', '따라 읽기'); ses = null; return; }
-      onLeave(() => ses && ses.stop());
+      const st0 = await ses.ready; if (st0.error) { live.textContent = errorText(st0.error); setMic(btn, false, '', '따라 읽기'); ses = null; return; }
       const r = await ses.done;
       ses = null;
       setMic(btn, false, '', '다시 읽기');
@@ -1082,7 +1097,7 @@
       out.innerHTML = `<div class="result">${audioPlayer(r.blob)}
         <p class="small">원어민 음성과 비교해 스스로 평가해 보세요.</p>
         <div class="row"><button type="button" class="btn sm" data-self="0.95">거의 똑같았다</button><button type="button" class="btn quiet sm" data-self="0.8">몇 군데 막혔다</button><button type="button" class="btn quiet sm" data-self="0.6">많이 어려웠다</button></div></div>`;
-      out.querySelectorAll('[data-self]').forEach(b => { b.onclick = () => { best = { acc: +b.dataset.self, wpm: Math.round(total / (Math.max(3, r.span) / 60)), secs: r.span, missed: [], self: true }; finish(); }; });
+      out.querySelectorAll('[data-self]').forEach(b => { b.onclick = () => { best = { acc: +b.dataset.self, wpm: null, secs: r.span, missed: [], self: true }; finish(); }; });
     }
     function paint(text, final) {
       const a = S.align(p.text, text);
@@ -1179,7 +1194,7 @@
       live.textContent = SR ? '지금 말하세요! 멈추지 말고 끝까지.' : '녹음 중… 끝까지 말해 보세요.';
       tr.hidden = !SR; tr.textContent = '';
       const t0 = performance.now();
-      ses = await capture({
+      ses = session({
         continuous: true, maxSeconds: seconds,
         onUpdate(t) {
           tr.textContent = t;
@@ -1187,13 +1202,13 @@
           live.textContent = f ? `군더더기 ${f}번` : '좋아요, 계속!';
         },
       });
-      if (ses.error) { live.textContent = errorText(ses.error); setMic(btn, false, '', `바로 말하기 (${seconds}초)`); ses = null; return; }
+      const st0 = await ses.ready; if (st0.error) { live.textContent = errorText(st0.error); setMic(btn, false, '', `바로 말하기 (${seconds}초)`); ses = null; return; }
       const tick = setInterval(() => {
         const el2 = (performance.now() - t0) / 1000;
         tl.textContent = Math.max(0, Math.ceil(seconds - el2));
         setRing(el, 1 - el2 / seconds);
       }, 200);
-      onLeave(() => { clearInterval(tick); ses && ses.stop(); });
+      onLeave(() => clearInterval(tick));
       const r = await ses.done;
       clearInterval(tick);
       ses = null;
@@ -1231,7 +1246,7 @@
         const d = a[k] - prev.a[k];
         if (!d) return '';
         const good = better === 'up' ? d > 0 : d < 0;
-        return ` <span class="delta ${good ? 'up' : 'down'}">${d > 0 ? '+' : ''}${k === 'fillerPerMin' ? d.toFixed(1) : d}</span>`;
+        return ` <span class="delta ${better === 'none' ? 'flat' : good ? 'up' : 'down'}">${d > 0 ? '+' : ''}${k === 'fillerPerMin' ? d.toFixed(1) : d}</span>`;
       };
       const tips = coachTips(a, kw);
       el.innerHTML = `
@@ -1286,7 +1301,7 @@
         const b = el.querySelector('#tdone'); b.disabled = true;
         const checks = Array.from(el.querySelectorAll('[data-ck]')).filter(x => x.checked).length;
         const best = attempts.filter(x => x.a && x.a.complete).sort((x, y) => y.a.score - x.a.score)[0] || cur;
-        const audio = state.prefs.saveAudio || !SR ? await keepAudio(cur.r.blob) : '';
+        const audio = state.prefs.saveAudio || !SR ? await keepAudio(best.r.blob) : '';
         const a = best.a;
         const entry = {
           date: today(), at: Date.now(), kind: opt.retell ? 'retell' : 'talk', topic: topic.id, q: opt.retell ? opt.passage.title : topic.q,
@@ -1301,13 +1316,16 @@
       };
     }
     function highlightFillers(text) {
-      const T = String(text).split(/(\s+)/);
-      const toks = T.map(w => S.tokens(w)[0] || '');
-      const f = S.fillers(toks.filter(Boolean));
+      // 채점과 같은 토큰 위치를 써서, 군더더기로 센 단어만 표시한다
+      const dw = S.displayWords(text);
+      const f = S.fillers(S.tokens(text));
       if (!f.total) return esc(text);
-      // 간단히: 단일어 군더더기와 like만 표시
-      const single = new Set(['um', 'uh', 'er', 'erm', 'ah', 'hmm', 'basically', 'literally', 'actually', 'like']);
-      return T.map((w, i) => single.has(toks[i]) ? `<mark>${esc(w)}</mark>` : esc(w)).join('');
+      const hit = new Set(f.pos);
+      return dw.map(w => {
+        if (w.space || !w.count) return esc(w.text);
+        for (let k = w.from; k < w.from + w.count; k++) if (hit.has(k)) return `<mark>${esc(w.text)}</mark>`;
+        return esc(w.text);
+      }).join('');
     }
   }
   function coachTips(a, kw) {
@@ -1360,9 +1378,8 @@
       setMic(btn, true);
       live.className = 'live small';
       live.textContent = SR ? '듣는 중…' : '녹음 중…';
-      ses = await capture({ continuous: true, autoStopSilence: 2500, maxSeconds: 25, onUpdate: t => { live.textContent = t; } });
-      if (ses.error) { live.textContent = errorText(ses.error); setMic(btn, false); ses = null; return; }
-      onLeave(() => ses && ses.stop());
+      ses = session({ continuous: true, autoStopSilence: 2500, maxSeconds: 25, onUpdate: t => { live.textContent = t; } });
+      const st0 = await ses.ready; if (st0.error) { live.textContent = errorText(st0.error); setMic(btn, false); ses = null; return; }
       const r = await ses.done;
       ses = null;
       setMic(btn, false, '', '다시 말하기');
@@ -1430,7 +1447,7 @@
     const wk = weekStrip();
     const due = dueItems().length;
     const mins = plan.steps.reduce((s, k) => s + STEPS[k].min, 0);
-    const greet = d.complete ? '오늘 세션 완료!' : doneN ? '이어서 해 볼까요?' : streak ? `${streak}일째 이어 가는 중` : '오늘의 10분, 시작해 볼까요?';
+    const greet = !left.length ? '오늘 세션 완료!' : doneN ? '이어서 해 볼까요?' : streak ? `${streak}일째 이어 가는 중` : '오늘의 10분, 시작해 볼까요?';
 
     let html = `
       <section class="today-head">
@@ -1613,7 +1630,7 @@
   function resultLabel(k, r) {
     if (k === 'warmup') return '완료';
     if (k === 'sound') return r.n ? `${r.ok}/${r.n}${r.sentence != null ? ` · 문장 ${Math.round(r.sentence * 100)}%` : ''}` : '완료';
-    if (k === 'passage') return `${Math.round(r.acc * 100)}% · ${r.wpm}wpm`;
+    if (k === 'passage') return r.wpm ? `${Math.round(r.acc * 100)}% · ${r.wpm}wpm` : `자가 ${Math.round(r.acc * 100)}%`;
     if (k === 'talk' || k === 'retell') return r.score != null ? `${r.score}점 · ${r.wpm}wpm` : r.partial ? '짧게 끝냄' : '완료';
     if (k === 'upgrade') return r.hit === 'key' ? '핵심어 ✓' : '완료';
     if (k === 'rhythm') return r.acc != null ? `${Math.round(r.acc * 100)}%` : '완료';
@@ -1644,7 +1661,8 @@
   function viewStep(step) {
     const plan = todayPlan();
     if (!plan.steps.includes(step)) { location.replace('#today'); return; }
-    const d = dayRec(today());
+    const date = today();
+    const d = dayRec(date);
     const it = itemForStep(plan, step);
     const idx = plan.steps.indexOf(step);
     const prev = d.done[step];
@@ -1671,14 +1689,15 @@
       if (step === 'rhythm') markSeen('rhythm', plan.rhythm);
       // 입 풀기만 하고 넘기면 그날 연습으로 치지 않는다(말하기를 한 단계부터 인정)
       if (step !== 'warmup') markActive(first ? res.secs : 0);
-      const left = stepsLeft();
+      // 자정을 넘겨 끝내도 이 세션을 시작한 날의 계획 기준으로 다음 단계를 안내한다
+      const left = plan.steps.filter(k => !d.done[k]);
       if (!left.length && !d.complete) { d.complete = true; d.completedAt = Date.now(); }
       save();
       updateBadge();
       const bar = document.getElementById('nextbar');
       bar.hidden = false;
       if (left.length) {
-        bar.innerHTML = `<p class="small muted">${ICON.check} ${STEPS[step].label} 완료</p><a class="btn" href="#do/${left[0]}">다음: ${STEPS[left[0]].label} →</a>`;
+        bar.innerHTML = `<p class="small muted">${ICON.check} ${STEPS[step].label} 완료</p><a class="btn" href="${today() === date ? '#do/' + left[0] : '#today'}">다음: ${STEPS[left[0]].label} →</a>`;
       } else {
         bar.innerHTML = `<p class="small muted">${ICON.check} 오늘 세션을 모두 마쳤어요</p><a class="btn" href="#today">결과 보기 →</a>`;
       }
@@ -2043,7 +2062,11 @@
         const d = dayRec(today());
         if (d.plan && !d.done.sound && p.focus.length && !p.focus.includes(d.plan.sound)) d.plan.sound = p.focus[dayNumber(today()) % p.focus.length];
       }
-      if (n === 'level') { const d = dayRec(today()); if (d.plan && !d.done.passage) d.plan = null; }
+      if (n === 'level') {
+        // 아직 섀도잉을 안 했으면 오늘 지문만 새 난이도로 바꾼다(다른 단계는 그대로)
+        const d = dayRec(today());
+        if (d.plan && !d.done.passage && !d.done.retell) d.plan.passage = buildPlan(today()).passage;
+      }
       save();
       toast('저장했어요');
     });

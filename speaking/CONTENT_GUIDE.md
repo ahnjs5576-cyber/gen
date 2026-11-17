@@ -42,7 +42,7 @@
 ```
 
 규칙
-- 세트 **14개 이상**. 반드시 포함: R/L, F/P, V/B, θ(think)/s, ð(this)/d, Z/ʤ(zoo/Jew 대신 zip/jip 같은 안전한 쌍), 장모음 i:/단모음 ɪ(sheep/ship), æ/ɛ(bad/bed), ʌ/ɑ(cut/cot), ʊ/u:(full/fool), 단어 끝 자음(끝소리 살리기: cap/cab, bag/back 등 유성/무성 끝소리), 자음군(한국어 화자가 자음 사이에 ‘으’ 모음을 끼워 넣는 실수. pairs는 ‘자음군 단어 / 모음이 끼어든 실제 단어’: ‘sport’/‘support’, ‘blow’/‘below’, ‘plight’/‘polite’ 처럼 **둘 다 실존 단어**인 쌍만), W(w+u 계열: ‘wood’/‘hood’, ‘wool’/‘full’처럼 w를 빠뜨리기 쉬운 쌍), sh/s(sea/she).
+- 세트 **14개 이상**. 반드시 포함: R/L, F/P, V/B, θ(think)/s, ð(this)/d, Z/ʤ(zoo/Jew 대신 zip/jip 같은 안전한 쌍), 장모음 i:/단모음 ɪ(sheep/ship), æ/ɛ(bad/bed), ʌ/ɑ(cut/cot), ʊ/u:(full/fool), 단어 끝 자음(끝소리 살리기: cap/cab, bag/back 등 유성/무성 끝소리), 자음군(한국어 화자가 자음 사이에 ‘으’ 모음을 끼워 넣는 실수. pairs는 ‘자음군 단어 / 모음이 끼어든 실제 단어’: ‘sport’/‘support’, ‘blow’/‘below’, ‘plight’/‘polite’ 처럼 **둘 다 실존 단어**인 쌍만), W(우·오 앞에서 w를 빠뜨리는 실수: pairs는 ‘wear’/‘air’, ‘woke’/‘oak’처럼 w 유무만 다른 실존 단어, 문장에는 woman·would·wool·wolf를 몰아 넣기), sh/s(sea/she).
 - pairs 두 단어는 **둘 다 실존하는 흔한 영단어**이고, 서로 동음이의어가 아니어야 함. 같은 발음의 다른 철자가 있으면 `|`로 모두 적기(예: `'sea|see'`, `'right|write|rite'`).
 - 고유명사, 욕설, 민감 단어 금지.
 
@@ -120,11 +120,32 @@
       'It was one of the most moving films I have seen this year.'
     ],
     keys: ['gripping', 'moving', 'compelling', 'captivating'],   // 이 중 하나라도 말하면 성공으로 보는 핵심어 3~6개 (소문자, 단어 또는 2단어 구)
+    avoid: ['very', 'good'],                                     // plain의 밋밋한 말 1~4개. 이게 들리면 핵심어를 써도 실패. better 문장에는 없어야 함
     gloss: 'gripping 손에 땀을 쥐게 하는 · moving 감동적인 · compelling 빠져드는 · captivating 마음을 사로잡는'
   }
 ]
 ```
 규칙: **72개 이상**. 유형을 고르게: very+형용사, 막연한 명사(thing, stuff), 약한 동사(get, make, do, go), 군더더기(I think maybe, kind of), 수동적·장황한 문장 줄이기, 모호한 시간·수량(a lot, soon), 연결어(and then → which meant / as a result), 의견 표현(I think → I'm convinced / My take is), 동의·반대, 회의에서 쓰는 표현.
+
+## 6. `content/rhythm.js` — 리듬·강세 (강세, 약모음, 연음, 축약, 문장 강세, 혀 꼬기)
+
+```js
+(window.SPK = window.SPK || {}).rhythm = [
+  {
+    id: 'stress-noun-verb',
+    type: 'stress',                  // stress | schwa | linking | reduction | focus | twister
+    title: '명사·동사 강세',
+    ko: '같은 철자라도 명사는 앞, 동사는 뒤에 힘을 준다.',
+    tip: '강세 음절은 **길고, 크고, 높게**. 나머지는 짧고 약하게.',
+    lines: [                         // 4~6개
+      { text: 'Please record the record.', show: 'Please reCORD the REcord.', ko: '그 음반을 녹음해 주세요.' }
+    ]
+  }
+]
+```
+- `text`: 인식기가 받아 적을 평범한 철자(채점 기준). `show`: 화면 표시용 — 강세 음절은 대문자, 연음은 `‿`, 축약(reduction)은 실제 소리(`I wanna go`).
+- 축약 외에는 `show`의 글자가 `text`와 같아야 함(대소문자·‿ 무시). focus 유형은 같은 문장을 강세 위치만 바꿔 반복. twister는 6~12단어.
+- 유형별 3개 이상, 전체 18개 이상.
 
 ---
 

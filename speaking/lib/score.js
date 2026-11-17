@@ -12,6 +12,7 @@
   // 인식기가 다르게 적어도 같은 말로 보는 표기
   const SAME = {
     okay: 'ok', alright: 'all right', gonna: 'going to', wanna: 'want to', till: 'until',
+    gotta: 'got to', lemme: 'let me', gimme: 'give me', kinda: 'kind of', sorta: 'sort of', dunno: 'do not know', outta: 'out of', coulda: 'could have', shoulda: 'should have', woulda: 'would have', hafta: 'have to', gotcha: 'got you',
     'e-mail': 'email', cannot: 'can not', percent: 'percent', mr: 'mister', ms: 'miss', mrs: 'missus',
     favourite: 'favorite', colour: 'color', centre: 'center', organise: 'organize', realise: 'realize',
     theatre: 'theater', travelling: 'traveling', grey: 'gray', practise: 'practice',
@@ -26,7 +27,13 @@
       const h = Math.floor(n / 100), r = n % 100;
       return NUM[h] + ' hundred' + (r ? ' ' + numberWords(r) : '');
     }
-    return String(n);
+    // 연도처럼 읽는 수(1100~2099, 00으로 끝나지 않음): 1995 → nineteen ninety five
+    if (n >= 1100 && n < 2100 && n % 100 && (n < 2000 || n >= 2010)) return numberWords(Math.floor(n / 100)) + ' ' + numberWords(n % 100);
+    if (n < 1000000) {
+      const th = Math.floor(n / 1000), r = n % 1000;
+      return numberWords(th) + ' thousand' + (r ? ' ' + numberWords(r) : '');
+    }
+    return '';
   }
 
   /** 소문자, 문장부호 제거, 숫자→단어, 표기 통일 후 단어 배열 */
@@ -37,6 +44,8 @@
       .replace(/[–—]/g, ' ')
       .replace(/&/g, ' and ')
       .replace(/%/g, ' percent ')
+      .replace(/\be-mail/g, 'email')
+      .replace(/(\d),(?=\d{3}\b)/g, '$1')
       .replace(/(\d+)(st|nd|rd|th)\b/g, '$1')
       .replace(/\d+/g, m => ' ' + numberWords(m) + ' ')
       .replace(/-/g, ' ')
@@ -113,27 +122,39 @@
     'because actually basically literally maybe something anything everything thing things lot lots kind sort well oh yeah okay ok dont im its thats theres ive id youre were theyre cant wont didnt doesnt isnt').split(' '));
 
   const FILLER_SINGLE = new Set(['um', 'uh', 'er', 'erm', 'ah', 'hmm', 'mm', 'uhm', 'umm', 'basically', 'literally', 'actually']);
-  const FILLER_PAIRS = ['you know', 'i mean', 'kind of', 'sort of'];
-  // 'like' 앞에 오면 동사/전치사로 쓰인 것으로 보는 단어
-  const LIKE_OK_BEFORE = new Set(['i', 'you', 'we', 'they', 'would', 'id', 'wed', 'youd', 'theyd', 'dont', 'didnt', 'doesnt', 'to', 'really',
-    'feel', 'feels', 'felt', 'look', 'looks', 'looked', 'sound', 'sounds', 'sounded', 'seem', 'seems', 'something', 'anything', 'nothing',
-    'people', 'he', 'she', 'it', 'also', 'still', 'always', 'never', 'more', 'most', 'just', 'exactly', 'much', 'things', 'thing', 'taste', 'tastes', 'smell', 'smells', 'act', 'acts', 'is', 'was', 'are', 'were', 'be', 'not']);
+  const HESITATION = new Set(['um', 'uh', 'er', 'erm', 'ah', 'hmm', 'mm', 'uhm', 'umm']);
+  // 문장부호가 없는 받아쓰기라 문법적으로 쓰인 말을 군더더기로 세지 않도록 보수적으로 판단한다.
+  // 'like': 바로 앞이 이런 말일 때만 군더더기(“it was like”, “and like”, “like like”)
+  const LIKE_FILLER_BEFORE = new Set(['and', 'so', 'but', 'was', 'were', 'just', 'then', 'or', 'totally', 'literally', 'basically', 'like', 'um', 'uh', 'er']);
+  const DET = new Set(['a', 'an', 'the', 'what', 'this', 'that', 'these', 'those', 'any', 'some', 'every', 'same', 'different', 'other', 'another', 'one', 'new', 'right', 'wrong', 'certain', 'which', 'each', 'my', 'your', 'our', 'their', 'his', 'her', 'its', 'all']);
+  const ASK_BEFORE = new Set(['do', 'did', 'dont', 'didnt', 'if', 'would', 'will', 'might', 'should', 'can', 'could', 'to', 'as', 'youd', 'what', 'that']);
+  const OBJ_AFTER = new Set(['what', 'how', 'that', 'where', 'why', 'when', 'who', 'whether', 'if', 'about', 'him', 'her', 'them', 'it', 'this', 'me', 'us', 'the', 'a', 'an', 'to', 'your', 'my', 'his', 'their', 'our', 'more', 'everyone', 'everything', 'anything', 'someone', 'something', 'nothing', 'better']);
 
+  /** 군더더기 찾기. pos: 군더더기로 본 토큰 위치 */
   function fillers(T) {
     const found = {};
-    const add = k => { found[k] = (found[k] || 0) + 1; };
+    const pos = [];
+    const add = (k, ...idx) => { found[k] = (found[k] || 0) + 1; pos.push(...idx); };
     for (let i = 0; i < T.length; i++) {
-      const w = T[i], two = w + ' ' + (T[i + 1] || '');
-      if (FILLER_PAIRS.includes(two)) {
-        // 'kind of'·'sort of' 뒤에 명사가 바로 오는 경우(a kind of tea)는 제외
-        if ((w === 'kind' || w === 'sort') && ['a', 'the', 'what', 'this', 'that', 'any', 'some', 'every', 'same'].includes(T[i - 1])) { continue; }
-        add(two); i++; continue;
+      const w = T[i], nx = T[i + 1] || '', pv = T[i - 1] || '', pv2 = T[i - 2] || '';
+      if ((w === 'kind' || w === 'sort') && nx === 'of') {
+        // a kind of tea, a different kind of problem → 명사로 쓰인 것
+        if (!DET.has(pv) && !DET.has(pv2) && pv !== 'of') { add(w + ' of', i, i + 1); i++; }
+        continue;
       }
-      if (FILLER_SINGLE.has(w)) { add(w); continue; }
-      if (w === 'like' && i > 0 && !LIKE_OK_BEFORE.has(T[i - 1])) add('like');
+      if (w === 'you' && nx === 'know') {
+        if (!ASK_BEFORE.has(pv) && !OBJ_AFTER.has(T[i + 2] || '')) { add('you know', i, i + 1); i++; }
+        continue;
+      }
+      if (w === 'i' && nx === 'mean') {
+        if (!ASK_BEFORE.has(pv) && !OBJ_AFTER.has(T[i + 2] || '') && !['it', 'that', 'this'].includes(T[i + 2] || '')) { add('i mean', i, i + 1); i++; }
+        continue;
+      }
+      if (FILLER_SINGLE.has(w)) { add(w, i); continue; }
+      if (w === 'like' && (LIKE_FILLER_BEFORE.has(pv) || HESITATION.has(nx))) add('like', i);
     }
     const total = Object.values(found).reduce((a, b) => a + b, 0);
-    return { total, found };
+    return { total, found, pos };
   }
 
   /**

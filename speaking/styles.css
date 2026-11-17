@@ -132,10 +132,13 @@ svg { width: 1.1em; height: 1.1em; flex: none; }
 .nav .badge[hidden] { display: none; }
 .nav .badge { display: inline-block; min-width: 1.3em; margin-left: 4px; padding: 0 5px; border-radius: 999px; background: var(--ember); color: #fff; font-family: var(--f-mono); font-size: 0.68rem; line-height: 1.5; text-align: center; }
 @media (max-width: 400px) {
-  .brand { font-size: var(--t-md); }
+  .topbar .wrap { gap: 6px; }
+  .brand { font-size: 0.9375rem; }
   .brand .dot { display: none; }
-  .nav a { padding: 6px 8px; }
+  .nav a { padding: 5px 7px; font-size: 0.8125rem; }
+  .nav .badge { margin-left: 2px; padding: 0 4px; }
 }
+@media (max-width: 340px) { .brand { display: none; } .topbar .wrap { justify-content: center; } }
 
 main { padding-block: 24px 72px; display: flex; flex-direction: column; gap: 24px; }
 main:focus { outline: none; }
@@ -426,3 +429,6 @@ details > summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
 .stepper.start > span > span { display: none; }
 .stepper.start > span.ok { background: var(--good); border-color: transparent; }
 .stepper.start > span.cur { background: var(--accent); border-color: transparent; }
+
+.delta.flat { color: var(--ink-2); background: var(--surface-2); }
+.sentence.check { font-size: var(--t-md); line-height: 1.7; padding: 8px 12px; background: transparent; border: 1px dashed var(--line); }

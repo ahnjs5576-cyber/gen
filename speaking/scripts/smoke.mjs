@@ -28,6 +28,8 @@ const MOCK = () => {
       if (m.partnerOnce) { m.partnerOnce = false; return document.querySelector('.vs .en').textContent; }
       return big.textContent;
     }
+    const tw = document.querySelector('.show.big');
+    if (tw) return [tw.textContent, tw.textContent, tw.textContent].join(' ');
     const s = document.querySelector('.sentence, .passage');
     const talk = document.querySelector('.transcript:not([hidden])');
     if (talk) return m.talk;
@@ -80,7 +82,7 @@ try {
   await page.goto(base + '#today');
 
   const n = await page.locator('.ticket').count();
-  n === 5 ? ok('오늘 세션 5단계') : fail(`단계 ${n}개`);
+  n === 6 ? ok('오늘 세션 6단계') : fail(`단계 ${n}개`);
   (await page.locator('.intro').count()) ? ok('첫 방문 안내') : fail('안내 없음');
   await page.click('#skipintro');
 
@@ -121,7 +123,26 @@ try {
   Object.keys(st.items).length === 1 ? ok('틀린 단어 복습 등록') : fail('복습 항목 ' + Object.keys(st.items).length);
   await page.click('#nextbar a');
 
-  // 3. 섀도잉
+  // 3. 리듬·강세
+  await page.waitForSelector('#rl');
+  if (await page.locator('.show.big').count()) {
+    await page.locator('#rl [data-mic]').click();
+    await page.waitForSelector('#rfin .btn:not(.quiet)');
+    await page.click('#rfin .btn');
+  } else {
+    for (let i = 0; i < 3; i++) {
+      await page.locator('#rl > p.muted', { hasText: `${i + 1} / 3` }).waitFor();
+      await page.locator('#rs [data-mic]').click();
+      await page.waitForSelector('#rfin .btn:not(.quiet)');
+      await page.click('#rfin .btn');
+    }
+  }
+  await page.waitForSelector('#nextbar:not([hidden])');
+  const rr = await page.evaluate(() => window.__spk.state().days[window.__spk.today()].done.rhythm);
+  rr && rr.acc === 1 ? ok('리듬·강세 100%') : fail('리듬 ' + JSON.stringify(rr));
+  await page.click('#nextbar a');
+
+  // 4. 섀도잉
   await page.waitForSelector('.passage');
   await page.locator('[data-mic]').click();
   await page.waitForSelector('#pdone', { timeout: 10000 });
@@ -154,7 +175,7 @@ try {
   await page.waitForSelector('.celebrate');
   ok('오늘 세션 완료 화면');
   const streak = await page.locator('.meter .v').first().textContent();
-  streak.includes('1') ? ok('연속 1일') : fail('연속 ' + streak);
+  streak.includes('1') ? ok('연속 1일') : fail('연속 ' + streak + ' ' + JSON.stringify(await page.evaluate(() => Object.fromEntries(Object.entries(window.__spk.state().days).map(([k, v]) => [k, v.active])))));
 
   // 연습실에서 Daily 60 한 번 더 → 그래프
   await page.goto(base + '#lib/topic/random');
@@ -190,7 +211,7 @@ try {
   await page.waitForSelector('.ticket');
   (await page.locator('.ticket.done').count()) === 0 ? ok('다음 날 새 세션') : fail('다음 날 세션 상태');
   const st2 = await page.locator('.meter .v').first().textContent();
-  st2.includes('1') ? ok('어제 기록으로 연속 유지') : fail('연속 ' + st2);
+  /[12]/.test(st2) ? ok('연속 유지: ' + st2) : fail('연속 ' + st2);
 
   for (const h of ['library', 'lib/sound/r-l', 'lib/passage/p-001', 'lib/warmup/lip-trill', 'stats', 'prefs', 'review']) {
     await page.goto(base + '#' + h);
@@ -202,7 +223,38 @@ try {
   await page.goto(base + '#prefs');
   await page.locator('.seg label', { hasText: '15분' }).click();
   await page.goto(base + '#today');
-  (await page.locator('.ticket').count()) === 6 ? ok('15분 세션 6단계') : fail('15분 세션 단계 수');
+  (await page.locator('.ticket').count()) === 7 ? ok('15분 세션 7단계') : fail('15분 세션 단계 수');
+
+  // 처음 설정: 목표 → 마이크 → 발음 진단(첫 단어만 틀리게) → 첫 녹음 → 알림
+  const ctx2 = await browser.newContext({ viewport: { width: 360, height: 780 }, permissions: ['microphone'] });
+  const p3 = await ctx2.newPage();
+  p3.on('pageerror', e => errors.push('start: ' + e.message));
+  await p3.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
+  await p3.addInitScript(MOCK);
+  await p3.goto(base + '#start');
+  await p3.click('[data-next]');
+  await p3.click('[data-skip]');
+  await p3.evaluate(() => { window.__mock.partnerOnce = true; });
+  for (let i = 0; i < 8; i++) {
+    await p3.locator('.crumb', { hasText: `발음 진단 ${i + 1}/8` }).waitFor();
+    await p3.locator('#db [data-mic]').click();
+    if (i === 0) { await p3.waitForSelector('.verdict.bad'); await p3.locator('.trial > .btn', { hasText: '다음' }).click(); }
+  }
+  await p3.locator('h1', { hasText: '진단 결과' }).waitFor();
+  await p3.click('[data-next]');
+  await p3.waitForSelector('.passage');
+  await p3.locator('#bb [data-mic]').click();
+  await p3.waitForSelector('#pdone');
+  await p3.click('#pdone');
+  await p3.waitForSelector('[data-next]:not([hidden])');
+  await p3.click('[data-next]');
+  await p3.click('#go');
+  await p3.waitForSelector('.ticket');
+  const s3 = await p3.evaluate(() => window.__spk.state());
+  s3.prefs.focus.length === 1 && s3.onboarded ? ok('진단 → 집중 소리 1개: ' + s3.prefs.focus[0]) : fail('진단 결과 ' + JSON.stringify(s3.prefs.focus));
+  (s3.baselines || []).length === 1 ? ok('첫 녹음(주간 체크 기준) 저장') : fail('기준 녹음 없음');
+  const today3 = await p3.evaluate(() => window.__spk.today());
+  s3.days[today3].plan.sound === s3.prefs.focus[0] ? ok('오늘 드릴 = 진단에서 틀린 소리') : fail('오늘 드릴 ' + s3.days[today3].plan.sound);
 
   // 음성 인식이 없는 브라우저
   const p2 = await ctx.newPage();

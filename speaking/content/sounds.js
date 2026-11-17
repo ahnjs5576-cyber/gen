@@ -102,11 +102,11 @@
       ["those", "doze"],
       ["breathe", "breed"],
       ["worthy", "wordy"],
-      ["lather", "ladder"]
+      ["soothe", "sued"]
     ],
     sentences: [
       "My mother and father gathered all the other things together.",
-      "They said that the weather there is better than this.",
+      "They said that the weather there is better than here.",
       "Do these clothes look better than those other ones?"
     ]
   },
@@ -118,8 +118,8 @@
     tip: "**Z**는 s 자리에서 혀를 이 뒤에 둔 채 목을 울리며 벌이 윙윙거리듯 길게 낸다. **J**는 혀 앞부분을 입천장에 붙였다가 떼며 짧게 터뜨린다.",
     pairs: [
       ["zest", "jest"],
-      ["zealous", "jealous"],
-      ["raise|rays|raze", "rage"],
+      ["sees|seas|seize", "siege"],
+      ["raise|rays", "rage"],
       ["pays", "page"],
       ["stays", "stage"],
       ["ways|weighs", "wage"],
@@ -202,17 +202,17 @@
     id: "u-uu",
     title: "Full vs Fool",
     ipa: "/ʊ/ · /uː/",
-    ko: "한국어 ㅜ 하나로 두 소리를 내면 full과 fool, pull과 pool이 같아진다.",
+    ko: "한국어 ㅜ 하나로 두 소리를 내면 full과 fool, pull과 pool이 같아진다. 끝 자음이 조금 다른 짝도 모음 길이와 입술 모양에 집중한다.",
     tip: "**ʊ**는 입술을 살짝만 내밀고 힘을 빼서 짧게 '우'와 '으' 사이로 낸다. **uː**는 입술을 동그랗게 앞으로 쭉 내밀고 길게 '우-' 한다.",
     pairs: [
       ["full", "fool"],
       ["pull", "pool"],
-      ["pulled", "pooled"],
-      ["soot", "suit"],
-      ["stood", "stewed"],
-      ["hood", "who'd"],
-      ["nook", "nuke"],
-      ["would|wood", "wooed"]
+      ["foot", "food"],
+      ["cook", "cool"],
+      ["book", "boot"],
+      ["took", "tool"],
+      ["should", "shoot|chute"],
+      ["good", "goose"]
     ],
     sentences: [
       "Could you put the good cookbook back on the wooden shelf?",
@@ -266,24 +266,24 @@
   },
   {
     id: "w-glide",
-    title: "W Sound",
-    ipa: "/w/",
-    ko: "한국어에 '우' 앞의 w가 없어 wood가 hood, wool이 full처럼 들리거나 w가 사라진다.",
-    tip: "**W**는 입술을 작고 동그랗게 오므렸다가 다음 모음으로 재빨리 펼친다. 특히 wood, wool, woman처럼 뒤에 '우' 소리가 올 때 입술을 먼저 확실히 모은다.",
+    title: "W before OO·OH",
+    ipa: "/w/ · /wʊ/ · /wuː/ · /woʊ/",
+    ko: "한국어에는 '우·오' 앞에 붙는 w가 없어 woman이 '우먼', would가 '우드'처럼 w가 사라지고, woke가 oak로 들린다.",
+    tip: "**W**는 입술을 '우'보다 더 작고 단단하게 오므린 채 시작해 다음 모음으로 넘어가며 입술을 푼다. woman, would, wool처럼 뒤에 '우·오' 소리가 와도 **입술을 한 번 조였다가 푸는 동작**을 꼭 넣는다. 짝 단어는 w 하나로 뜻이 바뀌는 쌍이다.",
     pairs: [
-      ["wood|would", "hood"],
-      ["wool", "full"],
-      ["woo", "who"],
-      ["woof", "hoof"],
       ["woke", "oak"],
+      ["woe", "owe|oh"],
+      ["war|wore", "or|oar|ore"],
       ["wear|where|ware", "air|heir"],
-      ["wheat", "eat"],
-      ["win", "in|inn"]
+      ["wise", "eyes"],
+      ["wait|weight", "ate"],
+      ["wake", "ache"],
+      ["wheel", "eel"]
     ],
     sentences: [
-      "Would you walk with me through the woods this weekend?",
-      "The woman wore a warm wool sweater in the wet weather.",
-      "We were worried that the wild wolf would wander away."
+      "The woman would walk to the woods every weekend.",
+      "Would you put the wool sweater in the wooden box?",
+      "A wolf howled in the woods and woke the woman."
     ]
   },
   {
@@ -305,7 +305,7 @@
     sentences: [
       "She sells fresh seafood at the small shop by the sea.",
       "Please sign this sheet and save a seat for her.",
-      "The short sale surprised everyone at the busy shoe store."
+      "She showed me some shiny shells she found by the sea."
     ]
   },
   {
@@ -354,19 +354,19 @@
   },
   {
     id: "er-or",
-    title: "Work vs Walk",
+    title: "Word vs Ward",
     ipa: "/ɜr/ · /ɔr/",
-    ko: "ɜr을 '워'나 '오'로 내면 work가 walk, bird가 board로 들린다.",
-    tip: "**ɜr**은 입을 작게 벌리고 입술을 둥글게 하지 않은 채 혀를 뒤로 말아 '어r'로 낸다. **ɔr**은 입술을 둥글게 오므리고 '오r'로 낸다.",
+    ko: "ɜr을 '워'나 '오'로 내면 word가 ward, bird가 board, worm이 warm으로 들린다.",
+    tip: "**ɜr**(word, bird)은 입을 작게 벌리고 입술을 편 채 혀를 뒤로 말아 '어r' 하나로 낸다. **ɔr**(ward, board)은 턱을 더 내리고 입술을 둥글게 오므려 '오' 다음에 r을 붙인다. r이 없는 walk(ɔ)와 work(ɜr)도 같은 원리로 입술 모양이 갈린다.",
     pairs: [
-      ["work", "walk"],
       ["word", "ward"],
+      ["worm", "warm"],
       ["bird", "board|bored"],
       ["turn", "torn"],
       ["shirt", "short"],
       ["firm", "form"],
       ["burn", "born|borne"],
-      ["heard|herd", "hoard|horde"]
+      ["fur|fir", "for|four|fore"]
     ],
     sentences: [
       "Her first word at work this morning was a warm hello.",
