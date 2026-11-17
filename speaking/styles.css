@@ -431,4 +431,12 @@ details > summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
 .stepper.start > span.cur { background: var(--accent); border-color: transparent; }
 
 .delta.flat { color: var(--ink-2); background: var(--surface-2); }
-.sentence.check { font-size: var(--t-md); line-height: 1.7; padding: 8px 12px; background: transparent; border: 1px dashed var(--line); }
+.sentence.verify { font-size: var(--t-md); line-height: 1.7; padding: 8px 12px; background: transparent; border: 1px dashed var(--line); }
+.callout.risk { background: var(--ember-soft); }
+.callout.risk .btn { background: var(--ember); border-color: var(--ember); color: #fff; }
+.diag { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 12px; }
+.diag li { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; border-bottom: 1px dashed var(--line); font-size: var(--t-sm); }
+.diag .ok { color: var(--good); } .diag .miss { color: var(--bad); }
+.more summary { cursor: pointer; padding: 6px 0; color: var(--accent); }
+.more .archive { margin-top: 8px; }
+.selfrate .btn.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }

@@ -210,7 +210,7 @@
 
     return {
       words, seconds: Math.round(secs), given: Math.round(given), wpm, fillers: f.total, fillerFound: f.found, fillerPerMin: perMin,
-      variety, contentWords: content.length, repeated, rich, hintsUsed, pauses, onTopic, confidence: conf,
+      variety, contentWords: content.length, repeated, rich, hintsUsed, pauses, onTopic, confidence: conf, topicKeys: Array.from(topicWords).slice(0, 3),
       parts: { pace, clean, vocab, volume, clarity }, score, complete,
     };
   }

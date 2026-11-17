@@ -42,7 +42,8 @@
 ```
 
 규칙
-- 세트 **14개 이상**. 반드시 포함: R/L, F/P, V/B, θ(think)/s, ð(this)/d, Z/ʤ(zoo/Jew 대신 zip/jip 같은 안전한 쌍), 장모음 i:/단모음 ɪ(sheep/ship), æ/ɛ(bad/bed), ʌ/ɑ(cut/cot), ʊ/u:(full/fool), 단어 끝 자음(끝소리 살리기: cap/cab, bag/back 등 유성/무성 끝소리), 자음군(한국어 화자가 자음 사이에 ‘으’ 모음을 끼워 넣는 실수. pairs는 ‘자음군 단어 / 모음이 끼어든 실제 단어’: ‘sport’/‘support’, ‘blow’/‘below’, ‘plight’/‘polite’ 처럼 **둘 다 실존 단어**인 쌍만), W(우·오 앞에서 w를 빠뜨리는 실수: pairs는 ‘wear’/‘air’, ‘woke’/‘oak’처럼 w 유무만 다른 실존 단어, 문장에는 woman·would·wool·wolf를 몰아 넣기), sh/s(sea/she).
+- 세트 **14개 이상**. 반드시 포함: R/L, F/P, V/B, θ(think)/s, ð(this)/d, Z/ʤ(zoo/Jew 대신 zip/jip 같은 안전한 쌍), 장모음 i:/단모음 ɪ(sheep/ship), æ/ɛ(bad/bed), ʌ/ɑ(cut/cot), ʊ/u:(full/fool, pull/pool, could/cooed — 끝 자음까지 같은 진짜 최소 대립쌍만. foot/food, book/boot처럼 자음도 다르면 쓰지 않음), 단어 끝 자음(끝소리 살리기: cap/cab, bag/back 등 유성/무성 끝소리), 자음군(한국어 화자가 자음 사이에 ‘으’ 모음을 끼워 넣는 실수. pairs는 ‘자음군 단어 / 모음이 끼어든 실제 단어’: ‘sport’/‘support’, ‘blow’/‘below’, ‘plight’/‘polite’ 처럼 **둘 다 실존 단어**인 쌍만), W(우·오 앞에서 w를 빠뜨리는 실수: pairs는 ‘woke’/‘oak’, ‘woe’/‘owe’, ‘war’/‘or’처럼 w 유무만 다른 실존 단어이고 **w 뒤 모음이 o·oʊ·ɔ·uː·ʊ·ɜr**인 것만. wear/air, wait/ate처럼 와·웨·위 계열은 한국어에도 있어 오류가 아니므로 제외. 문장에는 woman·would·wool·wolf를 몰아 넣기), s/sh(한국어 ‘시’→‘쉬’ 오류이므로 pairs는 **s 뒤에 i·ɪ가 오는 쌍만**: see/she, sip/ship, seat/sheet. sock/shock, so/show처럼 다른 모음 앞은 오류가 아니므로 제외. 문장에는 sit·seat·city·sixty·simple·sister 같은 s+i 단어를 sh 단어와 섞기).
+- pairs 두 단어는 **목표 소리 하나만 다른 진짜 최소 대립쌍**이어야 함. 채점은 인식기가 짝 중 어느 단어를 적었는지로 판정하므로, 다른 자음·모음까지 다르면 목표 소리를 틀려도 나머지 소리로 구별돼 정답 처리됨(예: ʊ/u: 세트의 foot/food는 무용).
 - pairs 두 단어는 **둘 다 실존하는 흔한 영단어**이고, 서로 동음이의어가 아니어야 함. 같은 발음의 다른 철자가 있으면 `|`로 모두 적기(예: `'sea|see'`, `'right|write|rite'`).
 - 고유명사, 욕설, 민감 단어 금지.
 
@@ -90,7 +91,7 @@
     cat: 'daily',                    // daily | opinion | work | explain | story
     q: 'Describe a place where you feel most relaxed.',
     ko: '가장 편안함을 느끼는 장소를 묘사해 보세요.',
-    fw: 'ppf',                       // 추천 말하기 틀: prep | star | ppf | psb | wsn | cc
+    fw: 'ppf',                       // 추천 말하기 틀: prep | star | ppf | psb | wsn | cc | steps | desc
     hints: ['quiet', 'familiar', 'recharge']   // 쓸 만한 단어 2~4개
   }
 ]
@@ -98,10 +99,12 @@
 틀(fw) 의미
 - `prep` Point–Reason–Example–Point (의견)
 - `star` Situation–Task–Action–Result (경험·업무 사례)
-- `ppf` Past–Present–Future (변화·묘사)
+- `ppf` Past–Present–Future (시간에 따른 변화)
 - `psb` Problem–Solution–Benefit (제안·설득)
 - `wsn` What–So what–Now what (설명·회고)
 - `cc` Compare–Contrast–Conclude (비교)
+- `steps` First–Then–Finally (방법·절차·순서: how to ~, walk me through ~)
+- `desc` Overview–Details–Feeling (장소·사물·사람 묘사. 시간에 따른 변화가 핵심이면 `ppf`)
 
 규칙: **120개 이상**, 카테고리별 20개 이상. 직장인·대학생 모두 답할 수 있는 질문. 사적·민감 주제(정치, 종교, 건강 상태, 연애 상세) 금지. 질문은 1문장, 15단어 안팎.
 

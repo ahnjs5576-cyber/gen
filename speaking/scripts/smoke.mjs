@@ -221,7 +221,7 @@ try {
   }
   // 설정 바꾸기 → 세션 길이
   await page.goto(base + '#prefs');
-  await page.locator('.seg label', { hasText: '15분' }).click();
+  await page.locator('.seg label', { hasText: '길게' }).click();
   await page.goto(base + '#today');
   (await page.locator('.ticket').count()) === 7 ? ok('15분 세션 7단계') : fail('15분 세션 단계 수');
 
@@ -235,8 +235,8 @@ try {
   await p3.click('[data-next]');
   await p3.click('[data-skip]');
   await p3.evaluate(() => { window.__mock.partnerOnce = true; });
-  for (let i = 0; i < 8; i++) {
-    await p3.locator('.crumb', { hasText: `발음 진단 ${i + 1}/8` }).waitFor();
+  for (let i = 0; i < 16; i++) {
+    await p3.locator('.crumb', { hasText: `발음 진단 ${i + 1}/16` }).waitFor();
     await p3.locator('#db [data-mic]').click();
     if (i === 0) { await p3.waitForSelector('.verdict.bad'); await p3.locator('.trial > .btn', { hasText: '다음' }).click(); }
   }

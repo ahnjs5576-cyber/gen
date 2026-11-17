@@ -202,20 +202,20 @@
     id: "u-uu",
     title: "Full vs Fool",
     ipa: "/ʊ/ · /uː/",
-    ko: "한국어 ㅜ 하나로 두 소리를 내면 full과 fool, pull과 pool이 같아진다. 끝 자음이 조금 다른 짝도 모음 길이와 입술 모양에 집중한다.",
+    ko: "한국어 ㅜ 하나로 두 소리를 내면 full과 fool, pull과 pool, could와 cooed가 같아진다. 짝 단어는 모음만 다르므로 모음 길이와 입술 모양으로만 구별된다.",
     tip: "**ʊ**는 입술을 살짝만 내밀고 힘을 빼서 짧게 '우'와 '으' 사이로 낸다. **uː**는 입술을 동그랗게 앞으로 쭉 내밀고 길게 '우-' 한다.",
     pairs: [
       ["full", "fool"],
       ["pull", "pool"],
-      ["foot", "food"],
-      ["cook", "cool"],
-      ["book", "boot"],
-      ["took", "tool"],
-      ["should", "shoot|chute"],
-      ["good", "goose"]
+      ["soot", "suit"],
+      ["stood", "stewed"],
+      ["would|wood", "wooed"],
+      ["hood", "who'd"],
+      ["could", "cooed"],
+      ["should", "shooed|shoed"]
     ],
     sentences: [
-      "Could you put the good cookbook back on the wooden shelf?",
+      "Could you put the good book next to the blue spoon?",
       "The cook stood by the pool and looked up at the moon.",
       "Would you pull the stool closer so we can look at the food?"
     ]
@@ -266,19 +266,19 @@
   },
   {
     id: "w-glide",
-    title: "W before OO·OH",
-    ipa: "/w/ · /wʊ/ · /wuː/ · /woʊ/",
-    ko: "한국어에는 '우·오' 앞에 붙는 w가 없어 woman이 '우먼', would가 '우드'처럼 w가 사라지고, woke가 oak로 들린다.",
-    tip: "**W**는 입술을 '우'보다 더 작고 단단하게 오므린 채 시작해 다음 모음으로 넘어가며 입술을 푼다. woman, would, wool처럼 뒤에 '우·오' 소리가 와도 **입술을 한 번 조였다가 푸는 동작**을 꼭 넣는다. 짝 단어는 w 하나로 뜻이 바뀌는 쌍이다.",
+    title: "W before OO·OH·OR",
+    ipa: "/w/ · /wuː/ · /woʊ/ · /wɔ/ · /wɜr/",
+    ko: "한국어에는 '우·오' 앞에 붙는 w가 없어 woman이 '우먼', would가 '우드'처럼 w가 사라지고, woke가 oak로 들린다. 와·웨·위 앞의 w는 한국어에도 있으니, 짝은 모두 w 뒤에 o·oo·or·er 소리가 오는 단어다.",
+    tip: "**W**는 입술을 '우'보다 더 작고 단단하게 오므린 채 시작해 다음 모음으로 넘어가며 입술을 푼다. woke, woo, war처럼 뒤에 '우·오' 소리가 와도 **입술을 한 번 조였다가 푸는 동작**을 꼭 넣는다. 짝 단어는 w 하나로 뜻이 바뀌는 쌍이다.",
     pairs: [
       ["woke", "oak"],
       ["woe", "owe|oh"],
+      ["woes", "owes"],
       ["war|wore", "or|oar|ore"],
-      ["wear|where|ware", "air|heir"],
-      ["wise", "eyes"],
-      ["wait|weight", "ate"],
-      ["wake", "ache"],
-      ["wheel", "eel"]
+      ["wall", "all"],
+      ["woo", "ooh"],
+      ["worth", "earth"],
+      ["work", "irk"]
     ],
     sentences: [
       "The woman would walk to the woods every weekend.",
@@ -290,22 +290,22 @@
     id: "s-sh",
     title: "S vs SH",
     ipa: "/s/ · /ʃ/",
-    ko: "한국어 '시'가 '쉬'처럼 나서 sea가 she, seat이 sheet로 들린다.",
-    tip: "**S**는 입꼬리를 옆으로 당기고 혀끝을 윗니 뒤에 가까이 대어 가늘게 쉭. **SH**는 입술을 앞으로 둥글게 내밀고 혀를 뒤로 물려 넓게 '쉬-' 한다.",
+    ko: "한국어 '시'는 혀 가운데가 입천장에 붙어 '쉬'에 가깝게 나므로, s 뒤에 i·ɪ가 오면 see가 she, sip이 ship, seat이 sheet로 들린다. sa·so·su 앞의 s는 대개 문제없으니 si 소리에 집중한다.",
+    tip: "**S+i**는 입꼬리를 옆으로 당기고 혀끝만 윗니 뒤에 가까이 대어, 혀 가운데가 입천장에 닿지 않게 가늘게 '스' 바람을 먼저 낸 뒤 i로 넘어간다. **SH**는 입술을 앞으로 둥글게 내밀고 혀를 뒤로 물려 넓게 '쉬-' 한다.",
     pairs: [
       ["sea|see", "she"],
       ["sip", "ship"],
       ["seat", "sheet"],
-      ["sock", "shock"],
-      ["sort", "short"],
-      ["save", "shave"],
-      ["sell|cell", "shell"],
-      ["so|sew|sow", "show"]
+      ["seep", "sheep"],
+      ["sift", "shift"],
+      ["seen|scene", "sheen"],
+      ["sipped", "shipped"],
+      ["sees|seas|seize", "she's"]
     ],
     sentences: [
-      "She sells fresh seafood at the small shop by the sea.",
-      "Please sign this sheet and save a seat for her.",
-      "She showed me some shiny shells she found by the sea."
+      "She sees sixty ships sitting in the city harbor.",
+      "Sit in this seat and sign the sheet, please.",
+      "My sister sipped sweet tea and showed me a simple silk shirt."
     ]
   },
   {

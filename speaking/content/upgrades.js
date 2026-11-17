@@ -122,9 +122,9 @@
     better: [
       "The main issue is the price.",
       "Our biggest concern is the cost.",
-      "The real sticking point is the price."
+      "The price is the deciding factor."
     ],
-    keys: ["issue", "concern", "factor", "sticking point"],
+    keys: ["issue", "concern", "deciding factor", "sticking point"],
     avoid: ["thing"],
     gloss: "issue 쟁점 · concern 우려 · deciding factor 결정적 요인 · sticking point 걸림돌"
   },
@@ -343,12 +343,13 @@
     plain: "Basically, like, the results were kind of okay.",
     ko: "basically, like, kind of 없이 평가를 담은 형용사를 쓴다.",
     better: [
-      "The results were solid.",
-      "The results were decent, though not outstanding."
+      "The results were decent, though not outstanding.",
+      "The results were adequate, but there is room to improve.",
+      "Overall, the results were reasonable for a first attempt."
     ],
-    keys: ["solid", "decent", "reasonable", "outstanding"],
+    keys: ["decent", "adequate", "reasonable", "passable", "acceptable"],
     avoid: ["basically", "like", "kind of", "okay"],
-    gloss: "solid 탄탄한 · decent 괜찮은 · reasonable 무난한 · outstanding 뛰어난"
+    gloss: "decent 괜찮은 · adequate 무난한 · reasonable 그럭저럭 괜찮은 · passable 그런대로 봐줄 만한 · acceptable 받아들일 만한"
   },
   {
     id: "u-029",
@@ -483,12 +484,12 @@
     ko: "It is important to note that 같은 머리말을 빼고 소식을 바로 전한다.",
     better: [
       "Heads up: the deadline has moved.",
-      "The deadline has been pushed back to next Friday.",
-      "They postponed the deadline by a week."
+      "Just so you know, the deadline has shifted.",
+      "Quick update: we have a revised deadline."
     ],
-    keys: ["heads up", "moved", "pushed back", "postponed"],
+    keys: ["heads up", "moved", "shifted", "revised", "quick update", "updated"],
     avoid: ["important to", "to note", "been changed"],
-    gloss: "heads up 미리 알림 · moved 옮겨졌다 · pushed back 뒤로 미뤄졌다 · postponed 연기했다"
+    gloss: "heads up 미리 알림 · moved 옮겨졌다 · shifted 바뀌었다 · revised 수정된 · quick update 짧은 공지 · updated 변경됐다"
   },
   {
     id: "u-040",
@@ -729,9 +730,9 @@
       "In my view, the price is too high for what we get.",
       "From where I stand, the price is hard to justify."
     ],
-    keys: ["my view", "i stand", "justify", "overpriced"],
+    keys: ["my view", "i stand", "overpriced", "steep"],
     avoid: ["i think"],
-    gloss: "in my view 내가 보기에 · from where I stand 내 입장에서는 · justify 정당화하다 · overpriced 너무 비싼"
+    gloss: "in my view 내가 보기에 · from where I stand 내 입장에서는 · overpriced 너무 비싼 · steep (값이) 터무니없이 비싼"
   },
   {
     id: "u-059",
@@ -840,12 +841,12 @@
     ko: "상대를 지적하는 대신 사실 확인을 제안한다.",
     better: [
       "I think there might be a misunderstanding.",
-      "I'm not sure the numbers support that.",
+      "I'm not convinced the numbers support that.",
       "Could we double check those figures?"
     ],
-    keys: ["misunderstanding", "support that", "double check", "figures"],
+    keys: ["misunderstanding", "not convinced", "support that", "double check", "another look"],
     avoid: ["wrong"],
-    gloss: "misunderstanding 오해 · support that 그것을 뒷받침하다 · double check 재확인하다 · figures 수치"
+    gloss: "misunderstanding 오해 · not convinced 납득이 안 된다 · support that 그것을 뒷받침하다 · double check 재확인하다 · another look 다시 한번 살펴보기"
   },
   {
     id: "u-068",
@@ -892,12 +893,12 @@
     ko: "단정 대신 현실적 제약을 근거로 우려를 표한다.",
     better: [
       "That sounds ambitious given our timeline.",
-      "I'm not sure that's realistic with our current budget.",
+      "That seems unrealistic with our current budget.",
       "I doubt that's feasible with only two people."
     ],
-    keys: ["ambitious", "realistic", "feasible", "stretch"],
+    keys: ["ambitious", "unrealistic", "doubt", "stretch", "not feasible"],
     avoid: ["impossible"],
-    gloss: "ambitious 야심 찬 · realistic 현실적인 · feasible 실현 가능한 · a stretch 무리한 목표"
+    gloss: "ambitious 야심 찬(무리일 수 있는) · unrealistic 비현실적인 · doubt 의심스럽다 · a stretch 무리한 목표 · not feasible 실현하기 어렵다"
   },
   {
     id: "u-072",

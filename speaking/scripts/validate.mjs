@@ -56,7 +56,7 @@ K.passages.forEach(p => {
   if (/\d/.test(p.text)) err(at, '숫자 금지');
   if (p.focus && !K.sounds.some(s => s.id === p.focus)) err(at, `focus ${p.focus} 없음`);
 });
-const FW = ['prep', 'star', 'ppf', 'psb', 'wsn', 'cc'], CAT = ['daily', 'opinion', 'work', 'explain', 'story'];
+const FW = ['prep', 'star', 'ppf', 'psb', 'wsn', 'cc', 'steps', 'desc'], CAT = ['daily', 'opinion', 'work', 'explain', 'story'];
 K.topics.forEach(t => {
   const at = `topics/${t.id}`; uniq(at, t.id);
   if (!CAT.includes(t.cat)) err(at, 'cat');

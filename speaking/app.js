@@ -43,6 +43,16 @@
       ['So what', '왜 중요한지', 'This matters because…'],
       ['Now what', '그래서 어떻게', 'So what you can do is…'],
     ] },
+    steps: { name: 'First–Then–Finally', ko: '순서대로: 먼저 → 그다음 → 마지막', steps: [
+      ['First', '시작 단계', 'First, you need to…'],
+      ['Then', '이어지는 단계', 'After that, …'],
+      ['Finally', '마무리와 팁', 'Finally, … and the key thing is…'],
+    ] },
+    desc: { name: 'Overview–Details–Feeling', ko: '한 줄 소개 → 구체적 묘사 → 내 느낌', steps: [
+      ['Overview', '무엇인지 한 줄로', 'It’s a … that …'],
+      ['Details', '보이고 들리는 것', 'What stands out is…'],
+      ['Feeling', '왜 나에게 의미 있는지', 'What I love about it is…'],
+    ] },
     cc: { name: 'Compare–Contrast–Conclude', ko: '공통점 → 차이점 → 결론', steps: [
       ['Compare', '비슷한 점', 'Both of them…'],
       ['Contrast', '다른 점', 'The big difference is…'],
@@ -56,9 +66,9 @@
     sound: { label: '발음 드릴', en: 'Sound drill', min: 2, desc: '헷갈리는 소리 듣고 구별하고 말하기' },
     rhythm: { label: '리듬·강세', en: 'Rhythm', min: 1, desc: '강세·연음·축약 — 한국어식 ‘또박또박’에서 벗어나기' },
     passage: { label: '섀도잉', en: 'Shadowing', min: 2, desc: '원어민 음성을 듣고 따라 읽기' },
-    retell: { label: '요약해 말하기', en: 'Retell', min: 1, desc: '방금 읽은 글을 내 말로 30초' },
+    retell: { label: '요약해 말하기', en: 'Retell', min: 2, desc: '방금 읽은 글을 내 말로 30초' },
     talk: { label: 'Daily 60', en: 'Impromptu', min: 2, desc: '오늘의 질문에 60초 즉흥 답변' },
-    upgrade: { label: '표현 업그레이드', en: 'Upgrade', min: 1, desc: '밋밋한 문장을 정확한 표현으로' },
+    upgrade: { label: '표현 업그레이드', en: 'Upgrade', min: 2, desc: '밋밋한 문장을 정확한 표현으로' },
   };
   const PLANS = {
     5: ['sound', 'talk'],
@@ -203,6 +213,17 @@
       if (msg) setTimeout(() => toast(msg), 400);
     }
     save();
+  }
+
+  function planLabel(m) {
+    const mins = (PLANS[m] || []).reduce((a, k) => a + STEPS[k].min, 0);
+    return `${{ 5: '짧게', 10: '기본', 15: '길게' }[m]} · 약 ${mins}분`;
+  }
+  function countsForStreak(step, res) {
+    if (step === 'warmup') return false;
+    if ((step === 'talk' || step === 'retell') && res.partial) return false;
+    if (step === 'sound' && res.n < 3) return false;
+    return true;
   }
 
   // ---------- 오늘 계획 ----------
@@ -789,7 +810,7 @@
     const dw = S.displayWords(sentence);
     el.innerHTML = `
       ${opt.check ? '<p class="small muted">인식 확인 — 알아들은 단어가 초록색으로 바뀌어요</p>' : ''}
-      <p class="sentence en ${opt.check ? 'check' : ''}" lang="en">${dw.map(w => w.space ? w.text : `<span class="w" data-from="${w.from}" data-n="${w.count}">${esc(w.text)}</span>`).join('')}</p>
+      <p class="sentence en ${opt.check ? 'verify' : ''}" lang="en">${dw.map(w => w.space ? w.text : `<span class="w" data-from="${w.from}" data-n="${w.count}">${esc(w.text)}</span>`).join('')}</p>
       <div class="row">${speakBtn(sentence, '듣기')}${speakBtn(sentence, '천천히', 'slow')}${micButton('따라 말하기')}</div>
       <p class="heard small muted" aria-live="polite"></p>`;
     const slow = el.querySelector('.slow'); if (slow) slow.dataset.rate = '0.7';
@@ -843,8 +864,10 @@
 
   function RhythmStep(el, item, done) {
     const isTw = item.type === 'twister';
+    // 강세·약모음·문장 강세는 인식기가 판정할 수 없어 스스로 들어 보고 체크한다
+    const selfRate = ['stress', 'focus', 'schwa'].includes(item.type);
     const lines = isTw ? item.lines.slice() : shuffle(item.lines).slice(0, 3);
-    let i = 0, sum = 0, n = 0;
+    let i = 0, sum = 0, n = 0, selfYes = 0, selfN = 0;
     el.innerHTML = `
       <div class="step-body">
         <details class="tipbox" open><summary><span class="ipa">${esc(RTYPE[item.type] || '')}</span> <span class="small">요령</span></summary>
@@ -863,9 +886,17 @@
         ${L.ko ? `<p class="small muted">${esc(L.ko)}</p>` : ''}
         <div id="rs"></div>`;
       fin.innerHTML = `<button type="button" class="btn quiet sm">${i + 1 < lines.length ? '다음 문장' : '완료'}</button>`;
-      let got = null;
-      SentenceTry(box.querySelector('#rs'), L.text, { check: true, onResult(acc) { got = Math.max(got || 0, acc); fin.querySelector('button').className = 'btn sm'; } });
+      let got = null, rated = null;
+      SentenceTry(box.querySelector('#rs'), L.text, { check: true, onResult(acc) {
+        got = Math.max(got || 0, acc);
+        fin.querySelector('button').className = 'btn sm';
+        if (selfRate && !box.querySelector('.selfrate')) {
+          box.insertAdjacentHTML('beforeend', `<div class="selfrate row"><span class="small">원어민과 비교해 보니 굵은 부분에 힘이 갔나요?</span><button type="button" class="btn quiet sm" data-r="1">네</button><button type="button" class="btn quiet sm" data-r="0">아직</button></div>`);
+          box.querySelectorAll('.selfrate [data-r]').forEach(b => { b.onclick = () => { rated = b.dataset.r === '1'; box.querySelectorAll('.selfrate [data-r]').forEach(x => x.classList.toggle('on', x === b)); }; });
+        }
+      } });
       fin.querySelector('button').onclick = () => {
+        if (rated != null) { selfN++; if (rated) selfYes++; }
         if (got != null) { sum += got; n++; }
         i++;
         if (i < lines.length) line(); else finish();
@@ -909,7 +940,7 @@
         fin.querySelector('button').onclick = finish;
       };
     }
-    function finish() { done({ secs: 25, acc: n ? sum / n : null }); }
+    function finish() { done({ secs: 25, acc: n ? sum / n : null, self: selfN ? `${selfYes}/${selfN}` : null, kind: item.type }); }
   }
 
   function SoundStep(el, s, done) {
@@ -920,7 +951,7 @@
     const res = { listenOk: 0, listenN: 0, ok: 0, n: 0, sentence: null, missed: [] };
     el.innerHTML = `
       <div class="step-body">
-        <details class="tipbox" ${state.soundStats[s.id] ? '' : 'open'}>
+        <details class="tipbox" ${(state.seen.tips || []).includes(s.id) ? '' : 'open'}>
           <summary><span class="ipa mono">${esc(s.ipa || '')}</span> <span class="small">입 모양 팁</span></summary>
           <p>${md(s.ko)}</p>
           <p class="how-to">${md(s.tip)}</p>
@@ -996,6 +1027,7 @@
       fin.querySelector('button').onclick = finish;
     }
     function finish() {
+      state.seen.tips = Array.from(new Set((state.seen.tips || []).concat([s.id])));
       const st = state.soundStats[s.id] || { n: 0, ok: 0 };
       st.n += res.n; st.ok += res.ok;
       state.soundStats[s.id] = st;
@@ -1330,7 +1362,7 @@
   }
   function coachTips(a, kw) {
     const tips = [];
-    if (a.onTopic === 0 && a.words >= 20) tips.push('**질문에 답했나요?** 질문에 나온 단어가 하나도 들리지 않았어요. 첫 문장에서 질문의 핵심 단어를 그대로 받아 말해 보세요. (예: “My typical commute is…”)');
+    if (a.onTopic === 0 && a.words >= 20) tips.push(`**질문에 답했나요?** 질문에 나온 단어가 하나도 들리지 않았어요. 첫 문장에서 질문의 핵심 단어를 그대로 받아 말해 보세요. ${a.topicKeys && a.topicKeys.length ? ` 예: ${a.topicKeys.map(w => `**${w}**`).join(', ')}` : ''}`);
     if (!a.complete) tips.push(`**끝까지 말해 보세요.** 할 말이 떨어지면 “Another thing is…”, “On top of that…”으로 이유나 예시를 하나 더 붙이면 ${a.given}초를 채울 수 있어요.`);
     else if (a.words < 60) tips.push('**분량을 늘려 보세요.** 처음 한 문장에 결론을 말하고, “The main reason is…”로 이유를, “For example…”로 예시를 붙이면 금방 채워져요.');
     if (a.wpm > 175) tips.push(`**조금 천천히.** ${a.wpm} WPM은 빠른 편이에요. 문장 끝마다 반 박자 쉬면 더 또렷하게 들려요.`);
@@ -1454,6 +1486,8 @@
         <p class="date">${prettyDate(t)}</p>
         <h1>${esc(greet)}</h1>
       </section>
+      <!--INTRO-->
+      ${!d.active && streak > 0 && new Date().getHours() >= 18 && plan.steps.includes('talk') ? `<div class="callout risk"><p><strong>${streak}일 연속 기록이 오늘 끊길 수 있어요.</strong> Daily 60 하나만 끝까지 해도 이어져요.</p><a class="btn" href="#do/talk">2분 만에 지키기</a></div>` : ''}
       <div class="meter three">
         <div><span class="v">${ICON.flame}${streak}<small>일</small></span><span class="k">연속 기록${state.freezes ? ` · 보호권 ${state.freezes}` : ''}</span></div>
         <div><span class="v">${wk.count}<small>/7</small></span><span class="k">이번 주</span></div>
@@ -1463,7 +1497,7 @@
       ${supportNote()}`;
 
     if (!state.onboarded) {
-      html += `
+      html = html.replace('<!--INTRO-->', `
       <section class="intro card-lite">
         <h2>매일 10분, 또렷하게 말하는 근육 만들기</h2>
         <ul class="intro-list">
@@ -1477,7 +1511,7 @@
           <a class="btn" href="#start">${ICON.mic}<span>3분 시작 설정 · 발음 진단</span></a>
           <button type="button" class="btn quiet" id="skipintro">바로 시작</button>
         </div>
-      </section>`;
+      </section>`);
     }
 
     html += `<section class="stack"><div class="sec-head"><h2>오늘의 세션</h2><span class="mono small muted">약 ${mins}분 · <a href="#prefs">길이 바꾸기</a></span></div><ol class="tickets">`;
@@ -1493,7 +1527,7 @@
     html += `</ol>`;
     if (left.length) {
       html += `<a class="btn big" href="#do/${left[0]}">${doneN ? '이어서 하기' : '오늘 세션 시작'} →</a>`;
-      if (!d.active && plan.steps.includes('talk') && left[0] !== 'talk') html += `<p class="small muted center-text">바쁜 날엔 <a href="#do/talk">Daily 60만 하기 (1분)</a> — 그것만 해도 연속 기록이 이어져요.</p>`;
+      if (!d.active && plan.steps.includes('talk') && left[0] !== 'talk') html += `<p class="small muted center-text">바쁜 날엔 <a href="#do/talk">Daily 60만 하기 (2분)</a> — 끝까지 말하면 그것만으로 연속 기록이 이어져요.</p>`;
     } else {
       const sum = d.secs ? Math.max(1, Math.round(d.secs / 60)) : 0;
       html += `<div class="celebrate">
@@ -1536,7 +1570,7 @@
       const k = steps[i];
       if (k === 'goal') {
         box.innerHTML = `<header class="card-head"><p class="crumb mono">시작 설정 1/5</p><h1>하루에 얼마나 할까요?</h1><p class="muted">짧게라도 매일 하는 게 길게 가끔 하는 것보다 효과적이에요. 나중에 바꿀 수 있어요.</p></header>
-          <div class="seg col">${[5, 10, 15].map(m => `<label><input type="radio" name="m" value="${m}" ${p.minutes === m ? 'checked' : ''}><span>${m}분<small>${PLANS[m].map(x => STEPS[x].label).join(' · ')}</small></span></label>`).join('')}</div>
+          <div class="seg col">${[5, 10, 15].map(m => `<label><input type="radio" name="m" value="${m}" ${p.minutes === m ? 'checked' : ''}><span>${planLabel(m)}<small>${PLANS[m].map(x => STEPS[x].label).join(' · ')}</small></span></label>`).join('')}</div>
           <p class="eyebrow">원어민 억양</p>
           <div class="seg">${[['en-US', '미국식'], ['en-GB', '영국식']].map(([v, l]) => `<label><input type="radio" name="acc" value="${v}" ${p.accent === v ? 'checked' : ''}><span>${l}</span></label>`).join('')}</div>
           ${nav()}`;
@@ -1578,29 +1612,34 @@
       }
     }
     async function diagnose() {
-      const sets = DIAG.map(id => SOUND[id]).filter(Boolean);
-      const missed = [];
-      for (let n = 0; n < sets.length; n++) {
-        const snd = sets[n];
-        const pair = snd.pairs[Math.floor(Math.random() * snd.pairs.length)];
-        const side = Math.random() < 0.5 ? 0 : 1;
-        box.innerHTML = `<header class="card-head"><p class="crumb mono">시작 설정 3/5 · 발음 진단 ${n + 1}/${sets.length}</p><h1>단어를 읽어 주세요</h1><p class="muted">미리 듣지 말고 평소처럼 읽어 보세요. 잘 안 들린 소리를 집중 연습 소리로 정해요.</p></header><div id="db"></div>
+      // 소리마다 두 단어(짝의 양쪽)를 읽어 한 번의 실수로 결정되지 않게 한다. 결과는 연습 통계와 따로 둔다.
+      const trials = [];
+      DIAG.map(id => SOUND[id]).filter(Boolean).forEach(snd => {
+        const [p1, p2] = shuffle(snd.pairs).slice(0, 2);
+        trials.push({ snd, pair: p1, side: 0 }, { snd, pair: p2 || p1, side: 1 });
+      });
+      const res = {};
+      let stop = false;
+      for (let n = 0; n < trials.length; n++) {
+        const { snd, pair, side } = trials[n];
+        box.innerHTML = `<header class="card-head"><p class="crumb mono">시작 설정 3/5 · 발음 진단 ${n + 1}/${trials.length}</p><h1>단어를 읽어 주세요</h1><p class="muted">미리 듣지 말고 평소처럼 읽어 보세요. 잘 안 들린 소리를 집중 연습 소리로 정해요.</p></header><div id="db"></div>
           <div class="row end"><button type="button" class="btn quiet sm" id="dskip">진단 그만하기</button></div>`;
-        let stop = false;
         box.querySelector('#dskip').onclick = () => { stop = true; finishDiag(); };
         const v = await wordTrial(box.querySelector('#db'), pair[side], pair[1 - side], { noListenFirst: true });
         if (stop || !document.body.contains(box)) return;
-        const st = state.soundStats[snd.id] || { n: 0, ok: 0 }; st.n++;
-        if (v === 'ok') st.ok++; else missed.push(snd.id);
-        state.soundStats[snd.id] = st;
-        save();
+        const r = res[snd.id] || (res[snd.id] = { n: 0, ok: 0 });
+        r.n++; if (v === 'ok') r.ok++;
       }
       finishDiag();
       function finishDiag() {
-        if (missed.length) state.prefs.focus = missed.slice();
+        const weak = Object.entries(res).filter(([, r]) => r.ok / r.n <= 0.5).sort((a, b) => a[1].ok / a[1].n - b[1].ok / b[1].n).slice(0, 3).map(([id]) => id);
+        state.diag = { date: today(), res };
+        if (weak.length) state.prefs.focus = weak;
         save();
+        const tested = Object.keys(res).length;
         box.innerHTML = `<header class="card-head"><p class="crumb mono">시작 설정 3/5</p><h1>진단 결과</h1></header>
-          ${missed.length ? `<p>헷갈리게 들린 소리: <strong>${missed.map(id => esc(SOUND[id].title)).join(', ')}</strong></p><p class="muted small">이 소리들을 먼저 돌아가며 연습해요. 전부 연습하고 싶으면 설정에서 집중 소리를 모두 해제하세요.</p>` : '<p>진단한 소리는 모두 또렷하게 들렸어요! 전체 소리를 돌아가며 연습할게요.</p>'}
+          ${!tested ? '<p>진단을 건너뛰었어요. 모든 소리를 돌아가며 연습할게요.</p>' : weak.length ? `<p>헷갈리게 들린 소리: <strong>${weak.map(id => esc(SOUND[id].title)).join(', ')}</strong></p><p class="muted small">이 소리들을 먼저 돌아가며 연습해요(최대 3개). 전부 연습하고 싶으면 설정에서 집중 소리를 모두 해제하세요.</p>` : '<p>진단한 소리는 모두 또렷하게 들렸어요! 전체 소리를 돌아가며 연습할게요.</p>'}
+          <ul class="diag">${Object.entries(res).map(([id, r]) => `<li><span>${esc(SOUND[id].title)}</span><span class="mono small ${r.ok === r.n ? 'ok' : 'miss'}">${r.ok}/${r.n}</span></li>`).join('')}</ul>
           ${nav()}`;
         bindNav();
       }
@@ -1622,7 +1661,8 @@
     main.innerHTML = `<article class="card"><header class="card-head"><p class="crumb mono"><a href="#today">오늘</a> · 주간 체크</p><h1>주간 체크</h1>
       <p class="muted">첫날과 같은 글이에요. 다 읽고 나면 <a href="#stats">기록</a>에서 예전 녹음과 비교해 들을 수 있어요.</p></header><div id="bb"></div><footer class="next-bar" id="nextbar" hidden></footer></article>`;
     BaselineStep(document.getElementById('bb'), () => {
-      const bar = document.getElementById('nextbar');
+      const bar = nextBar || document.getElementById('nextbar');
+      if (!bar || !document.body.contains(bar)) return; // 저장 중 다른 화면으로 넘어갔으면 화면은 건드리지 않는다
       bar.hidden = false;
       bar.innerHTML = `<p class="small muted">${ICON.check} 저장했어요</p><a class="btn" href="#stats">비교해 듣기 →</a>`;
     });
@@ -1633,7 +1673,7 @@
     if (k === 'passage') return r.wpm ? `${Math.round(r.acc * 100)}% · ${r.wpm}wpm` : `자가 ${Math.round(r.acc * 100)}%`;
     if (k === 'talk' || k === 'retell') return r.score != null ? `${r.score}점 · ${r.wpm}wpm` : r.partial ? '짧게 끝냄' : '완료';
     if (k === 'upgrade') return r.hit === 'key' ? '핵심어 ✓' : '완료';
-    if (k === 'rhythm') return r.acc != null ? `${Math.round(r.acc * 100)}%` : '완료';
+    if (k === 'rhythm') return r.self ? `강세 ${r.self}` : r.acc != null && !['stress', 'focus', 'schwa'].includes(r.kind) ? `단어 ${Math.round(r.acc * 100)}%` : '완료';
     return '완료';
   }
   async function micTest(out, btn) {
@@ -1680,6 +1720,7 @@
         <footer class="next-bar" id="nextbar" hidden></footer>
       </article>`;
     const stage = document.getElementById('stage');
+    const nextBar = document.getElementById('nextbar');
     const finish = res => {
       const first = !d.done[step];
       d.done[step] = Object.assign({ at: Date.now() }, res);
@@ -1687,14 +1728,15 @@
       if (step === 'passage') markSeen('passages', plan.passage);
       if (step === 'upgrade') markSeen('upgrades', plan.upgrade);
       if (step === 'rhythm') markSeen('rhythm', plan.rhythm);
-      // 입 풀기만 하고 넘기면 그날 연습으로 치지 않는다(말하기를 한 단계부터 인정)
-      if (step !== 'warmup') markActive(first ? res.secs : 0);
+      // 실제로 말한 연습만 그날 기록으로 친다(입 풀기만, 몇 초 만에 끝낸 Daily 60은 제외)
+      if (countsForStreak(step, res)) markActive(first || !d.active ? res.secs : 0);
       // 자정을 넘겨 끝내도 이 세션을 시작한 날의 계획 기준으로 다음 단계를 안내한다
       const left = plan.steps.filter(k => !d.done[k]);
       if (!left.length && !d.complete) { d.complete = true; d.completedAt = Date.now(); }
       save();
       updateBadge();
-      const bar = document.getElementById('nextbar');
+      const bar = nextBar || document.getElementById('nextbar');
+      if (!bar || !document.body.contains(bar)) return; // 저장 중 다른 화면으로 넘어갔으면 화면은 건드리지 않는다
       bar.hidden = false;
       if (left.length) {
         bar.innerHTML = `<p class="small muted">${ICON.check} ${STEPS[step].label} 완료</p><a class="btn" href="${today() === date ? '#do/' + left[0] : '#today'}">다음: ${STEPS[left[0]].label} →</a>`;
@@ -1832,11 +1874,13 @@
         <footer class="next-bar" id="nextbar" hidden></footer>
       </article>`;
     const stage = document.getElementById('stage');
+    const nextBar = document.getElementById('nextbar');
     const finish = res => {
-      if (kind !== 'warmup') markActive(res.secs || 0);
+      if (countsForStreak(kind === 'topic' ? 'talk' : kind, res)) markActive(res.secs || 0);
       if (kind === 'topic') markSeen('topics', it.id);
       save();
-      const bar = document.getElementById('nextbar');
+      const bar = nextBar || document.getElementById('nextbar');
+      if (!bar || !document.body.contains(bar)) return; // 저장 중 다른 화면으로 넘어갔으면 화면은 건드리지 않는다
       bar.hidden = false;
       const again = (kind === 'topic' || kind === 'upgrade') ? `<a class="btn quiet" href="#lib/${kind}/random" data-reload>다른 것 하나 더</a>` : '';
       bar.innerHTML = `<p class="small muted">${ICON.check} 연습 완료</p><span class="row">${again}<a class="btn" href="#library">연습실로</a></span>`;
@@ -1979,8 +2023,8 @@
     </figure>`;
   }
   function soundBars() {
-    const rows = SOUNDS.map(s => ({ s, st: state.soundStats[s.id] })).filter(r => r.st && r.st.n);
-    if (!rows.length) return '<p class="muted small">발음 드릴을 하면 소리별 정확도가 쌓여요.</p>';
+    const rows = SOUNDS.map(s => ({ s, st: state.soundStats[s.id] })).filter(r => r.st && r.st.n >= 5);
+    if (!rows.length) return '<p class="muted small">발음 드릴을 하면 소리별 정확도가 쌓여요. (소리마다 5번 이상 말하면 표시)</p>';
     rows.sort((a, b) => a.st.ok / a.st.n - b.st.ok / b.st.n);
     return `<ul class="hbars">${rows.map(({ s, st }) => {
       const p = Math.round(st.ok / st.n * 100);
@@ -1992,8 +2036,15 @@
     if (!list.length) return '<p class="muted small">Daily 60을 하면 녹음과 받아쓰기가 여기에 쌓여요.</p>';
     const first = state.talks[0];
     const show = list.includes(first) ? list : list.concat([first]);
-    return `<ul class="archive">${show.map(t => `<li>
-      <div class="a-head"><span class="mono small">${shortDate(t.date)}${t === first ? ' · 첫 기록' : ''}</span><span class="mono small">${t.score != null ? t.score + '점 · ' + t.wpm + 'wpm' : '자가 평가'}</span></div>
+    // 첫 기록과 최근 4개만 펼치고 나머지는 접어 둔다
+    const top = show.slice(0, 4).concat(show.includes(first) && show.indexOf(first) >= 4 ? [first] : []);
+    const rest = show.filter(t => !top.includes(t));
+    return archiveList(top) + (rest.length ? `<details class="more"><summary class="small">이전 기록 ${rest.length}개 더 보기</summary>${archiveList(rest)}</details>` : '');
+  }
+  function archiveList(items) {
+    const first = state.talks[0];
+    return `<ul class="archive">${items.map(t => `<li>
+      <div class="a-head"><span class="mono small">${shortDate(t.date)}${t === first ? ' · 첫 기록' : ''}</span><span class="mono small">${t.score != null ? t.score + '점 · ' + t.wpm + 'wpm' : t.partial ? '짧게 끝냄' : '자가 평가'}</span></div>
       <p class="en small">${esc(t.q || '')}</p>
       ${t.text ? `<details><summary class="small">받아쓰기</summary><p class="en small muted">${esc(t.text)}</p></details>` : ''}
       ${t.audio ? `<div class="row"><button type="button" class="btn quiet sm" data-play="${esc(t.audio)}">${ICON.play}<span>녹음 듣기</span></button><span class="player"></span></div>` : ''}
@@ -2008,7 +2059,7 @@
       <h1>설정</h1>
       <form class="prefs" id="pf" onsubmit="return false">
         <fieldset><legend>하루 세션 길이</legend>
-          <div class="seg">${[5, 10, 15].map(m => `<label><input type="radio" name="minutes" value="${m}" ${p.minutes === m ? 'checked' : ''}><span>${m}분<small>${PLANS[m].map(k => STEPS[k].label).join(' · ')}</small></span></label>`).join('')}</div>
+          <div class="seg">${[5, 10, 15].map(m => `<label><input type="radio" name="minutes" value="${m}" ${p.minutes === m ? 'checked' : ''}><span>${planLabel(m)}<small>${PLANS[m].map(k => STEPS[k].label).join(' · ')}</small></span></label>`).join('')}</div>
         </fieldset>
         <fieldset><legend>집중할 소리 <span class="muted small">(안 고르면 전부 돌아가며)</span></legend>
           <div class="chips">${SOUNDS.map(s => `<label class="chip-check"><input type="checkbox" name="focus" value="${s.id}" ${p.focus.includes(s.id) ? 'checked' : ''}><span>${esc(s.title)}</span></label>`).join('')}</div>
