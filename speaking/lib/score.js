@@ -129,10 +129,10 @@
   // 'like': 바로 앞이 이런 말일 때만 군더더기(“it was like”, “and like”, “like like”)
   const LIKE_FILLER_BEFORE = new Set(['and', 'so', 'but', 'then', 'or', 'totally', 'literally', 'basically', 'like', 'um', 'uh', 'er']);
   // “it was like so crazy”처럼 was/were 뒤 like는 다음 말이 감탄·대명사일 때만 군더더기(“was like a sister”는 비유)
-  const LIKE_AFTER_BE = new Set(['so', 'really', 'totally', 'um', 'uh', 'i', 'you', 'we', 'they', 'he', 'she', 'oh', 'wow', 'no', 'yes', 'what', 'okay', 'ok', 'whoa', 'seriously', 'super']);
+  const LIKE_AFTER_BE = new Set(['so', 'really', 'totally', 'um', 'uh', 'oh', 'wow', 'no', 'yes', 'what', 'okay', 'ok', 'whoa', 'seriously', 'super']);
   const DET = new Set(['a', 'an', 'the', 'what', 'this', 'that', 'these', 'those', 'any', 'some', 'every', 'same', 'different', 'other', 'another', 'one', 'new', 'right', 'wrong', 'certain', 'which', 'each', 'my', 'your', 'our', 'their', 'his', 'her', 'its', 'all']);
   const ASK_BEFORE = new Set(['do', 'did', 'dont', 'didnt', 'if', 'would', 'will', 'might', 'should', 'can', 'could', 'to', 'as', 'youd', 'what', 'that']);
-  const OBJ_AFTER = new Set(['what', 'how', 'that', 'where', 'why', 'when', 'who', 'whether', 'if', 'about', 'him', 'her', 'them', 'me', 'us', 'to', 'your', 'his', 'their', 'our', 'more', 'everyone', 'everything', 'anything', 'someone', 'something', 'nothing', 'better', 'each', 'english', 'yourself', 'myself']);
+  const OBJ_AFTER = new Set(['what', 'how', 'that', 'where', 'why', 'when', 'who', 'whether', 'if', 'about', 'him', 'her', 'them', 'me', 'us', 'to', 'your', 'his', 'their', 'our', 'more', 'everyone', 'everything', 'anything', 'someone', 'something', 'nothing', 'better', 'yourself', 'myself']);
 
   /** 군더더기 찾기. pos: 군더더기로 본 토큰 위치 */
   function fillers(T) {
@@ -255,7 +255,9 @@
     return w;
   }
   /** 핵심어(keys) 중 말한 것 — 단·복수, -ing, -ed 형태가 달라도 인정 */
-  function sameWord(a, b) { return a === b || stem(a) === b || a === stem(b) || stem(a) === stem(b); }
+  // a: 말한 단어, b: 핵심어. 말한 단어가 핵심어의 변화형(deliver→delivering, hundred→hundreds)이거나
+  // 복수형 핵심어의 단수(concerns→concern)일 때만 인정. pressing↔pressed, crowded↔crowd처럼 뜻이 달라지는 짝은 제외.
+  function sameWord(a, b) { return a === b || stem(a) === b || (b.endsWith('s') && stem(b) === a); }
   function keysUsed(keys, text) {
     const T = tokens(text);
     return (keys || []).filter(k => {

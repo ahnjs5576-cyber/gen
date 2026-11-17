@@ -865,7 +865,7 @@
     return esc(show).replace(/[A-Z]{2,}(?:&#39;[A-Z]+)?/g, m => `<b class="st">${m}</b>`).replace(/‿/g, '<span class="link">‿</span>');
   }
   function twBest(id) {
-    const v = Object.entries(state.best || {}).filter(([k]) => k.startsWith('tw:' + id + ':')).map(([, b]) => b.secs);
+    const v = Object.entries(state.best || {}).filter(([k]) => k.startsWith('tw:' + id + ':') || k === 'tw:' + id).map(([, b]) => b.secs);
     return v.length ? Math.min(...v) : null;
   }
   const RTYPE = { stress: '단어 강세', schwa: '약하게 말하기', linking: '연음', reduction: '축약', focus: '문장 강세', twister: '혀 꼬기' };
@@ -894,7 +894,6 @@
         ${L.ko ? `<p class="small muted">${esc(L.ko)}</p>` : ''}
         <div id="rs"></div>`;
       fin.innerHTML = `<button type="button" class="btn quiet sm">${i + 1 < lines.length ? '다음 문장' : '완료'}</button>`;
-      if (i > 0) { const m = box.querySelector('[data-mic]'); if (m) m.focus({ preventScroll: true }); }
       let got = null, rated = null;
       SentenceTry(box.querySelector('#rs'), L.text, { check: true, onResult(acc) {
         got = Math.max(got || 0, acc);
@@ -904,6 +903,8 @@
           box.querySelectorAll('.selfrate [data-r]').forEach(b => { b.onclick = () => { rated = b.dataset.r === '1'; box.querySelectorAll('.selfrate [data-r]').forEach(x => x.classList.toggle('on', x === b)); }; });
         }
       } });
+      // ‘다음 문장’을 누르면 버튼이 새로 그려지므로 새 문장의 말하기 버튼으로 포커스를 옮긴다
+      if (i > 0) { const m = box.querySelector('[data-mic]'); if (m) m.focus({ preventScroll: true }); }
       fin.querySelector('button').onclick = () => {
         if (rated != null) { selfN++; if (rated) selfYes++; }
         if (got != null) { sum += got; n++; }
@@ -916,7 +917,7 @@
       const L = lines[li];
       const target = [L.text, L.text, L.text].join(' ');
       const bestKey = 'tw:' + item.id + ':' + li; // 문장마다 길이가 달라 기록도 문장별로
-      const best = (state.best || {})[bestKey];
+      const best = (state.best || {})[bestKey] || (state.best || {})['tw:' + item.id]; // 예전 기록(문장 구분 전)도 보여 준다
       box.innerHTML = `<p class="show en big" lang="en">${esc(L.text)}</p>
         <div class="row">${speakBtn(L.text, '듣기')}${speakBtn(L.text, '천천히', 'slow')}${micButton('3번 연속 말하기')}</div>
         <p class="small muted">${best ? `내 최고 기록: ${best.secs}초 · 정확도 ${Math.round(best.acc * 100)}%` : '첫 기록에 도전해 보세요.'}</p>
@@ -1645,7 +1646,8 @@
       function finishDiag() {
         const weak = Object.entries(res).filter(([, r]) => r.ok / r.n <= 0.5).sort((a, b) => a[1].ok / a[1].n - b[1].ok / b[1].n).slice(0, 3).map(([id]) => id);
         state.diag = { date: today(), res };
-        state.prefs.focus = weak; // 약한 소리가 없거나 건너뛰면 전체 소리를 돌아가며
+        // 한 단어라도 진단했으면 결과로 바꾸고(약한 소리가 없으면 전체), 바로 그만두면 기존 설정을 지킨다
+        if (Object.keys(res).length) state.prefs.focus = weak;
         const d = dayRec(today());
         if (d.plan && !d.done.sound) d.plan.sound = weak[0] || d.plan.sound;
         save();

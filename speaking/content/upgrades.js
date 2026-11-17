@@ -450,7 +450,7 @@
       "I'm confident this plan will work.",
       "This is a sound, promising plan."
     ],
-    keys: ["solid", "sound", "confident", "promising"],
+    keys: ["solid", "confident", "promising"],
     avoid: ["personal opinion", "i believe", "good"],
     gloss: "solid 탄탄한 · sound 타당한 · confident 확신하는 · promising 유망한"
   },
