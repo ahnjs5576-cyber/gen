@@ -1,0 +1,109 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# TG Watcher 관리 명령 (Termux)
+APP="$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)"
+PY="$APP/.venv/bin/python"
+ENV="$APP/.env"
+
+running() { pgrep -f "$APP/termux/run_forever.sh" >/dev/null; }
+
+stop_all() {
+  pkill -f "$APP/termux/run_forever.sh" 2>/dev/null
+  pkill -f "$APP/main.py" 2>/dev/null
+  termux-wake-unlock 2>/dev/null
+}
+
+set_env() {  # set_env KEY VALUE — .env 의 해당 줄을 교체
+  "$PY" - "$ENV" "$1" "$2" <<'EOF'
+import sys, re
+path, key, val = sys.argv[1:4]
+lines = open(path, encoding="utf-8").read().splitlines()
+out, done = [], False
+for ln in lines:
+    if re.match(rf"^{re.escape(key)}=", ln):
+        out.append(f"{key}={val}"); done = True
+    else:
+        out.append(ln)
+if not done:
+    out.append(f"{key}={val}")
+open(path, "w", encoding="utf-8").write("\n".join(out) + "\n")
+EOF
+}
+
+ask() {  # ask KEY "설명" [secret]
+  local cur val
+  cur=$(grep -E "^$1=" "$ENV" | cut -d= -f2-)
+  # .env.example 의 예시 값 그대로면 '없음'으로 취급
+  [ "$cur" = "$(grep -E "^$1=" "$APP/.env.example" | cut -d= -f2-)" ] && [ "$1" != CLAUDE_MODEL ] && cur=""
+  if [ -n "$cur" ]; then
+    printf '%s [현재 값 있음, Enter=유지]: ' "$2"
+  else
+    printf '%s: ' "$2"
+  fi
+  if [ "${3:-}" = secret ]; then read -rs val; echo; else read -r val; fi
+  [ -n "$val" ] && set_env "$1" "$val"
+}
+
+case "${1:-}" in
+  setup)
+    [ -f "$ENV" ] || cp "$APP/.env.example" "$ENV"
+    echo "값을 붙여넣고 Enter. 비워두면 건너뜁니다. (비밀값은 화면에 안 보여요)"
+    ask TG_API_ID   "TG_API_ID (my.telegram.org 의 api_id 숫자)"
+    ask TG_API_HASH "TG_API_HASH (api_hash)" secret
+    ask TG_PHONE    "전화번호 (예: +821012345678)"
+    ask BOT_TOKEN   "BOT_TOKEN (@BotFather 봇 토큰)" secret
+    ask ANTHROPIC_API_KEY "ANTHROPIC_API_KEY (Claude, 없으면 Enter)" secret
+    chmod 600 "$ENV"
+    echo "저장했어요. 수정하려면 다시 'tgw setup' 또는 'nano $ENV'"
+    ;;
+  login)
+    if running; then echo "실행 중이라 먼저 멈춥니다."; stop_all; sleep 1; fi
+    echo "첫 로그인: 텔레그램 앱으로 온 코드를 입력하세요."
+    echo "봇에서 '✅ 감시를 시작했어요'가 오면 Ctrl+C 로 끝내고 'tgw start' 하세요."
+    cd "$APP" && "$PY" "$APP/main.py"
+    ;;
+  start)
+    if [ ! -f "$APP/sessions/user.session" ]; then
+      echo "아직 로그인 전이에요. 먼저 'tgw login' 을 하세요."; exit 1
+    fi
+    if running; then echo "이미 실행 중이에요."; exit 0; fi
+    termux-wake-lock
+    cd "$APP" && nohup "$APP/termux/run_forever.sh" >/dev/null 2>&1 &
+    sleep 2
+    running && echo "✅ 백그라운드에서 실행 중 (알림창에 Termux 표시가 떠 있어야 해요)" || echo "시작 실패 — 'tgw log' 확인"
+    ;;
+  stop)
+    stop_all; echo "멈췄어요."
+    ;;
+  restart)
+    stop_all; sleep 1; exec "$0" start
+    ;;
+  status)
+    if running; then echo "🟢 실행 중"; else echo "⚪ 멈춤"; fi
+    tail -n 5 "$APP/data/service.log" 2>/dev/null
+    ;;
+  log)
+    tail -n 50 -f "$APP/data/service.log" "$APP/data/crash.log" 2>/dev/null
+    ;;
+  update)
+    git -C "$APP/.." pull --ff-only && "$PY" -m pip install -q "telethon>=1.36" "python-dotenv>=1.0"
+    running && { stop_all; sleep 1; "$0" start; }
+    ;;
+  claude)
+    pkg install -y rust clang binutils make
+    export ANDROID_API_LEVEL
+    ANDROID_API_LEVEL=$(getprop ro.build.version.sdk)
+    "$PY" -m pip install "anthropic>=2.0" && echo "설치 완료. 'tgw restart' 하세요."
+    ;;
+  *)
+    cat <<'EOF'
+사용법: tgw <명령>
+  setup    API 키·봇 토큰 입력
+  login    첫 로그인 (코드 입력)
+  start    백그라운드 실행        stop     멈춤
+  restart  다시 시작             status   상태 확인
+  log      로그 보기 (Ctrl+C로 나가기)
+  update   최신 코드로 업데이트
+  claude   Claude 자연어 기능 설치
+EOF
+    ;;
+esac

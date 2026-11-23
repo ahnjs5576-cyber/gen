@@ -12,7 +12,6 @@ import sys
 
 from telethon import TelegramClient, events, utils
 
-from agent import Agent
 from config import BASE_DIR, load_config
 from storage import Storage
 from tg_reader import TelegramReader, chat_kind, message_text, render_rows
@@ -20,7 +19,7 @@ from tg_reader import TelegramReader, chat_kind, message_text, render_rows
 (BASE_DIR / "data").mkdir(exist_ok=True)
 _handlers: list[logging.Handler] = [
     logging.FileHandler(BASE_DIR / "data" / "service.log", encoding="utf-8")]
-if sys.stderr:  # pythonw(창 없는 실행)에서는 콘솔이 없음
+if sys.stderr and sys.stderr.isatty():  # 창 없는/백그라운드 실행이면 파일 로그만
     _handlers.append(logging.StreamHandler())
 logging.basicConfig(
     format="%(asctime)s %(levelname)s %(message)s",
@@ -82,7 +81,7 @@ class Service:
         )
         self.bot: TelegramClient | None = None
         self.reader = TelegramReader(self.user, self.cfg.keep_offline)
-        self.agent: Agent | None = None
+        self.agent = None  # agent.Agent (Claude 키가 있을 때만)
         self.me_id = 0
         self.bot_id = 0
         self.sent_by_service: set[int] = set()  # 저장한 메시지 모드에서 내가 보낸 응답 ID
@@ -229,9 +228,13 @@ class Service:
         log.info("로그인: %s (id %s)", utils.get_display_name(me), me.id)
 
         if self.cfg.anthropic_key:
-            self.agent = Agent(self.reader, self.storage, self.cfg.claude_model,
-                               self.cfg.anthropic_key)
-            log.info("Claude 자연어 처리 사용 (%s)", self.cfg.claude_model)
+            try:
+                from agent import Agent  # anthropic 패키지가 없으면 명령어만 사용
+                self.agent = Agent(self.reader, self.storage, self.cfg.claude_model,
+                                   self.cfg.anthropic_key)
+                log.info("Claude 자연어 처리 사용 (%s)", self.cfg.claude_model)
+            except ImportError as e:
+                log.warning("anthropic 패키지가 없어 자연어 지시는 꺼둡니다: %s", e)
 
         self.user.add_event_handler(self.on_incoming, events.NewMessage(incoming=True))
 

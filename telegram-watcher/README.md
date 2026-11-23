@@ -40,6 +40,10 @@
    └──────────────── 텔레그램 서버의 내 대화방들
 ```
 
+## 📱 PC 없이 안드로이드만으로 돌리기
+
+[`termux/README.md`](termux/README.md) 를 보세요. (Termux + Termux:Boot)
+
 ## 설치 (윈도우)
 
 ### 0. 준비물
