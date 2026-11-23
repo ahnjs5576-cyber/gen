@@ -1,0 +1,8 @@
+<resources>
+    <color name="brand">#3D5AFE</color>
+    <color name="brand_dark">#8C9EFF</color>
+    <color name="bubble_idle">#E63D5AFE</color>
+    <color name="bubble_listen">#E6E53935</color>
+    <color name="bubble_busy">#E6FF9800</color>
+    <color name="scrim">#99000000</color>
+</resources>

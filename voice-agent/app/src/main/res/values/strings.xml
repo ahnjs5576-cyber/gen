@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">폰비서</string>
+    <string name="accessibility_label">폰비서 (화면 대신 조작)</string>
+    <string name="accessibility_description">음성으로 말한 일을 대신 처리하기 위해 화면 내용을 읽고, 버튼을 누르고, 글자를 입력합니다. 화면 내용은 처리할 때만 Claude API로 전송되며 따로 저장하지 않습니다.</string>
+    <string name="notification_label">폰비서 (알림 읽기·답장)</string>
+    <string name="tile_label">폰비서에게 말하기</string>
+</resources>
