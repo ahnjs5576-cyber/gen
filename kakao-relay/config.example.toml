@@ -1,0 +1,66 @@
+# config.toml 로 복사해서 사용하세요. (config.toml 은 커밋되지 않습니다)
+
+[kakao]
+# 카카오톡 사용자 데이터 폴더. 보통 비워두면 자동 탐지합니다:
+#   %LOCALAPPDATA%\Kakao\KakaoTalk\users\<사용자해시>
+# 자동 탐지가 안 되거나 여러 계정이면 직접 지정하세요.
+user_dir = ""
+
+# 방(chatId) -> 키(hex) 매핑 파일. MoniKa 등으로 추출. README '1. 키 확보' 참고.
+keys_file = "keys.json"
+
+# (선택) sqlcipher3-binary 설치가 안 될 때 sqlcipher.exe 경로로 폴백.
+sqlcipher_exe = ""
+
+[kakao.cipher]
+# SQLCipher4 파라미터. 카카오 버전에 따라 다르면 조정하세요.
+page_size = 4096
+kdf_iter = 256000
+hmac_algorithm = "HMAC_SHA512"
+kdf_algorithm = "PBKDF2_HMAC_SHA512"
+
+# 메시지 테이블/컬럼명. 버전마다 다를 수 있으니 `py run.py --inspect` 로 확인 후 수정.
+table = "chatLogs"
+col_logid = "id"          # 단조 증가하는 로그 ID (워터마크 기준)
+col_chatid = "chatId"
+col_userid = "userId"     # 발신자
+col_message = "message"   # 본문
+col_type = "type"         # 메시지 타입 (1=텍스트 등)
+col_created = "createdAt" # 전송 시각 (epoch)
+
+[filter]
+command_prefix = "!"
+# 감시할 방(chatId) 목록. 비우면 keys.json 의 모든 방.
+allowed_chat_ids = []
+# 허용 발신자(userId) 목록. 비우면 모든 발신자 허용.
+# (내 메시지만 처리하려면 내 userId 하나만 넣으세요)
+allowed_user_ids = []
+
+[telegram]
+bot_token = ""   # @BotFather 로 생성
+chat_id = ""     # 결과 받을 대화 ID
+
+[claude]
+# AI 문장 해석용. 비우면 AI 핸들러 비활성(!실행/!파일/!메모 만 동작).
+api_key = ""
+model = "claude-opus-4-8"
+
+[handlers]
+# !실행 으로 허용할 프로그램. 보안상 화이트리스트에 있는 것만 실행됩니다.
+# 예: ["notepad.exe", "C:\\tools\\build.bat"]
+allowed_programs = []
+# 프로그램 실행 타임아웃(초)
+exec_timeout = 120
+
+# !파일 작업이 허용되는 최상위 폴더. 이 밖의 경로는 거부됩니다.
+# 예: "C:\\Users\\me\\kakao-work"
+file_root = ""
+
+# !메모 가 쌓이는 파일
+memo_file = "memo.md"
+
+[health]
+# 이 시간(분) 동안 어떤 방에서도 새 메시지가 0건이면 텔레그램 경고.
+idle_warn_minutes = 180
+# 폴링 간격(초) — watchdog 이 놓친 변경을 보완
+poll_interval_sec = 5

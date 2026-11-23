@@ -1,0 +1,8 @@
+# SQLCipher 복호화 백엔드 (윈도우 휠 제공). 설치 실패 시 README '복호화 백엔드' 참고.
+sqlcipher3-binary>=0.5.0
+
+# 텔레그램/HTTP
+requests>=2.31
+
+# AI 해석 (선택: config 의 claude.api_key 설정 시만 사용)
+anthropic>=0.40

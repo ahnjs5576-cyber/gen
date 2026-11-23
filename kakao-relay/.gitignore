@@ -1,0 +1,11 @@
+# 실제 키/설정/상태 — 절대 커밋 금지
+config.toml
+keys.json
+state.json
+memo.md
+*.log
+
+# 파이썬
+.venv/
+__pycache__/
+*.pyc
