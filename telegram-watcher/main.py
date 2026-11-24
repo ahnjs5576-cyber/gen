@@ -214,6 +214,11 @@ class Service:
         except ValueError as e:
             return f"⚠️ {e}"
         except Exception as e:
+            if type(e).__name__ == "AuthenticationError":  # anthropic: 키가 틀림
+                return ("⚠️ Claude API 키가 틀렸어요. Termux에서 'tgw apikey' 로 다시 넣고 "
+                        "'tgw restart' 하세요. (/명령어는 그대로 쓸 수 있어요)")
+            if type(e).__name__ == "PermissionDeniedError" or "credit" in str(e).lower():
+                return "⚠️ Claude 계정의 크레딧/권한 문제예요. console.anthropic.com 의 Billing 을 확인하세요."
             log.exception("처리 중 오류")
             return f"⚠️ 오류가 났어요: {type(e).__name__}: {e}"
 
