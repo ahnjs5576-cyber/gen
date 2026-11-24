@@ -55,6 +55,17 @@ case "${1:-}" in
     chmod 600 "$ENV"
     echo "저장했어요. 수정하려면 다시 'tgw setup' 또는 'nano $ENV'"
     ;;
+  token)
+    echo "@BotFather → /mybots → 봇 선택 → API Token 에서 토큰을 복사하세요."
+    read -r -p "봇 토큰 붙여넣기 (화면에 보여요): " t
+    t="$(printf '%s' "$t" | tr -d '[:space:]')"
+    if [[ "$t" =~ ^[0-9]{6,12}:[A-Za-z0-9_-]{30,40}$ ]]; then
+      set_env BOT_TOKEN "$t"; chmod 600 "$ENV"
+      echo "✅ 저장 (${#t}자). 'tgw restart' 하세요."
+    else
+      echo "❌ 토큰 형식이 아니에요 (${#t}자). '숫자:영문숫자' 한 덩어리만 복사해 주세요. 저장 안 함."
+    fi
+    ;;
   check)
     "$PY" - "$APP" <<'EOF'
 import os, sys, importlib.util
@@ -143,6 +154,7 @@ EOF
 사용법: tgw <명령>
   setup    API 키·봇 토큰 입력
   check    입력값·설치 상태 점검 (비밀값은 가려서 표시)
+  token    봇 토큰만 다시 입력 (화면에 보이게)
   login    첫 로그인 (코드 입력)
   start    백그라운드 실행        stop     멈춤
   restart  다시 시작             status   상태 확인

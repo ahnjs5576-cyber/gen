@@ -10,7 +10,7 @@ import logging
 import re
 import sys
 
-from telethon import TelegramClient, events, utils
+from telethon import TelegramClient, errors, events, utils
 
 from config import BASE_DIR, load_config
 from storage import Storage
@@ -47,6 +47,7 @@ HELP = """\
 """
 
 TG_LIMIT = 4000
+CONFIG_ERROR = 3  # 설정이 틀려서 재시작해도 소용없을 때의 종료 코드
 
 
 def split_text(text: str, size: int = TG_LIMIT) -> list[str]:
@@ -221,6 +222,10 @@ class Service:
 
     # ── 시작 ────────────────────────────────────────
     async def run(self) -> None:
+        await self.user.connect()
+        if not await self.user.is_user_authorized() and not (sys.stdin and sys.stdin.isatty()):
+            log.error("로그인이 안 돼 있어요. 'tgw login' (윈도우는 run.bat) 으로 먼저 로그인하세요.")
+            raise SystemExit(CONFIG_ERROR)
         await self.user.start(phone=self.cfg.phone)
         me = await self.user.get_me()
         self.me_id = me.id
@@ -241,7 +246,16 @@ class Service:
         if self.cfg.bot_token:
             self.bot = TelegramClient(str(self.cfg.session_dir / "bot"),
                                       self.cfg.api_id, self.cfg.api_hash)
-            await self.bot.start(bot_token=self.cfg.bot_token)
+            try:
+                await self.bot.start(bot_token=self.cfg.bot_token)
+            except (errors.AccessTokenInvalidError, errors.AccessTokenExpiredError):
+                log.error("BOT_TOKEN 이 틀렸어요. @BotFather → /mybots → 봇 선택 → API Token 을 "
+                          "다시 복사해 넣으세요.")
+                await self.user.send_message(
+                    "me", "⚠️ TG Watcher: 봇 토큰이 틀려서 시작하지 못했어요. "
+                          "Termux에서 토큰을 다시 넣고 'tgw start' 하세요.", parse_mode=None)
+                await self.reader.go_offline()
+                raise SystemExit(CONFIG_ERROR)
             bot_me = await self.bot.get_me()
             self.bot_id = bot_me.id
 
