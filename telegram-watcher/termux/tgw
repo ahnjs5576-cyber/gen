@@ -29,6 +29,29 @@ open(path, "w", encoding="utf-8").write("\n".join(out) + "\n")
 EOF
 }
 
+read_multi() {  # 여러 줄로 붙여넣어져도 빈 줄(Enter 두 번)까지 모두 이어 붙여 읽음
+  local line all=""
+  while IFS= read -r line; do
+    [ -z "$line" ] && [ -n "$all" ] && break
+    all+="$line"
+  done
+  printf '%s' "$all"
+}
+
+clean_secret() {  # clean_secret key|token RAW → 보이지 않는 문자·바뀐 기호를 정리해 키만 출력
+  "$PY" -c '
+import re, sys, unicodedata
+kind, raw = sys.argv[1], sys.argv[2]
+s = unicodedata.normalize("NFKC", raw)
+for ch in "‐‑‒–—―−﹣－":
+    s = s.replace(ch, "-")
+s = re.sub(r"[^A-Za-z0-9_:\-]", "", s)
+pat = r"sk-ant-[A-Za-z0-9_\-]+" if kind == "key" else r"[0-9]{6,12}:[A-Za-z0-9_\-]+"
+m = re.search(pat, s)
+print(m.group(0) if m else "")
+' "$1" "$2"
+}
+
 ask() {  # ask KEY "설명" [secret]
   local cur val
   cur=$(grep -E "^$1=" "$ENV" | cut -d= -f2-)
@@ -57,8 +80,8 @@ case "${1:-}" in
     ;;
   token)
     echo "@BotFather → /mybots → 봇 선택 → API Token 에서 토큰을 복사하세요."
-    read -r -p "봇 토큰 붙여넣기 (화면에 보여요): " t
-    t="$(printf '%s' "$t" | tr -d '[:space:]')"
+    echo "봇 토큰을 붙여넣고 Enter 를 두 번 누르세요:"
+    t="$(clean_secret token "$(read_multi)")"
     if [[ "$t" =~ ^[0-9]{6,12}:[A-Za-z0-9_-]{30,40}$ ]]; then
       set_env BOT_TOKEN "$t"; chmod 600 "$ENV"
       echo "✅ 저장 (${#t}자). 'tgw restart' 하세요."
@@ -69,8 +92,10 @@ case "${1:-}" in
   apikey)
     echo "console.anthropic.com → API Keys → Create Key 직후 보이는 키 전체를 복사하세요."
     echo "(목록에 보이는 'sk-ant-...XXXX' 처럼 줄여진 값은 안 돼요. 키 전체는 만들 때 한 번만 보여요.)"
-    read -r -p "Claude API 키 붙여넣기 (화면에 보여요): " k
-    k="$(printf '%s' "$k" | tr -d '[:space:]')"
+    echo "Claude API 키를 붙여넣고 Enter 를 두 번 누르세요 (화면에 보여요):"
+    raw="$(read_multi)"
+    k="$(clean_secret key "$raw")"
+    [ "${#raw}" -ne "${#k}" ] && echo "ℹ️ 붙여넣은 ${#raw}자에서 키가 아닌 문자(공백·줄바꿈·보이지 않는 문자)를 정리했어요."
     if [[ "$k" =~ ^sk-ant-[A-Za-z0-9_-]{40,200}$ ]]; then
       set_env ANTHROPIC_API_KEY "$k"; chmod 600 "$ENV"
       echo "✅ 저장 (${#k}자). 'tgw restart' 하세요."
