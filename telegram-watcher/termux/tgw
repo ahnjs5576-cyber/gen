@@ -55,6 +55,50 @@ case "${1:-}" in
     chmod 600 "$ENV"
     echo "저장했어요. 수정하려면 다시 'tgw setup' 또는 'nano $ENV'"
     ;;
+  check)
+    "$PY" - "$APP" <<'EOF'
+import os, sys, importlib.util
+app = sys.argv[1]
+env = os.path.join(app, ".env")
+if not os.path.exists(env):
+    print("❌ .env 파일이 없어요 → tgw setup"); sys.exit()
+vals = {}
+for ln in open(env, encoding="utf-8"):
+    if "=" in ln and not ln.lstrip().startswith("#"):
+        k, v = ln.rstrip("\n").split("=", 1)
+        vals[k.strip()] = v.strip()
+def show(k, secret, need, hint=""):
+    v = vals.get(k, "")
+    if not v:
+        print(f"{'❌' if need else '➖'} {k}: 비어있음 {hint}")
+    elif "여기에" in v or v in ("1234567", "0123456789abcdef0123456789abcdef"):
+        print(f"❌ {k}: 예시 값 그대로예요 → tgw setup")
+    elif secret:
+        print(f"✅ {k}: 입력됨 ({len(v)}자) {hint}")
+    else:
+        print(f"✅ {k}: {v}")
+show("TG_API_ID", False, True)
+show("TG_API_HASH", True, True, "(보통 32자)")
+show("TG_PHONE", False, False)
+show("BOT_TOKEN", True, False, "(보통 45자 안팎)")
+show("ANTHROPIC_API_KEY", True, False, "(sk-ant- 로 시작, 100자 안팎)")
+v = vals.get("TG_API_ID", "")
+if v and not v.isdigit():
+    print("⚠️ TG_API_ID 는 숫자만이어야 해요")
+v = vals.get("TG_PHONE", "")
+if v and not v.startswith("+82"):
+    print("⚠️ 전화번호는 +8210... 형식이어야 해요")
+v = vals.get("ANTHROPIC_API_KEY", "")
+if v and not v.startswith("sk-ant-"):
+    print("⚠️ Claude 키는 sk-ant- 로 시작해야 해요")
+if v:
+    ok = importlib.util.find_spec("anthropic") is not None
+    print("✅ Claude 라이브러리 설치됨" if ok else "❌ Claude 라이브러리 없음 → tgw claude")
+print("✅ 로그인 완료" if os.path.exists(os.path.join(app, "sessions", "user.session"))
+      else "➖ 아직 로그인 전 → tgw login")
+EOF
+    running && echo "🟢 실행 중" || echo "⚪ 멈춤"
+    ;;
   login)
     if running; then echo "실행 중이라 먼저 멈춥니다."; stop_all; sleep 1; fi
     echo "첫 로그인: 텔레그램 앱으로 온 코드를 입력하세요."
@@ -98,6 +142,7 @@ case "${1:-}" in
     cat <<'EOF'
 사용법: tgw <명령>
   setup    API 키·봇 토큰 입력
+  check    입력값·설치 상태 점검 (비밀값은 가려서 표시)
   login    첫 로그인 (코드 입력)
   start    백그라운드 실행        stop     멈춤
   restart  다시 시작             status   상태 확인
