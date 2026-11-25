@@ -1,0 +1,167 @@
+:root {
+  color-scheme: dark;
+  --night: #0b1120;
+  --on-night: #f3eee3;
+  --on-night-dim: rgba(243, 238, 227, 0.62);
+  --paper: #f7f3ea;
+  --paper-2: #ece6d8;
+  --ink: #161c2a;
+  --ink-2: #4b5263;
+  --ink-3: #7a8091;
+  --rule: #ddd5c4;
+  --accent: #3a4cc9;
+  --accent-soft: rgba(126, 146, 255, 0.32);
+  --serif: "Fraunces", Georgia, "Times New Roman", serif;
+  --sans: "IBM Plex Sans KR", -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--night);
+  color: var(--on-night);
+  font-family: var(--sans);
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 2px solid #9fb0ff; outline-offset: 3px; border-radius: 8px; }
+
+#wall { position: fixed; inset: 0; display: block; }
+
+/* ── 상단 막대: 배경화면 느낌을 해치지 않게 흐리게 ───────────── */
+.bar {
+  position: fixed; left: 0; right: 0; top: 0; z-index: 2;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: calc(var(--safe-t) + 10px) 12px 0;
+  color: var(--on-night-dim);
+}
+.day { display: flex; align-items: center; gap: 2px; min-width: 0; }
+.bar h1 { margin: 0 4px; font-size: 15px; font-weight: 500; letter-spacing: 0.01em; white-space: nowrap; }
+.icon {
+  display: inline-grid; place-items: center;
+  width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%;
+  background: transparent; color: inherit;
+  transition: background-color .15s, color .15s;
+}
+.icon:hover { background: rgba(255, 255, 255, 0.08); color: var(--on-night); }
+.icon:disabled { opacity: .3; cursor: default; background: transparent; }
+.chip {
+  margin-left: 6px; padding: 6px 12px; border-radius: 999px;
+  border: 1px solid rgba(243, 238, 227, 0.28); background: transparent;
+  font-size: 13px; color: var(--on-night);
+}
+
+/* ── 단어 위 투명 버튼 (캔버스 글자와 정확히 겹침) ───────────── */
+#hits { position: fixed; inset: 0; z-index: 1; }
+.hit {
+  position: absolute; padding: 0; border: 0; border-radius: 14px;
+  background: transparent; color: transparent; font-size: 0;
+  transition: background-color .15s;
+}
+.hit:hover { background: rgba(255, 255, 255, 0.05); }
+.hit:active { background: rgba(255, 255, 255, 0.09); }
+
+.hint {
+  position: fixed; left: 0; right: 0; bottom: calc(var(--safe-b) + 28px); z-index: 1;
+  margin: 0; text-align: center; font-size: 14px; color: var(--on-night-dim);
+  pointer-events: none; animation: hint 2.4s ease-in-out infinite;
+}
+@keyframes hint { 50% { opacity: .45; } }
+
+/* ── 아래에서 올라오는 시트 ───────────────────────────────── */
+.sheet {
+  width: min(560px, 100%); max-width: 100%; max-height: min(88dvh, 760px);
+  margin: auto auto 0; padding: 14px 20px calc(var(--safe-b) + 18px);
+  border: 0; border-radius: 22px 22px 0 0;
+  background: var(--paper); color: var(--ink);
+  overflow-y: auto; overscroll-behavior: contain;
+  box-shadow: 0 -20px 60px rgba(0, 0, 0, 0.35);
+}
+.sheet[open] { animation: up .28s cubic-bezier(.2, .8, .2, 1); }
+.sheet::backdrop { background: rgba(3, 5, 10, 0.5); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); }
+@keyframes up { from { transform: translateY(40px); opacity: 0; } }
+@media (min-width: 600px) { .sheet { margin: auto; border-radius: 22px; padding-bottom: 20px; } }
+@media (prefers-reduced-motion: reduce) { .sheet[open], .hint { animation: none; } }
+
+.sheet-top { display: flex; align-items: center; justify-content: space-between; min-height: 44px; }
+.icon.dark { color: var(--ink-2); margin-right: -10px; }
+.icon.dark:hover { background: var(--paper-2); color: var(--ink); }
+.count { font-size: 13px; font-weight: 500; color: var(--ink-3); font-variant-numeric: tabular-nums; letter-spacing: .04em; }
+.title { margin: 0; font-size: 19px; font-weight: 600; }
+
+.word-head { display: flex; align-items: center; gap: 10px; margin-top: 6px; }
+.word-head h2 {
+  margin: 0; min-width: 0; overflow-wrap: anywhere;
+  font-family: var(--serif); font-weight: 600; font-size: clamp(36px, 10vw, 48px); line-height: 1.05; letter-spacing: -0.01em;
+}
+.say {
+  display: inline-grid; place-items: center; flex: none;
+  width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--rule);
+  background: #fff; color: var(--accent);
+}
+.say:hover { border-color: var(--accent); }
+.say.small { width: 36px; height: 36px; }
+.say.small svg { width: 18px; height: 18px; }
+.say[hidden] { display: none; }
+
+.pos {
+  display: inline-block; margin: 12px 0 0; padding: 3px 10px; border-radius: 999px;
+  background: var(--paper-2); color: var(--ink-2); font-size: 13px; font-weight: 500;
+}
+.ko { margin: 10px 0 0; font-size: 23px; font-weight: 600; line-height: 1.4; word-break: keep-all; }
+
+.ex { margin: 22px 0 0; padding: 16px 16px 14px; border-radius: 14px; background: #fff; border: 1px solid var(--rule); }
+.ex-row { display: flex; align-items: flex-start; gap: 10px; }
+.ex blockquote { flex: 1; margin: 0; font-family: var(--serif); font-size: 20px; line-height: 1.45; }
+.ex mark { background: linear-gradient(transparent 58%, var(--accent-soft) 58%); color: inherit; font-weight: 600; padding: 0 1px; }
+.ex figcaption { margin-top: 10px; color: var(--ink-2); font-size: 15px; line-height: 1.6; word-break: keep-all; }
+
+.step { display: flex; justify-content: space-between; gap: 10px; margin-top: 18px; }
+.step button {
+  display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 14px;
+  border: 0; border-radius: 12px; background: var(--paper-2); color: var(--ink);
+  font-size: 15px; font-family: var(--serif);
+}
+.step button:hover { background: var(--rule); }
+.step button:disabled { visibility: hidden; }
+.step svg { width: 18px; height: 18px; }
+
+/* ── 설정 ─────────────────────────────────────────────── */
+.seg { margin: 10px 0 0; padding: 0; border: 0; }
+.seg legend, .block h3 { padding: 0; margin: 0 0 10px; font-size: 15px; font-weight: 600; }
+.seg-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.seg-row label { position: relative; }
+.seg-row input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.seg-row span {
+  display: grid; place-items: center; height: 46px; border-radius: 12px;
+  background: var(--paper-2); font-family: var(--serif); font-size: 19px; font-weight: 600; color: var(--ink-2);
+}
+.seg-row input:checked + span { background: var(--ink); color: var(--paper); }
+.seg-row input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.block { margin-top: 26px; padding-top: 20px; border-top: 1px solid var(--rule); }
+.muted { margin: 0 0 12px; color: var(--ink-2); font-size: 14px; line-height: 1.6; word-break: keep-all; }
+.primary {
+  width: 100%; min-height: 48px; border: 0; border-radius: 12px;
+  background: var(--ink); color: var(--paper); font-size: 16px; font-weight: 600;
+}
+.primary:disabled { opacity: .6; }
+.status { margin: 8px 0 0; min-height: 1em; font-size: 13px; color: var(--ink-2); line-height: 1.5; word-break: keep-all; }
+.status:empty { display: none; }
+.url-row { display: flex; gap: 6px; }
+.url-row input {
+  flex: 1; min-width: 0; height: 44px; padding: 0 12px; border-radius: 10px;
+  border: 1px solid var(--rule); background: #fff; color: var(--ink);
+  font: 13px ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.url-row button { flex: none; min-width: 64px; border: 0; border-radius: 10px; background: var(--paper-2); color: var(--ink); font-weight: 600; }
+details { margin-top: 12px; border-radius: 12px; background: #fff; border: 1px solid var(--rule); }
+summary { padding: 13px 14px; font-size: 15px; font-weight: 500; cursor: pointer; }
+details ol { margin: 0; padding: 0 16px 14px 34px; font-size: 14px; line-height: 1.7; color: var(--ink-2); word-break: keep-all; }
+details li + li { margin-top: 4px; }
+details b { color: var(--ink); font-weight: 600; }

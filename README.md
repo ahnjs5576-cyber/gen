@@ -1,5 +1,7 @@
 # 하루 CS
 
+> 같은 저장소에 **오늘의 영단어**(매일 바뀌는 영단어 배경화면)도 있습니다 → [`words/README.md`](words/README.md)
+
 알고리즘 · 운영체제 · 데이터베이스시스템 · 컴퓨터구조 · 머신러닝 · 딥러닝을
 **매일 5분씩, 핵심만 쉽게** 배우는 웹 앱입니다.
 
@@ -28,7 +30,8 @@ python3 -m http.server 8000   # 그다음 http://localhost:8000 열기
 
 ### 휴대폰에서 매일 쓰기
 
-GitHub 저장소의 **Settings → Pages**에서 이 브랜치의 루트(`/`)를 배포하면 `https://<아이디>.github.io/<저장소>/` 주소가 생깁니다.
+GitHub 저장소의 **Settings → Pages → Source**를 **GitHub Actions**로 두면 기본 브랜치에 push 할 때마다
+`.github/workflows/pages.yml`이 사이트를 배포해 `https://<아이디>.github.io/<저장소>/` 주소가 생깁니다.
 휴대폰 브라우저에서 열고 "홈 화면에 추가"를 하면 앱처럼 쓸 수 있고, 한 번 연 뒤에는 오프라인에서도 동작합니다.
 
 ## 구조

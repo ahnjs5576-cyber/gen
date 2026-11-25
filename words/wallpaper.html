@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wallpaper preview</title>
+<meta name="robots" content="noindex">
+<!-- 배경화면 이미지 생성용 페이지. 미리보기: wallpaper.html?n=3&date=2026-11-25&w=1290&h=2796 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;1,9..144,400&display=swap">
+<style>
+  html, body { margin: 0; height: 100%; background: #06080f; }
+  img { display: block; height: 100vh; max-width: 100vw; object-fit: contain; margin: 0 auto; }
+</style>
+</head>
+<body>
+<img id="out" alt="">
+<script src="words.js"></script>
+<script src="core.js"></script>
+<script>
+  const C = window.WordCore;
+  window.wallReady = C.fontsReady(10000);
+  window.renderDataURL = async (date, n, W, H, quality) => {
+    const blob = await C.renderBlob(date, n, W, H, 'image/jpeg', quality);
+    return new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(blob); });
+  };
+  const p = new URLSearchParams(location.search);
+  if (!p.has('nopreview')) wallReady.then(async () => {
+    const date = C.isDate(p.get('date')) ? p.get('date') : C.today();
+    const n = Math.max(1, Math.min(5, +p.get('n') || 3));
+    const img = document.getElementById('out');
+    img.src = URL.createObjectURL(await C.renderBlob(date, n, +p.get('w') || 1290, +p.get('h') || 2796));
+    img.alt = C.wordsFor(date, n).map(w => w.w).join(', ');
+  });
+</script>
+</body>
+</html>

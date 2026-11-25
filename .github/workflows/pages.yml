@@ -1,0 +1,57 @@
+# GitHub Pages 배포 + 오늘의 영단어 배경화면 이미지 생성
+# - 기본 브랜치에 push 하거나, 매일 0시 5분(한국 시간)에 실행된다.
+# - 다른 브랜치에 push 하면 검사와 이미지 생성까지만 하고 배포는 하지 않는다.
+# 처음 한 번: 저장소 Settings → Pages → Source를 "GitHub Actions"로 바꿔 둘 것.
+name: Pages
+
+on:
+  push:
+  schedule:
+    - cron: '5 15 * * *'   # UTC 15:05 = 한국 시간 00:05
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Playwright
+        run: |
+          npm install --no-save --no-package-lock playwright@1.49.1
+          npx playwright install --with-deps chromium
+      - name: Check content
+        run: |
+          node scripts/validate.mjs
+          node scripts/words-validate.mjs
+      - name: Build site
+        run: |
+          mkdir _site
+          git archive --format=tar HEAD | tar -x -C _site
+          rm -rf _site/.github _site/.gitignore
+          node scripts/words-wallpapers.mjs --out _site/words/wall --days 30
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    if: github.event_name == 'schedule' || github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
