@@ -12,6 +12,9 @@ keys_file = "keys.json"
 # (선택) sqlcipher3-binary 설치가 안 될 때 sqlcipher.exe 경로로 폴백.
 sqlcipher_exe = ""
 
+# 키 추출(--extract-keys) 시 메모리를 스캔할 프로세스 이름.
+process_name = "KakaoTalk.exe"
+
 [kakao.cipher]
 # SQLCipher4 파라미터. 카카오 버전에 따라 다르면 조정하세요.
 page_size = 4096

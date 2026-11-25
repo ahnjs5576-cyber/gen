@@ -34,6 +34,7 @@ class Config:
     user_dir: str = ""
     keys_file: str = "keys.json"
     sqlcipher_exe: str = ""
+    process_name: str = "KakaoTalk.exe"
     cipher: CipherConfig = field(default_factory=CipherConfig)
     # filter
     command_prefix: str = "!"
@@ -89,6 +90,7 @@ def load_config(path: str | os.PathLike) -> Config:
         user_dir=str(kakao.get("user_dir", "")),
         keys_file=str(kakao.get("keys_file", "keys.json")),
         sqlcipher_exe=str(kakao.get("sqlcipher_exe", "")),
+        process_name=str(kakao.get("process_name", "KakaoTalk.exe")),
         cipher=CipherConfig(
             page_size=int(cipher_raw.get("page_size", 4096)),
             kdf_iter=int(cipher_raw.get("kdf_iter", 256000)),

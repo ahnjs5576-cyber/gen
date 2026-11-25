@@ -80,6 +80,20 @@ def edb_path(user_dir: Path, chat_id: str) -> Path:
     return user_dir / "chat_data" / f"chatLogs_{chat_id}.edb"
 
 
+def list_room_chat_ids(user_dir: Path) -> list[str]:
+    """chat_data 안의 chatLogs_<chatId>.edb 들에서 chatId 목록을 뽑는다."""
+    chat_dir = user_dir / "chat_data"
+    if not chat_dir.exists():
+        return []
+    ids: list[str] = []
+    for p in chat_dir.glob("chatLogs_*.edb"):
+        name = p.stem  # chatLogs_<id>
+        cid = name[len("chatLogs_") :]
+        if cid:
+            ids.append(cid)
+    return ids
+
+
 # ---------------------------------------------------------------------------
 # 읽기용 임시 복사
 # ---------------------------------------------------------------------------
@@ -184,7 +198,8 @@ class RoomReader:
         self._tmpdir = tmpdir
         self._conn = conn
         self._cipher = cipher
-        self._conn.row_factory = sqlite3.Row
+        # 행은 전부 인덱스로 접근하므로 row_factory 를 쓰지 않는다.
+        # (sqlcipher3 커서는 sqlite3.Row 와 호환되지 않음)
 
     def inspect(self) -> dict[str, list[str]]:
         cur = self._conn.cursor()
@@ -242,6 +257,74 @@ class RoomReader:
 
     def __exit__(self, *exc) -> None:
         self.close()
+
+
+def _verify_sqlcipher(copy_path: Path, key_hex: str, cipher: CipherConfig) -> bool:
+    """키 후보로 복사본을 열어보고 성공 여부만 반환(연결은 항상 정리)."""
+    mod = _try_import_sqlcipher()
+    if mod is None:
+        return False
+    conn = None
+    try:
+        conn = mod.connect(str(copy_path))
+        cur = conn.cursor()
+        _apply_pragmas(cur, key_hex, cipher)
+        cur.execute("SELECT count(*) FROM sqlite_master")
+        cur.fetchone()
+        return True
+    except Exception:
+        return False
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
+def _verify_cli(copy_path: Path, key_hex: str, cipher: CipherConfig, exe: str, tmpdir: Path) -> bool:
+    try:
+        plain = _export_with_cli(copy_path, key_hex, cipher, exe, tmpdir)
+    except Exception:
+        return False
+    try:
+        conn = sqlite3.connect(str(plain))
+        conn.execute("SELECT count(*) FROM sqlite_master").fetchone()
+        conn.close()
+        return True
+    except Exception:
+        return False
+    finally:
+        try:
+            plain.unlink()
+        except Exception:
+            pass
+
+
+def find_key_for_edb(
+    user_dir: Path,
+    chat_id: str,
+    candidates: list[str],
+    cipher: CipherConfig,
+    sqlcipher_exe: str = "",
+) -> str | None:
+    """후보 키들을 한 방의 edb 에 시험 복호화해서 맞는 키(hex)를 찾는다.
+
+    edb 복사는 1회만 하고, 후보를 순회한다. 못 찾으면 None.
+    """
+    edb = edb_path(user_dir, chat_id)
+    if not edb.exists():
+        return None
+    copy_path, tmpdir = _copy_for_read(edb)
+    try:
+        for key in candidates:
+            if _verify_sqlcipher(copy_path, key, cipher):
+                return key
+            if sqlcipher_exe and _verify_cli(copy_path, key, cipher, sqlcipher_exe, tmpdir):
+                return key
+        return None
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
 
 
 def open_room(
