@@ -24,6 +24,7 @@ import kr.phonebutler.Prefs
 import kr.phonebutler.R
 import kr.phonebutler.access.PhoneAccessibilityService
 import kr.phonebutler.agent.AgentRuntime
+import kr.phonebutler.agent.ApiErrors
 import kr.phonebutler.agent.ClaudeAgent
 import kr.phonebutler.databinding.ActivityMainBinding
 
@@ -158,13 +159,13 @@ class MainActivity : AppCompatActivity() {
                 try {
                     val params = MessageCreateParams.builder()
                         .model(Prefs.model)
-                        .maxTokens(512L)
+                        .maxTokens(1024L)
                         .addUserMessage("한 단어로 대답: 연결됐나요?")
                         .build()
                     ClaudeAgent.client().messages().create(params)
                     "연결 성공! (${Prefs.model})"
                 } catch (e: Exception) {
-                    "연결 실패: ${e.javaClass.simpleName} ${e.message?.take(120)}"
+                    "연결 실패 — ${ApiErrors.friendly(e)}\n(${ApiErrors.rawMessage(e).take(300)})"
                 }
             }
             b.testKey.isEnabled = true

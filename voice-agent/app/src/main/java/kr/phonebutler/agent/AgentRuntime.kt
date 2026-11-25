@@ -109,8 +109,8 @@ object AgentRuntime {
                 throw e
             } catch (e: Exception) {
                 Log.e(TAG, "agent failed", e)
-                log("⚠ 오류: ${e.javaClass.simpleName}: ${e.message}")
-                errorMessage(e)
+                log("⚠ 오류: ${ApiErrors.rawMessage(e)}")
+                ApiErrors.friendly(e)
             }
             history.addLast(text to reply)
             while (history.size > 4) history.removeFirst()
@@ -161,16 +161,6 @@ object AgentRuntime {
     }
 
     fun isWaitingForAnswer() = pendingAnswer?.isActive == true
-
-    private fun errorMessage(e: Exception): String {
-        val name = e.javaClass.simpleName
-        return when {
-            name.contains("Unauthorized") || name.contains("Permission") -> "API 키가 올바르지 않은 것 같아요. 앱에서 키를 확인해 주세요."
-            name.contains("RateLimit") -> "요청이 너무 많아 잠시 막혔어요. 조금 뒤에 다시 시도해 주세요."
-            name.contains("IO") || name.contains("Timeout") || name.contains("Connect") -> "인터넷 연결이 불안정해서 처리하지 못했어요."
-            else -> "처리하다가 문제가 생겼어요. 다시 한 번 말해 주세요."
-        }
-    }
 
     private fun buzz() {
         try {

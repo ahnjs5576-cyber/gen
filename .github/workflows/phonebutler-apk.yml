@@ -28,6 +28,14 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      # 서명 키 Secret이 없을 때도 매번 같은 키로 서명되도록 debug 키를 캐시에 보관
+      - name: 서명용 debug 키 캐시
+        if: env.HAS_KEY != 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: phonebutler-debug-keystore-v1
+
       # (선택) 저장소 Secrets에 서명 키를 넣어 두면 매번 같은 키로 서명돼서 '업데이트 설치'가 된다.
       - name: 서명 키 준비
         if: env.HAS_KEY == 'true'
@@ -64,4 +72,4 @@ jobs:
           body: |
             휴대폰에서 아래 `phonebutler.apk`를 눌러 내려받아 설치하세요.
             빌드: ${{ github.sha }} (${{ github.ref_name }})
-            ${{ env.HAS_KEY == 'true' && '고정 서명 키로 서명됨 — 기존 앱 위에 업데이트 설치됩니다.' || '임시 키로 서명됨 — 이전 버전이 있으면 지우고 설치하세요. (voice-agent/README.md의 서명 키 설정 참고)' }}
+            ${{ env.HAS_KEY == 'true' && '고정 서명 키로 서명됨 — 기존 앱 위에 업데이트 설치됩니다.' || '캐시된 debug 키로 서명됨 — 보통은 업데이트 설치가 되지만, "앱이 설치되지 않음"이 뜨면 이전 버전을 지우고 설치하세요.' }}

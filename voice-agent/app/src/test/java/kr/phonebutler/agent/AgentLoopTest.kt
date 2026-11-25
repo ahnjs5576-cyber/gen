@@ -129,6 +129,16 @@ class AgentLoopTest {
         listOf("아니", "아니 보내지 마", "취소", "잠깐만", "보내지마", "", null, "음 글쎄").forEach { assertFalse("$it", Confirm.isYes(it)) }
     }
 
+    @Test fun creditError_isExplainedInKorean() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(400).setHeader("Content-Type", "application/json").setBody(
+            """{"type":"error","error":{"type":"invalid_request_error","message":"Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits."}}"""))
+        val loop = AgentLoop(client(), "claude-opus-5-5", "low", ToolDefs.ALL, execute = { _, _ -> ToolOutput("x") })
+        val e = try { loop.run("hi"); null } catch (t: Throwable) { t }
+        requireNotNull(e)
+        assertTrue(ApiErrors.rawMessage(e), ApiErrors.rawMessage(e).startsWith("400: Your credit balance"))
+        assertTrue(ApiErrors.friendly(e).contains("크레딧"))
+    }
+
     private fun json(s: String) = MockResponse().setResponseCode(200)
         .setHeader("Content-Type", "application/json").setBody(s.trimIndent())
 }
