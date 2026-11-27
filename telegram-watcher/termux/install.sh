@@ -39,7 +39,7 @@ say "4/6 Python 가상환경 + 텔레그램 라이브러리 설치"
 cd "$APP"
 [ -d .venv ] || python -m venv .venv
 .venv/bin/pip install --upgrade pip
-.venv/bin/pip install "telethon>=1.36" "python-dotenv>=1.0"
+.venv/bin/pip install "telethon>=1.36" "python-dotenv>=1.0" "olefile>=0.46" "pypdf>=4.0"
 
 say "5/6 Claude 자연어 기능 (선택)"
 echo "자연어 지시(\"회사방 요약해줘\")를 쓰려면 anthropic 라이브러리가 필요합니다."

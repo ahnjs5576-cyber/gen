@@ -36,6 +36,8 @@ HELP = """\
 /unread 대화방 — 그 방의 안 읽은 메시지 (읽음 처리 X)
 /recent 대화방 [개수] — 최근 메시지
 /search 검색어 — 전체 대화방 검색
+/file 대화방 번호 — 첨부파일(한글·워드·엑셀·PDF 등) 글자 보기
+   (번호는 메시지 뒤의 ⟨#번호⟩)
 /watch 대화방 · /unwatch 대화방 · /watchlist — 실시간 알림 방
 /kw 단어 · /unkw 단어 · /kwlist — 알림 키워드
 /yes · /no — 준비된 메시지 전송/취소
@@ -44,6 +46,8 @@ HELP = """\
 그 밖의 문장은 Claude가 알아서 처리해요.
 예) "회사 단톡방 오늘 안 읽은 거 요약해줘"
     "엄마한테 온 메시지 있어?"
+    "회사방에 올라온 한글 파일 내용 정리해줘"
+    "가족방 마지막 사진 뭐야?"
 """
 
 TG_LIMIT = 4000
@@ -169,6 +173,15 @@ class Service:
             if not arg:
                 return "사용법: /search 검색어"
             return render_rows(await r.search(arg), with_chat=True)
+
+        if cmd == "/file":
+            import attachments
+            m = re.match(r"^(.*?)\s+#?(\d+)$", arg)
+            if not m:
+                return "사용법: /file 대화방 번호   (예: /file 회사 1234)"
+            d = await r.resolve(m.group(1))
+            att, header = await r.attachment(d, int(m.group(2)))
+            return f"{header}\n" + attachments.to_plain_text(att)
 
         if cmd == "/watch":
             d = await r.resolve(arg)

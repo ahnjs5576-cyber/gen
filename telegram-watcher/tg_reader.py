@@ -149,11 +149,14 @@ class TelegramReader:
         sender = utils.get_display_name(msg.sender) if msg.sender else ""
         if msg.out:
             sender = "나"
+        text = message_text(msg)
+        if msg.media:  # 첨부가 있으면 번호를 붙여 read_attachment / /file 로 열 수 있게
+            text = f"{text} ⟨#{msg.id}⟩"
         return {
             "id": msg.id,
             "time": fmt_time(msg.date),
             "from": sender or "(알 수 없음)",
-            "text": message_text(msg),
+            "text": text,
         }
 
     async def unread(self, dialog: Dialog, limit: int = 100) -> list[dict]:
@@ -187,6 +190,18 @@ class TelegramReader:
                 row["chat"] = utils.get_display_name(chat) if chat else ""
             out.append(row)
         return out
+
+    async def attachment(self, dialog: Dialog, msg_id: int):
+        """메시지의 첨부를 내려받는다. 읽음 처리는 하지 않는다."""
+        import attachments
+        msg = await self.client.get_messages(dialog.entity, ids=int(msg_id))
+        if not msg:
+            raise ValueError(f"[{dialog.name}]에서 #{msg_id} 메시지를 찾지 못했어요.")
+        row = self._row(msg)
+        header = f"[{dialog.name}] {row['time']} {row['from']} (#{msg.id})"
+        if msg.message:
+            header += f"\n본문: {msg.message[:500]}"
+        return await attachments.fetch(self.client, msg), header
 
     # ── 전송 (유일한 쓰기 동작) ───────────────────────
     async def send_text(self, dialog: Dialog, text: str) -> None:

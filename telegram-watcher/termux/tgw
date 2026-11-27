@@ -177,7 +177,7 @@ EOF
     tail -n 50 -f "$APP/data/service.log" "$APP/data/crash.log" 2>/dev/null
     ;;
   update)
-    git -C "$APP/.." pull --ff-only && "$PY" -m pip install -q "telethon>=1.36" "python-dotenv>=1.0"
+    git -C "$APP/.." pull --ff-only && "$PY" -m pip install -q "telethon>=1.36" "python-dotenv>=1.0" "olefile>=0.46" "pypdf>=4.0"
     running && { stop_all; sleep 1; "$0" start; }
     ;;
   claude)
